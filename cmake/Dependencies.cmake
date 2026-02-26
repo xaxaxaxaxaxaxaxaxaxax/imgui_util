@@ -1,16 +1,8 @@
 include(FetchContent)
 
-# Wrap FetchContent_Populate calls to suppress CMP0169 deprecation warning.
-# We use Populate (not MakeAvailable) because these deps lack usable CMakeLists.txt.
-macro(fetch_populate name)
-    cmake_policy(SET CMP0169 OLD)
-    FetchContent_Populate(${name})
-    cmake_policy(SET CMP0169 NEW)
-endmacro()
-
-# Use FetchContent_Populate (not MakeAvailable) for all three because none
-# ship a usable CMakeLists.txt — we create the targets ourselves.  The _src
-# suffix on FetchContent names avoids clashing with the target names.
+# Dependencies that lack a usable CMakeLists.txt use SOURCE_SUBDIR pointing to
+# a non-existent directory so that FetchContent_MakeAvailable downloads the
+# source without calling add_subdirectory.  We then create the targets manually.
 
 # =============================================================================
 # imgui
@@ -22,8 +14,9 @@ if(NOT TARGET imgui)
         GIT_REPOSITORY https://github.com/ocornut/imgui.git
         GIT_TAG        v1.91.8-docking
         GIT_SHALLOW    TRUE
+        SOURCE_SUBDIR  _unused
     )
-    fetch_populate(imgui_src)
+    FetchContent_MakeAvailable(imgui_src)
 
     add_library(imgui STATIC
         ${imgui_src_SOURCE_DIR}/imgui.cpp
@@ -35,6 +28,7 @@ if(NOT TARGET imgui)
     target_include_directories(imgui PUBLIC ${imgui_src_SOURCE_DIR})
     target_compile_definitions(imgui PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
     target_compile_options(imgui PRIVATE -w)
+    set_target_properties(imgui PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 endif()
 
 # =============================================================================
@@ -47,8 +41,9 @@ if(NOT TARGET imnodes)
         GIT_REPOSITORY https://github.com/Nelarius/imnodes.git
         GIT_TAG        b2ec254
         GIT_SUBMODULES ""
+        SOURCE_SUBDIR  _unused
     )
-    fetch_populate(imnodes_src)
+    FetchContent_MakeAvailable(imnodes_src)
 
     add_library(imnodes STATIC
         ${imnodes_src_SOURCE_DIR}/imnodes.cpp
@@ -56,6 +51,7 @@ if(NOT TARGET imnodes)
     target_include_directories(imnodes PUBLIC ${imnodes_src_SOURCE_DIR})
     target_link_libraries(imnodes PUBLIC imgui)
     target_compile_options(imnodes PRIVATE -w)
+    set_target_properties(imnodes PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 endif()
 
 # =============================================================================
@@ -68,8 +64,9 @@ if(NOT TARGET implot)
         GIT_REPOSITORY https://github.com/epezent/implot.git
         GIT_TAG        v0.16
         GIT_SHALLOW    TRUE
+        SOURCE_SUBDIR  _unused
     )
-    fetch_populate(implot_src)
+    FetchContent_MakeAvailable(implot_src)
 
     add_library(implot STATIC
         ${implot_src_SOURCE_DIR}/implot.cpp
@@ -78,6 +75,7 @@ if(NOT TARGET implot)
     target_include_directories(implot PUBLIC ${implot_src_SOURCE_DIR})
     target_link_libraries(implot PUBLIC imgui)
     target_compile_options(implot PRIVATE -w)
+    set_target_properties(implot PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 endif()
 
 # =============================================================================
@@ -89,8 +87,9 @@ if(NOT TARGET logh)
         logh_src
         GIT_REPOSITORY https://github.com/xaxaxaxaxaxaxaxaxaxax/log.h.git
         GIT_TAG        a620bdd4d1ccbf89977d2dec72f1175b7d6f96db
+        SOURCE_SUBDIR  _unused
     )
-    fetch_populate(logh_src)
+    FetchContent_MakeAvailable(logh_src)
 
     add_library(logh INTERFACE)
     target_include_directories(logh INTERFACE ${logh_src_SOURCE_DIR})
@@ -109,4 +108,10 @@ if(IMGUI_UTIL_BUILD_TESTS)
     )
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
+    # Suppress warnings from googletest sources (global -Wall leaks into fetched targets)
+    target_compile_options(gtest PRIVATE -w)
+    target_compile_options(gtest_main PRIVATE -w)
+    target_compile_options(gmock PRIVATE -w)
+    target_compile_options(gmock_main PRIVATE -w)
+    set_target_properties(gtest gtest_main gmock gmock_main PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 endif()

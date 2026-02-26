@@ -9,6 +9,7 @@ add_library(imgui_backend STATIC
 target_include_directories(imgui_backend PUBLIC ${imgui_src_SOURCE_DIR}/backends)
 target_link_libraries(imgui_backend PUBLIC imgui glfw OpenGL::GL)
 target_compile_options(imgui_backend PRIVATE -w)
+set_target_properties(imgui_backend PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
 add_executable(imgui_util_demo demo.cpp)
 target_link_libraries(imgui_util_demo PRIVATE imgui_util imgui_backend)
