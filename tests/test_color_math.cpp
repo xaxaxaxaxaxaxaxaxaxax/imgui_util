@@ -21,7 +21,7 @@ TEST(RgbColor, AggregateConstruction) {
 
 TEST(RgbColor, DataPointer) {
     constexpr rgb_color c{{{0.1f, 0.2f, 0.3f}}};
-    const float *p = c.data();
+    const float *const p = c.data();
     EXPECT_FLOAT_EQ(p[0], 0.1f);
     EXPECT_FLOAT_EQ(p[1], 0.2f);
     EXPECT_FLOAT_EQ(p[2], 0.3f);
@@ -29,7 +29,7 @@ TEST(RgbColor, DataPointer) {
 
 TEST(RgbColor, MutableDataPointer) {
     rgb_color c{{{0.0f, 0.0f, 0.0f}}};
-    float *p = c.data();
+    float *const p = c.data();
     p[1] = 0.5f;
     EXPECT_FLOAT_EQ(c[1], 0.5f);
 }

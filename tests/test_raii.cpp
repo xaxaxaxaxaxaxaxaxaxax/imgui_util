@@ -110,13 +110,13 @@ static_assert(!std::is_constructible_v<bool, style_var>, "style_var should not b
 TEST(StyleVars, EntryAcceptsFloat) {
     // Compile-time check: entry can be constructed with float
     [[maybe_unused]]
-    style_vars::entry e{ImGuiStyleVar_Alpha, 0.5f};
+    style_vars::entry const e{ImGuiStyleVar_Alpha, 0.5f};
 }
 
 TEST(StyleVars, EntryAcceptsImVec2) {
     // Compile-time check: entry can be constructed with ImVec2
     [[maybe_unused]]
-    style_vars::entry e{ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f)};
+    style_vars::entry const e{ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f)};
 }
 
 // --- Mock trait behavioral tests ---
@@ -159,7 +159,7 @@ namespace {
 TEST(RaiiMock, EndCalledOnceOnDestruction) {
     mock_counter::reset();
     {
-        raii_scope<mock_always_trait> scope;
+        raii_scope<mock_always_trait> const scope;
     }
     EXPECT_EQ(mock_counter::begin_count, 1);
     EXPECT_EQ(mock_counter::end_count, 1);
@@ -168,7 +168,7 @@ TEST(RaiiMock, EndCalledOnceOnDestruction) {
 TEST(RaiiMock, ConditionalEndCalledWhenTrue) {
     mock_counter::reset();
     {
-        raii_scope<mock_conditional_trait> scope(true);
+        raii_scope<mock_conditional_trait> const scope(true);
     }
     EXPECT_EQ(mock_counter::begin_count, 1);
     EXPECT_EQ(mock_counter::end_count, 1);
@@ -177,7 +177,7 @@ TEST(RaiiMock, ConditionalEndCalledWhenTrue) {
 TEST(RaiiMock, ConditionalEndNotCalledWhenFalse) {
     mock_counter::reset();
     {
-        raii_scope<mock_conditional_trait> scope(false);
+        raii_scope<mock_conditional_trait> const scope(false);
     }
     EXPECT_EQ(mock_counter::begin_count, 1);
     EXPECT_EQ(mock_counter::end_count, 0);
@@ -186,7 +186,7 @@ TEST(RaiiMock, ConditionalEndNotCalledWhenFalse) {
 TEST(RaiiMock, NoneEndAlwaysCalled) {
     mock_counter::reset();
     {
-        raii_scope<mock_none_trait> scope;
+        raii_scope<mock_none_trait> const scope;
     }
     EXPECT_EQ(mock_counter::begin_count, 1);
     EXPECT_EQ(mock_counter::end_count, 1);

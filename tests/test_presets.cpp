@@ -131,12 +131,6 @@ TEST(LayoutPresets, AutoSize) {
 
 // --- size_preset builder methods and conversions ---
 
-TEST(LayoutPresets, SizePresetFrom) {
-    constexpr auto sp = size_preset::from(ImVec2{300.0f, 200.0f});
-    EXPECT_FLOAT_EQ(sp.width, 300.0f);
-    EXPECT_FLOAT_EQ(sp.height, 200.0f);
-}
-
 TEST(LayoutPresets, SizePresetWithWidth) {
     constexpr auto sp = dialog_size.with_width(800.0f);
     EXPECT_FLOAT_EQ(sp.width, 800.0f);
@@ -155,10 +149,9 @@ TEST(LayoutPresets, SizePresetExplicitConversion) {
     EXPECT_FLOAT_EQ(v.y, 400.0f);
 }
 
-TEST(LayoutPresets, SizePresetFromRoundTrip) {
-    constexpr ImVec2     v  = editor_size.vec();
-    constexpr auto       sp = size_preset::from(v);
-    EXPECT_FLOAT_EQ(sp.width, editor_size.width);
-    EXPECT_FLOAT_EQ(sp.height, editor_size.height);
+TEST(LayoutPresets, SizePresetVecRoundTrip) {
+    constexpr ImVec2 v = editor_size.vec();
+    EXPECT_FLOAT_EQ(v.x, editor_size.width);
+    EXPECT_FLOAT_EQ(v.y, editor_size.height);
 }
 // NOLINTEND(hicpp-signed-bitwise)

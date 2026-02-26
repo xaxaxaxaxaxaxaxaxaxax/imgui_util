@@ -31,7 +31,7 @@ TEST(FmtBuf, TruncationToBufferSize) {
 
 TEST(FmtBuf, CStrIsNullTerminated) {
     const fmt_buf<64>  buf("{}", "test");
-    const char *s = buf.c_str();
+    const char *const s = buf.c_str();
     EXPECT_EQ(s[4], '\0');
 }
 
@@ -98,8 +98,8 @@ TEST(FmtBuf, BeginEndAccessors) {
 TEST(FmtBuf, BeginEndRangeIteration) {
     const fmt_buf<64> buf("{}", "xyz");
     std::string accumulated;
-    for (auto it = buf.begin(); it != buf.end(); ++it) {
-        accumulated += *it;
+    for (char const it : buf) {
+        accumulated += it;
     }
     EXPECT_EQ(accumulated, "xyz");
 }

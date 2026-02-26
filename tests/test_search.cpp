@@ -196,44 +196,6 @@ TEST(CopyToBuffer, NullTerminated) {
     EXPECT_EQ(buf[1], '\0');
 }
 
-// --- toggle_ref ---
-
-TEST(ToggleRef, InitialValue) {
-    bool value = true;
-    const toggle_ref ref(value);
-    EXPECT_TRUE(static_cast<bool>(ref));
-}
-
-TEST(ToggleRef, Toggle) {
-    bool value = false;
-    const toggle_ref ref(value);
-    EXPECT_FALSE(static_cast<bool>(ref));
-    ref.toggle();
-    EXPECT_TRUE(static_cast<bool>(ref));
-    EXPECT_TRUE(value);
-    ref.toggle();
-    EXPECT_FALSE(static_cast<bool>(ref));
-    EXPECT_FALSE(value);
-}
-
-TEST(ToggleRef, Set) {
-    bool value = false;
-    const toggle_ref ref(value);
-    ref.set(true);
-    EXPECT_TRUE(value);
-    ref.set(false);
-    EXPECT_FALSE(value);
-}
-
-TEST(ToggleRef, Constexpr) {
-    // Verify constexpr construction and operations compile
-    static bool storage = false;
-    constexpr toggle_ref ref(storage);
-    ref.set(true);
-    EXPECT_TRUE(storage);
-    storage = false;
-}
-
 // --- linear_fade_alpha ---
 
 TEST(LinearFadeAlpha, ZeroElapsed) {

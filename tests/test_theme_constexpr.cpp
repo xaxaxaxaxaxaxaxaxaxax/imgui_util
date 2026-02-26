@@ -84,11 +84,13 @@ namespace {
         .node_background_hovered  = {},
         .node_background_selected = {},
         .node_outline             = {},
-        .light_bg_dark            = rgb_color{{{0.85f, 0.85f, 0.88f}}},
-        .light_bg_mid             = rgb_color{{{0.92f, 0.92f, 0.94f}}},
-        .light_accent             = {},
-        .light_secondary          = {},
-        .light_text               = rgb_color{{{0.10f, 0.10f, 0.12f}}},
+        .light = theme_preset::light_overrides{
+            .bg_dark    = {{{0.85f, 0.85f, 0.88f}}},
+            .bg_mid     = {{{0.92f, 0.92f, 0.94f}}},
+            .accent     = {},
+            .secondary  = {},
+            .text       = rgb_color{{{0.10f, 0.10f, 0.12f}}},
+        },
     };
 
     // Build theme at compile time
@@ -135,8 +137,8 @@ TEST(FromPresetCore, DarkModeTextColor) {
 
 TEST(FromPresetCore, LightModeUsesOverrides) {
     // Light mode should use light_bg_mid override
-    EXPECT_TRUE(light_theme.preset_bg_mid == *test_preset.light_bg_mid);
-    EXPECT_TRUE(light_theme.preset_bg_dark == *test_preset.light_bg_dark);
+    EXPECT_TRUE(light_theme.preset_bg_mid == test_preset.light->bg_mid);
+    EXPECT_TRUE(light_theme.preset_bg_dark == test_preset.light->bg_dark);
 }
 
 TEST(FromPresetCore, LightModeTextColor) {

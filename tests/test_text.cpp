@@ -1,47 +1,47 @@
 #include <algorithm>
 #include <gtest/gtest.h>
-#include <imgui_util/widgets/controls.hpp>
+#include <imgui_util/theme/color_math.hpp>
 #include <imgui_util/widgets/text.hpp>
 
 using namespace imgui_util;
 
-// --- brighten ---
+// --- color::offset (formerly brighten) ---
 
-TEST(Brighten, BasicBrighten) {
+TEST(ColorOffset, BasicOffset) {
     constexpr ImVec4 base{0.2f, 0.3f, 0.4f, 0.8f};
-    constexpr ImVec4 result = brighten(base, 0.1f);
+    constexpr ImVec4 result = color::offset(base, 0.1f);
     EXPECT_NEAR(result.x, 0.3f, 1e-5f);
     EXPECT_NEAR(result.y, 0.4f, 1e-5f);
     EXPECT_NEAR(result.z, 0.5f, 1e-5f);
     EXPECT_FLOAT_EQ(result.w, 0.8f); // alpha unchanged
 }
 
-TEST(Brighten, ClampToOne) {
+TEST(ColorOffset, ClampToOne) {
     constexpr ImVec4 base{0.9f, 0.95f, 1.0f, 1.0f};
-    constexpr ImVec4 result = brighten(base, 0.2f);
+    constexpr ImVec4 result = color::offset(base, 0.2f);
     EXPECT_FLOAT_EQ(result.x, 1.0f);
     EXPECT_FLOAT_EQ(result.y, 1.0f);
     EXPECT_FLOAT_EQ(result.z, 1.0f);
 }
 
-TEST(Brighten, ZeroAmount) {
+TEST(ColorOffset, ZeroAmount) {
     constexpr ImVec4 base{0.5f, 0.6f, 0.7f, 1.0f};
-    constexpr ImVec4 result = brighten(base, 0.0f);
+    constexpr ImVec4 result = color::offset(base, 0.0f);
     EXPECT_FLOAT_EQ(result.x, 0.5f);
     EXPECT_FLOAT_EQ(result.y, 0.6f);
     EXPECT_FLOAT_EQ(result.z, 0.7f);
 }
 
-TEST(Brighten, AlphaPreserved) {
+TEST(ColorOffset, AlphaPreserved) {
     constexpr ImVec4 base{0.1f, 0.2f, 0.3f, 0.42f};
-    constexpr ImVec4 result = brighten(base, 0.5f);
+    constexpr ImVec4 result = color::offset(base, 0.5f);
     EXPECT_FLOAT_EQ(result.w, 0.42f);
 }
 
 // Constexpr verification
-static_assert(brighten({0.5f, 0.5f, 0.5f, 1.0f}, 0.1f).x == std::min(0.6f, 1.0f));
-static_assert(brighten({1.0f, 1.0f, 1.0f, 0.5f}, 0.1f).x == 1.0f);
-static_assert(brighten({0.0f, 0.0f, 0.0f, 0.7f}, 0.0f).w == 0.7f);
+static_assert(color::offset({0.5f, 0.5f, 0.5f, 1.0f}, 0.1f).x == std::min(0.6f, 1.0f));
+static_assert(color::offset({1.0f, 1.0f, 1.0f, 0.5f}, 0.1f).x == 1.0f);
+static_assert(color::offset({0.0f, 0.0f, 0.0f, 0.7f}, 0.0f).w == 0.7f);
 
 // --- linear_fade_alpha ---
 

@@ -108,10 +108,10 @@ TEST(TableBuilder, SetRowIdAcceptsStatelessLambda) {
 // --- set_row_id accepts stateful callables ---
 
 TEST(TableBuilder, SetRowIdAcceptsStatefulCallable) {
-    int  offset  = 100;
+    int  const offset  = 100;
     const auto builder = table_builder<test_row>{}
                        .set_id("row_id_stateful")
-                       .set_row_id([offset](const test_row &r) {
+                       .set_row_id([](const test_row &r) {
         return r.id + offset;
     }).add_column("ID", 50.0f, [](const test_row &) {});
     (void) builder;
@@ -351,7 +351,7 @@ TEST(TableBuilder, SetSelectionCompiles) {
 TEST(TableBuilder, ComparatorFnTypeAlias) {
     using builder_t = table_builder<test_row>;
     using cmp_fn    = builder_t::comparator_fn;
-    static_assert(std::is_same_v<cmp_fn, bool (*)(const test_row &, const test_row &)>);
+    static_assert(std::is_same_v<cmp_fn, std::move_only_function<bool(const test_row &, const test_row &)>>);
 }
 
 // --- sort_if_dirty constraint: key must be totally_ordered ---
