@@ -22,7 +22,7 @@ namespace imgui_util::search {
     [[nodiscard]]
     constexpr bool char_equal_ignore_case(const char a, const char b) noexcept {
         auto to_lower = [](const char c) -> char {
-            return (c >= 'A' && c <= 'Z') ? static_cast<char>(c + ('a' - 'A')) : c;
+            return c >= 'A' && c <= 'Z' ? static_cast<char>(c + ('a' - 'A')) : c;
         };
         return to_lower(a) == to_lower(b);
     }
@@ -43,14 +43,17 @@ namespace imgui_util::search {
     }
 
     // Reusable search bar state and rendering
-    template<size_t BufferSize = 128>
+    template<std::size_t BufferSize = 128>
     class search_bar {
+        static_assert(BufferSize > 1, "BufferSize must be > 1 to hold at least one character plus null terminator");
+
     public:
         // Render the search input. Returns true if query changed this frame.
         // @param hint   Placeholder text shown when empty.
         // @param width  Widget width (-1 = fill remaining).
         // @param id     ImGui ID string (default "##search"). Override to avoid ID collisions.
-        bool render(const char *hint = "Search...", const float width = -1.0f, const char *id = "##search") {
+        [[nodiscard]]
+        bool render(const char *hint = "Search...", const float width = -1.0f, const char *id = "##search") noexcept {
             if (focus_next_frame_) {
                 ImGui::SetKeyboardFocusHere();
                 focus_next_frame_ = false;
@@ -88,15 +91,24 @@ namespace imgui_util::search {
 
         // Check if an item matches the current query
         template<typename... StringViews>
+            requires(std::convertible_to<StringViews, std::string_view> && ...)
         [[nodiscard]]
-        bool matches(StringViews... fields) const {
+        bool matches(StringViews... fields) const noexcept {
             return matches_any(query(), fields...);
         }
 
         // Clear the search buffer
         constexpr void clear() noexcept {
-            buffer_.fill('\0');
-            len_ = 0;
+            buffer_[0] = '\0';
+            len_       = 0;
+        }
+
+        // Set the query programmatically
+        void set_query(const std::string_view q) noexcept {
+            const auto n = std::min(q.size(), BufferSize - 1);
+            std::ranges::copy_n(q.data(), static_cast<std::ptrdiff_t>(n), buffer_.data());
+            buffer_[n] = '\0';
+            len_       = n;
         }
 
         // Request focus on next render

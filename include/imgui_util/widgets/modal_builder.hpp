@@ -16,9 +16,10 @@
 
 #include <functional>
 #include <imgui.h>
+#include <optional>
 
 #include "imgui_util/core/raii.hpp"
-#include "imgui_util/widgets/controls.hpp"
+#include "imgui_util/theme/color_math.hpp"
 #include "imgui_util/widgets/text.hpp"
 
 namespace imgui_util {
@@ -28,45 +29,51 @@ namespace imgui_util {
     // CloseCurrentPopup internally based on *open.
     class modal_builder {
     public:
-        explicit modal_builder(const char *title) : title_(title) {}
+        explicit modal_builder(const char *title) noexcept : title_(title) {}
 
-        modal_builder &message(const char *text) {
+        [[nodiscard]]
+        modal_builder &message(const char *text) noexcept {
             message_ = text;
             return *this;
         }
 
-        modal_builder &body(std::function<void()> fn) {
+        [[nodiscard]]
+        modal_builder &body(std::move_only_function<void()> fn) noexcept {
             body_ = std::move(fn);
             return *this;
         }
 
-        modal_builder &size(float w, float h) {
+        [[nodiscard]]
+        modal_builder &size(const float w, const float h) noexcept {
             width_  = w;
             height_ = h;
             return *this;
         }
 
         template<std::invocable F>
-        modal_builder &ok_button(const char *label, F &&on_ok) {
+        [[nodiscard]]
+        modal_builder &ok_button(const char *label, F &&on_ok) noexcept {
             ok_label_ = label;
             on_ok_    = std::forward<F>(on_ok);
             return *this;
         }
 
         template<std::invocable F>
-        modal_builder &cancel_button(const char *label, F &&on_cancel) {
+        [[nodiscard]]
+        modal_builder &cancel_button(const char *label, F &&on_cancel) noexcept {
             cancel_label_ = label;
             on_cancel_    = std::forward<F>(on_cancel);
             show_cancel_  = true;
             return *this;
         }
 
-        modal_builder &danger(bool d = true) {
+        [[nodiscard]]
+        modal_builder &danger(const bool d = true) noexcept {
             danger_ = d;
             return *this;
         }
 
-        void render(bool *open) {
+        void render(bool *open) noexcept {
             if (open != nullptr && *open) {
                 ImGui::OpenPopup(title_);
             }
@@ -75,8 +82,8 @@ namespace imgui_util {
                 ImGui::SetNextWindowSize({width_, height_}, ImGuiCond_Appearing);
             }
 
-            const ImGuiWindowFlags win_flags = (width_ > 0.0f) ? ImGuiWindowFlags_None
-                                                                : ImGuiWindowFlags_AlwaysAutoResize;
+            const ImGuiWindowFlags win_flags =
+                width_ > 0.0f ? ImGuiWindowFlags_None : ImGuiWindowFlags_AlwaysAutoResize;
 
             if (const popup_modal modal{title_, open, win_flags}) {
                 if (message_ != nullptr) {
@@ -94,22 +101,17 @@ namespace imgui_util {
                     ImGui::Spacing();
                 }
 
-                // OK button
+                // OK button (with optional danger styling)
                 {
-                    const auto do_ok = [&] {
-                        if (ImGui::Button(ok_label_, {120, 0})) {
-                            if (on_ok_) on_ok_();
-                            if (open != nullptr) *open = false;
-                            ImGui::CloseCurrentPopup();
-                        }
-                    };
+                    std::optional<style_colors> danger_style;
                     if (danger_) {
-                        const style_color c1(ImGuiCol_Button, colors::error_dark);
-                        const style_color c2(ImGuiCol_ButtonHovered, colors::error);
-                        const style_color c3(ImGuiCol_ButtonActive, brighten(colors::error, 0.1f));
-                        do_ok();
-                    } else {
-                        do_ok();
+                        danger_style.emplace(std::initializer_list<style_color_entry>{
+                            {ImGuiCol_Button, colors::error_dark},
+                            {ImGuiCol_ButtonHovered, colors::error},
+                            {ImGuiCol_ButtonActive, color::offset(colors::error, 0.1f)}});
+                    }
+                    if (ImGui::Button(ok_label_, {120, 0})) {
+                        dismiss(open, on_ok_);
                     }
                 }
 
@@ -117,44 +119,44 @@ namespace imgui_util {
                 if (show_cancel_) {
                     ImGui::SameLine();
                     if (ImGui::Button(cancel_label_, {120, 0})) {
-                        if (on_cancel_) on_cancel_();
-                        if (open != nullptr) *open = false;
-                        ImGui::CloseCurrentPopup();
+                        dismiss(open, on_cancel_);
                     }
                 }
 
                 // Keyboard shortcuts
                 if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) {
-                    if (on_ok_) on_ok_();
-                    if (open != nullptr) *open = false;
-                    ImGui::CloseCurrentPopup();
+                    dismiss(open, on_ok_);
                 }
                 if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-                    if (on_cancel_) on_cancel_();
-                    if (open != nullptr) *open = false;
-                    ImGui::CloseCurrentPopup();
+                    dismiss(open, on_cancel_);
                 }
             }
         }
 
     private:
-        const char            *title_        = "";
-        const char            *message_      = nullptr;
-        const char            *ok_label_     = "OK";
-        const char            *cancel_label_ = "Cancel";
-        bool                   danger_       = false;
-        bool                   show_cancel_  = true;
-        float                  width_        = 0.0f;
-        float                  height_       = 0.0f;
-        std::function<void()>  on_ok_;
-        std::function<void()>  on_cancel_;
-        std::function<void()>  body_;
+        static void dismiss(bool *open, std::move_only_function<void()> &callback) noexcept {
+            if (callback) callback();
+            if (open != nullptr) *open = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        const char                     *title_        = "";
+        const char                     *message_      = nullptr;
+        const char                     *ok_label_     = "OK";
+        const char                     *cancel_label_ = "Cancel";
+        bool                            danger_       = false;
+        bool                            show_cancel_  = false;
+        float                           width_        = 0.0f;
+        float                           height_       = 0.0f;
+        std::move_only_function<void()> on_ok_;
+        std::move_only_function<void()> on_cancel_;
+        std::move_only_function<void()> body_;
     };
 
     // Convenience for simple yes/no confirmations.
     // Caller passes *open = true to show, callbacks fire on button press.
     template<std::invocable OnYes, std::invocable OnNo>
-    void confirm_dialog(const char *title, const char *message, bool *open, OnYes &&on_yes, OnNo &&on_no) {
+    void confirm_dialog(const char *title, const char *message, bool *open, OnYes &&on_yes, OnNo &&on_no) noexcept {
         modal_builder(title)
             .message(message)
             .ok_button("OK", std::forward<OnYes>(on_yes))
