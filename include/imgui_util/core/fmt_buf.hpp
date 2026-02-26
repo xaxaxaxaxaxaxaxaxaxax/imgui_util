@@ -21,42 +21,18 @@ namespace imgui_util {
     template<size_t N = 64>
         requires(N >= 2)
     struct fmt_buf {
-        std::array<char, N> buf{};                // fixed storage, null-terminated
-        char               *end_ptr = buf.data(); // points past the last written char
+        std::array<char, N> buf{};     // fixed storage, null-terminated
+        uint16_t            len = 0; // number of chars written (excludes null terminator)
 
         constexpr fmt_buf() noexcept { buf[0] = '\0'; } // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
 
-        // Format directly into the buffer via std::format_to_n (no heap alloc)
+        // Format directly into the buffer via std::format_to_n (no heap alloc).
+        // NOTE: std::format_to_n is constexpr in C++26 (P2510R3) but not in C++23.
         template<typename... Args>
         constexpr explicit fmt_buf(std::format_string<Args...> fmt, Args &&...args) {
             auto result = std::format_to_n(buf.data(), N - 1, fmt, std::forward<Args>(args)...);
-            end_ptr     = result.out;
-            *end_ptr    = '\0';
-        }
-
-        // Copy/move must fixup end_ptr since it's an interior pointer
-        constexpr fmt_buf(const fmt_buf &o) noexcept : buf(o.buf), end_ptr(buf.data() + (o.end_ptr - o.buf.data())) {}
-        constexpr fmt_buf &operator=(const fmt_buf &o) noexcept {
-            if (this != &o) {
-                buf     = o.buf;
-                end_ptr = buf.data() + (o.end_ptr - o.buf.data());
-            }
-            return *this;
-        }
-        constexpr fmt_buf(fmt_buf &&o) noexcept {
-            const auto sz = o.size();
-            buf           = std::move(o.buf);
-            end_ptr       = buf.data() + sz;
-            o.end_ptr     = o.buf.data();
-        }
-        constexpr fmt_buf &operator=(fmt_buf &&o) noexcept {
-            if (this != &o) {
-                const auto sz = o.size();
-                buf           = std::move(o.buf);
-                end_ptr       = buf.data() + sz;
-                o.end_ptr     = o.buf.data();
-            }
-            return *this;
+            len       = static_cast<uint16_t>(result.out - buf.data());
+            buf[len]  = '\0'; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
         }
 
         // Accessors -- pass c_str() to ImGui text functions
@@ -74,36 +50,36 @@ namespace imgui_util {
         }
         [[nodiscard]]
         constexpr const char *end() const noexcept {
-            return end_ptr;
+            return buf.data() + len;
         }
         [[nodiscard]]
         constexpr std::string_view sv() const noexcept {
-            return {buf.data(), end_ptr};
+            return {buf.data(), len};
         }
         [[nodiscard]]
         constexpr size_t size() const noexcept {
-            return static_cast<size_t>(end_ptr - buf.data());
+            return len;
         }
         [[nodiscard]]
         constexpr bool empty() const noexcept {
-            return end_ptr == buf.data();
+            return len == 0;
         }
-        explicit constexpr operator std::string_view() const noexcept { return {buf.data(), end_ptr}; }
+        explicit constexpr operator std::string_view() const noexcept { return {buf.data(), len}; }
 
         // Reset to empty, ready for incremental append()
         constexpr void reset() noexcept {
-            end_ptr  = buf.data();
-            *end_ptr = '\0';
+            len  = 0;
+            buf[0] = '\0'; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
         }
 
         // Append formatted text to the buffer (truncates on overflow)
         template<typename... Args>
         constexpr void append(std::format_string<Args...> fmt, Args &&...args) {
-            const auto remaining = static_cast<std::ptrdiff_t>((buf.data() + N - 1) - end_ptr);
+            const auto remaining = static_cast<std::ptrdiff_t>((N - 1) - len);
             if (remaining <= 0) return;
-            auto result = std::format_to_n(end_ptr, remaining, fmt, std::forward<Args>(args)...);
-            end_ptr     = result.out;
-            *end_ptr    = '\0';
+            auto result = std::format_to_n(buf.data() + len, remaining, fmt, std::forward<Args>(args)...);
+            len       = static_cast<uint16_t>(result.out - buf.data());
+            buf[len]  = '\0'; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
         }
 
         // Heap-allocating conversion for when you actually need a std::string

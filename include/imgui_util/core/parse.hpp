@@ -22,12 +22,17 @@
 
 namespace imgui_util::parse {
 
+    // Arithmetic types that we can parse (excludes bool and all char-like types)
+    template<typename T>
+    concept parseable_arithmetic = std::is_arithmetic_v<T> && !std::is_same_v<T, bool> && !std::is_same_v<T, char> &&
+                                   !std::is_same_v<T, wchar_t> && !std::is_same_v<T, char8_t> &&
+                                   !std::is_same_v<T, char16_t> && !std::is_same_v<T, char32_t>;
+
     // Parse any arithmetic type (except bool/char) from a string_view.
     // Returns default_val if parsing fails. Uses std::from_chars internally.
     // NOTE: constexpr for integral types. Float/double from_chars is not constexpr
     // in C++20/23, so those instantiations evaluate at runtime only.
-    template<typename T>
-        requires(std::is_arithmetic_v<T> && !std::is_same_v<T, bool> && !std::is_same_v<T, char>)
+    template<parseable_arithmetic T>
     [[nodiscard]]
     constexpr T parse_value(const std::string_view sv, const T default_val = T{}) noexcept {
         T result = default_val;
@@ -36,13 +41,14 @@ namespace imgui_util::parse {
     }
 
     // Like parse_value but returns nullopt on failure instead of a default.
-    template<typename T>
-        requires(std::is_arithmetic_v<T> && !std::is_same_v<T, bool> && !std::is_same_v<T, char>)
+    template<parseable_arithmetic T>
     [[nodiscard]]
     constexpr std::optional<T> try_parse(const std::string_view sv) noexcept {
         T result{};
         auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), result);
-        if (ec == std::errc{}) return result; // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange) -- zero is the standard "no error" value
+        if (ec == std::errc{})
+            return result; // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange) -- zero is the standard "no error"
+                           // value
         return std::nullopt;
     }
 
@@ -116,13 +122,8 @@ namespace imgui_util::parse {
         }
     }
 
-    // Parse "f, f, f, ..." into a fixed-size float span. Unparsed slots keep their initial value.
-    template<size_t N>
-    constexpr void parse_float_array(std::string_view sv, std::span<float, N> out) noexcept {
-        for_each_csv_token(sv, N, [&](size_t i, const std::string_view part) { out[i] = parse_float(part, out[i]); });
-    }
-
     // Parse N comma-separated float components. Returns true if at least one parsed.
+    // Unparsed slots keep their initial value.
     template<size_t N>
     constexpr bool parse_float_components(const std::string_view sv, const std::span<float, N> out) noexcept {
         bool parsed = false;
@@ -149,10 +150,9 @@ namespace imgui_util::parse {
     [[nodiscard]]
     constexpr ImVec4 parse_vec4(const std::string_view sv,
                                 const ImVec4           default_val = {0.0f, 0.0f, 0.0f, 1.0f}) noexcept {
-        std::array<float, 4> components = {default_val.x, default_val.y, default_val.z, default_val.w};
-        parse_float_array<4>(sv, std::span{components});
-        return {components[0], components[1], components[2],
-                components[3]}; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+        std::array components = {default_val.x, default_val.y, default_val.z, default_val.w};
+        parse_float_components<4>(sv, std::span{components});
+        return {components[0], components[1], components[2], components[3]};
     }
 
     // Parse "r, g, b, a" integers (0-255) into packed ImU32 color. Clamped to [0,255].
@@ -161,18 +161,16 @@ namespace imgui_util::parse {
                   "parse_im_u32 assumes standard IM_COL32 RGBA byte order");
     [[nodiscard]]
     constexpr ImU32 parse_im_u32(const std::string_view sv, const ImU32 default_val = IM_COL32(0, 0, 0, 255)) noexcept {
-        std::array<int, 4> components = {
+        std::array components = {
             static_cast<int>((default_val >> 0) & 0xFF),  // R
             static_cast<int>((default_val >> 8) & 0xFF),  // G
             static_cast<int>((default_val >> 16) & 0xFF), // B
             static_cast<int>((default_val >> 24) & 0xFF), // A
         };
         for_each_csv_token(sv, 4, [&](const size_t i, const std::string_view part) {
-            components[i] = std::clamp(parse_int(part, components[i]), 0,
-                                       255); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+            components[i] = std::clamp(parse_int(part, components[i]), 0, 255);
         });
-        return IM_COL32(components[0], components[1], components[2],
-                        components[3]); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+        return IM_COL32(components[0], components[1], components[2], components[3]);
     }
 
 } // namespace imgui_util::parse

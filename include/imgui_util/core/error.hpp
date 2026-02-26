@@ -11,6 +11,8 @@
 #include <string_view>
 #include <utility>
 
+#include "imgui_util/core/fmt_buf.hpp"
+
 namespace imgui_util {
 
     enum class ui_error_code : std::uint8_t {
@@ -51,13 +53,13 @@ namespace imgui_util {
 
         explicit constexpr ui_error(const ui_error_code c) noexcept : code{c} {}
 
-        ui_error(const ui_error_code c, std::string d) noexcept : code{c}, detail{std::move(d)} {}
+        explicit constexpr ui_error(const ui_error_code c, std::string d) : code{c}, detail{std::move(d)} {}
 
         [[nodiscard]]
-        std::string message() const {
+        constexpr fmt_buf<256> message() const {
             const auto base = to_string(code);
-            if (detail.empty()) return std::string{base};
-            return std::format("{}: {}", base, detail);
+            if (detail.empty()) return fmt_buf<256>("{}", base);
+            return fmt_buf<256>("{}: {}", base, detail);
         }
 
         [[nodiscard]]
@@ -70,7 +72,7 @@ namespace imgui_util {
             return code == other.code && detail == other.detail;
         }
 
-        friend std::ostream &operator<<(std::ostream &os, const ui_error &err) { return os << err.message(); }
+        friend std::ostream &operator<<(std::ostream &os, const ui_error &err) { return os << err.message().sv(); }
     };
 
     inline std::ostream &operator<<(std::ostream &os, const ui_error_code code) {
@@ -88,13 +90,14 @@ namespace imgui_util {
         return std::unexpected{ui_error{code}};
     }
 
+    // Not constexpr: ui_error two-arg ctor takes std::string by value (heap alloc at runtime).
     [[nodiscard]]
-    constexpr std::unexpected<ui_error> make_ui_error(const ui_error_code code, std::string detail) {
+    inline std::unexpected<ui_error> make_ui_error(const ui_error_code code, std::string detail) {
         return std::unexpected{ui_error{code, std::move(detail)}};
     }
 
     // Path validation
-    inline constexpr size_t max_path_length = 4096;
+    constexpr size_t max_path_length = 4096;
 
     [[nodiscard]]
     inline ui_expected<std::filesystem::path> validate_path(const std::filesystem::path &p) noexcept {
@@ -121,13 +124,13 @@ namespace imgui_util {
 template<>
 struct std::hash<imgui_util::ui_error_code> {
     constexpr std::size_t operator()(imgui_util::ui_error_code c) const noexcept {
-        return std::hash<std::uint8_t>{}(std::to_underlying(c));
+        return static_cast<std::size_t>(std::to_underlying(c));
     }
 };
 
 template<>
 struct std::formatter<imgui_util::ui_error_code> {
-    static constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    static constexpr auto parse(const std::format_parse_context &ctx) { return ctx.begin(); }
 
     static constexpr auto format(const imgui_util::ui_error_code code, std::format_context &ctx) {
         return std::format_to(ctx.out(), "{}", imgui_util::to_string(code));
@@ -136,9 +139,10 @@ struct std::formatter<imgui_util::ui_error_code> {
 
 template<>
 struct std::formatter<imgui_util::ui_error> {
-    static constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    static constexpr auto parse(const std::format_parse_context &ctx) { return ctx.begin(); }
 
     static constexpr auto format(const imgui_util::ui_error &err, std::format_context &ctx) {
-        return std::format_to(ctx.out(), "{}", err.message());
+        if (err.detail.empty()) return std::format_to(ctx.out(), "{}", imgui_util::to_string(err.code));
+        return std::format_to(ctx.out(), "{}: {}", imgui_util::to_string(err.code), err.detail);
     }
 };

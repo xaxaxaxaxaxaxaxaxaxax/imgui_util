@@ -10,8 +10,8 @@
 // Scopes that track a bool (window, tab_bar, etc.) convert to bool for if-blocks.
 #pragma once
 
-#include <imgui.h>
 #include <concepts>
+#include <imgui.h>
 #include <initializer_list>
 #include <ranges>
 #include <type_traits>
@@ -96,9 +96,9 @@ namespace imgui_util {
             return state_;
         }
 
-        // Named accessor for window::is_open() compatibility
+        // Named accessor — generic across window/tab/menu contexts
         [[nodiscard]]
-        bool is_open() const noexcept
+        bool is_active() const noexcept
             requires has_state
         {
             return state_;
@@ -124,36 +124,26 @@ namespace imgui_util {
     // PopFn:  callable that pops N entries (takes int count)
     // Entry:  struct with .idx and .val (variant) fields
     template<typename Entry, auto PushFn, auto PopFn>
-    class [[nodiscard]] multi_push {
+    class [[nodiscard]]
+    multi_push {
         int count_ = 0;
 
         static void push_one(const Entry &e) noexcept {
-            using variant_t = decltype(e.val);
-            // Use get_if for 1- and 2-alternative variants, visit for 3+
-            if constexpr (std::variant_size_v<variant_t> == 1) {
-                PushFn(e.idx, std::get<0>(e.val));
-            } else if constexpr (std::variant_size_v<variant_t> == 2) {
-                if (auto *p = std::get_if<0>(&e.val))
-                    PushFn(e.idx, *p);
-                else
-                    PushFn(e.idx, std::get<1>(e.val));
-            } else {
-                std::visit([&](const auto &v) { PushFn(e.idx, v); }, e.val);
-            }
+            std::visit([&](const auto &v) { PushFn(e.idx, v); }, e.val);
         }
 
     public:
         using entry = Entry;
 
         multi_push(const std::initializer_list<Entry> entries) noexcept : count_{static_cast<int>(entries.size())} {
-            for (const auto &e : entries)
+            for (const auto &e: entries)
                 push_one(e);
         }
 
         template<std::ranges::input_range R>
             requires std::convertible_to<std::ranges::range_value_t<R>, Entry>
-        explicit multi_push(R &&entries) {
-            for (const auto &e : std::forward<R>(entries)) {
+        explicit multi_push(R &&entries) noexcept(noexcept(push_one(std::declval<const Entry &>()))) {
+            for (const auto &e: std::forward<R>(entries)) {
                 push_one(e);
                 ++count_;
             }
@@ -260,32 +250,21 @@ namespace imgui_util {
         static void end() noexcept { ImGui::EndPopup(); }
     };
 
-    struct popup_context_item_trait {
+    // Collapsed popup-context traits: all share the same signature/end, differ only in begin function.
+    template<auto BeginFn>
+    struct popup_context_trait {
         static constexpr auto policy = end_policy::conditional;
         using storage                = std::monostate;
-        static bool begin(const char *str_id = nullptr, const ImGuiPopupFlags popup_flags = ImGuiPopupFlags_MouseButtonRight) noexcept {
-            return ImGui::BeginPopupContextItem(str_id, popup_flags);
+        static bool begin(const char           *str_id      = nullptr,
+                          const ImGuiPopupFlags popup_flags = ImGuiPopupFlags_MouseButtonRight) noexcept {
+            return BeginFn(str_id, popup_flags);
         }
         static void end() noexcept { ImGui::EndPopup(); }
     };
 
-    struct popup_context_window_trait {
-        static constexpr auto policy = end_policy::conditional;
-        using storage                = std::monostate;
-        static bool begin(const char *str_id = nullptr, const ImGuiPopupFlags popup_flags = ImGuiPopupFlags_MouseButtonRight) noexcept {
-            return ImGui::BeginPopupContextWindow(str_id, popup_flags);
-        }
-        static void end() noexcept { ImGui::EndPopup(); }
-    };
-
-    struct popup_context_void_trait {
-        static constexpr auto policy = end_policy::conditional;
-        using storage                = std::monostate;
-        static bool begin(const char *str_id = nullptr, const ImGuiPopupFlags popup_flags = ImGuiPopupFlags_MouseButtonRight) noexcept {
-            return ImGui::BeginPopupContextVoid(str_id, popup_flags);
-        }
-        static void end() noexcept { ImGui::EndPopup(); }
-    };
+    using popup_context_item_trait   = popup_context_trait<&ImGui::BeginPopupContextItem>;
+    using popup_context_window_trait = popup_context_trait<&ImGui::BeginPopupContextWindow>;
+    using popup_context_void_trait   = popup_context_trait<&ImGui::BeginPopupContextVoid>;
 
     struct table_trait {
         static constexpr auto policy = end_policy::conditional;
@@ -364,9 +343,10 @@ namespace imgui_util {
         static void end() noexcept { ImGui::PopItemFlag(); }
     };
 
-    using button_repeat_trait    = simple_trait<end_policy::none, &ImGui::PushButtonRepeat, &ImGui::PopButtonRepeat>;
-    using tab_stop_trait         = simple_trait<end_policy::none, &ImGui::PushTabStop, &ImGui::PopTabStop>;
-    using drag_drop_target_trait = simple_trait<end_policy::conditional, &ImGui::BeginDragDropTarget, &ImGui::EndDragDropTarget>;
+    using button_repeat_trait = simple_trait<end_policy::none, &ImGui::PushButtonRepeat, &ImGui::PopButtonRepeat>;
+    using tab_stop_trait      = simple_trait<end_policy::none, &ImGui::PushTabStop, &ImGui::PopTabStop>;
+    using drag_drop_target_trait =
+        simple_trait<end_policy::conditional, &ImGui::BeginDragDropTarget, &ImGui::EndDragDropTarget>;
 
     struct drag_drop_source_trait {
         static constexpr auto policy = end_policy::conditional;
@@ -438,5 +418,40 @@ namespace imgui_util {
     using item_flag            = raii_scope<item_flag_trait>;
     using drag_drop_source     = raii_scope<drag_drop_source_trait>;
     using drag_drop_target     = raii_scope<drag_drop_target_trait>;
+
+    // RAII wrapper for ImGui::BeginMultiSelect / EndMultiSelect.
+    // Both begin and end return ImGuiMultiSelectIO*, so this needs a dedicated class
+    // rather than raii_scope (which doesn't expose end()'s return value).
+    class [[nodiscard]] multi_select {
+        ImGuiMultiSelectIO *begin_io_;
+        bool                ended_ = false;
+
+    public:
+        explicit multi_select(const ImGuiMultiSelectFlags flags, const int selection_size = -1,
+                              const int items_count = -1) noexcept :
+            begin_io_(ImGui::BeginMultiSelect(flags, selection_size, items_count)) {}
+
+        ~multi_select() noexcept {
+            if (!ended_) ImGui::EndMultiSelect();
+        }
+
+        multi_select(const multi_select &)            = delete;
+        multi_select &operator=(const multi_select &) = delete;
+        multi_select(multi_select &&)                 = delete;
+        multi_select &operator=(multi_select &&)      = delete;
+
+        [[nodiscard]]
+        ImGuiMultiSelectIO *begin_io() const noexcept {
+            return begin_io_;
+        }
+
+        // Call to end the scope early and retrieve EndMultiSelect's IO*.
+        // After this call, the destructor becomes a no-op.
+        ImGuiMultiSelectIO *end() noexcept {
+            if (ended_) return nullptr;
+            ended_ = true;
+            return ImGui::EndMultiSelect();
+        }
+    };
 
 } // namespace imgui_util

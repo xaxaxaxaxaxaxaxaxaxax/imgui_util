@@ -6,7 +6,6 @@
 // Separate header so raii.hpp stays free of internal includes.
 #pragma once
 
-#include <imgui.h>
 #include <imgui_internal.h>
 
 #include "imgui_util/core/raii.hpp"
@@ -19,7 +18,7 @@ namespace imgui_util {
         static constexpr auto policy = end_policy::none;
         using storage                = float; // stores previous FontWindowScale
         static float begin(const float scale) noexcept {
-            auto *w = ImGui::GetCurrentWindow();
+            const auto *w = ImGui::GetCurrentWindow();
             if (w == nullptr) return -1.0f; // sentinel: no current window
             const float prev = w->FontWindowScale;
             ImGui::SetWindowFontScale(scale);
