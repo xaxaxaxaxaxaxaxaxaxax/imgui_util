@@ -2,23 +2,19 @@
 
 #include <algorithm>
 #include <array>
-#include <cstddef>
 #include <format>
 #include <fstream>
 #include <log.h>
-#include <ranges>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "imgui_util/core/parse.hpp"
 #include "imgui_util/core/raii.hpp"
 #include "imgui_util/theme/color_math.hpp"
 
-// Forward-declare internal ImGui function (not in public API, but implemented in imgui.cpp)
-namespace ImGui {
-    IMGUI_API void ShowFontAtlas(ImFontAtlas *atlas);
-}
+#include "imgui_internal.h"
 
 namespace imgui_util::theme {
 
@@ -28,175 +24,195 @@ namespace imgui_util::theme {
     // Theme Preset Data - All theme definitions in one place
     // ============================================================================
 
-    static constexpr std::array theme_presets = std::to_array<theme_preset>({
-        // CrueltySquad - Industrial theme with blue/teal accents (dark + light)
-        {
-            .name                     = "CrueltySquad",
-            .bg_dark                  = {{{0.10f, 0.10f, 0.12f}}},
-            .bg_mid                   = {{{0.14f, 0.14f, 0.16f}}},
-            .accent                   = {{{0.45f, 0.55f, 0.90f}}},
-            .secondary                = {{{0.30f, 0.75f, 0.70f}}},
-            .alternate                = std::nullopt,
-            .text                     = std::nullopt,
-            .node_title_bar           = IM_COL32(75, 90, 140, 255),
-            .node_title_bar_hovered   = IM_COL32(95, 115, 170, 255),
-            .node_title_bar_selected  = IM_COL32(115, 140, 230, 255),
-            .node_link                = IM_COL32(75, 190, 180, 220),
-            .node_link_hovered        = IM_COL32(100, 220, 210, 255),
-            .node_pin                 = IM_COL32(75, 190, 180, 255),
-            .node_pin_hovered         = IM_COL32(100, 220, 210, 255),
-            .node_grid_bg             = IM_COL32(22, 22, 26, 255),
-            .node_background          = {},
-            .node_background_hovered  = {},
-            .node_background_selected = {},
-            .node_outline             = {},
-            .light_bg_dark            = rgb_color{{{0.85f, 0.85f, 0.88f}}},
-            .light_bg_mid             = rgb_color{{{0.92f, 0.92f, 0.94f}}},
-            .light_accent             = {},
-            .light_secondary          = {},
-            .light_text               = rgb_color{{{0.10f, 0.10f, 0.12f}}},
-        },
+    static constexpr std::array theme_presets =
+        std::to_array<theme_preset>(
+            {
+                // CrueltySquad - Industrial theme with blue/teal accents (dark + light)
+                {
+                    .name                     = "CrueltySquad",
+                    .bg_dark                  = {{{0.10f, 0.10f, 0.12f}}},
+                    .bg_mid                   = {{{0.14f, 0.14f, 0.16f}}},
+                    .accent                   = {{{0.45f, 0.55f, 0.90f}}},
+                    .secondary                = {{{0.30f, 0.75f, 0.70f}}},
+                    .alternate                = std::nullopt,
+                    .text                     = std::nullopt,
+                    .node_title_bar           = IM_COL32(75, 90, 140, 255),
+                    .node_title_bar_hovered   = IM_COL32(95, 115, 170, 255),
+                    .node_title_bar_selected  = IM_COL32(115, 140, 230, 255),
+                    .node_link                = IM_COL32(75, 190, 180, 220),
+                    .node_link_hovered        = IM_COL32(100, 220, 210, 255),
+                    .node_pin                 = IM_COL32(75, 190, 180, 255),
+                    .node_pin_hovered         = IM_COL32(100, 220, 210, 255),
+                    .node_grid_bg             = IM_COL32(22, 22, 26, 255),
+                    .node_background          = {},
+                    .node_background_hovered  = {},
+                    .node_background_selected = {},
+                    .node_outline             = {},
+                    .light =
+                        theme_preset::light_overrides{
+                            .bg_dark   = {{{0.85f, 0.85f, 0.88f}}},
+                            .bg_mid    = {{{0.92f, 0.92f, 0.94f}}},
+                            .accent    = {},
+                            .secondary = {},
+                            .text      = rgb_color{{{0.10f, 0.10f, 0.12f}}},
+                        },
+                },
 
-        // Gruvbox - Warm retro palette (dark + light)
-        {
-            .name                     = "Gruvbox",
-            .bg_dark                  = {{{0.157f, 0.157f, 0.157f}}},
-            .bg_mid                   = {{{0.235f, 0.220f, 0.212f}}},
-            .accent                   = {{{0.843f, 0.600f, 0.129f}}},
-            .secondary                = {{{0.408f, 0.616f, 0.416f}}},
-            .alternate                = std::nullopt,
-            .text                     = rgb_color{{{0.922f, 0.859f, 0.698f}}},
-            .node_title_bar           = IM_COL32(140, 100, 21, 255),
-            .node_title_bar_hovered   = IM_COL32(172, 122, 26, 255),
-            .node_title_bar_selected  = IM_COL32(215, 153, 33, 255),
-            .node_link                = IM_COL32(104, 157, 106, 220),
-            .node_link_hovered        = IM_COL32(134, 187, 136, 255),
-            .node_pin                 = IM_COL32(104, 157, 106, 255),
-            .node_pin_hovered         = IM_COL32(134, 187, 136, 255),
-            .node_grid_bg             = IM_COL32(30, 30, 30, 255),
-            .node_background          = {},
-            .node_background_hovered  = {},
-            .node_background_selected = {},
-            .node_outline             = {},
-            .light_bg_dark            = rgb_color{{{0.922f, 0.859f, 0.698f}}}, // #ebdbb2
-            .light_bg_mid             = rgb_color{{{0.984f, 0.945f, 0.780f}}}, // #fbf1c7
-            .light_accent             = {},
-            .light_secondary          = {},
-            .light_text               = rgb_color{{{0.235f, 0.220f, 0.212f}}}, // #3c3836
-        },
+                // Gruvbox - Warm retro palette (dark + light)
+                {
+                    .name                     = "Gruvbox",
+                    .bg_dark                  = {{{0.157f, 0.157f, 0.157f}}},
+                    .bg_mid                   = {{{0.235f, 0.220f, 0.212f}}},
+                    .accent                   = {{{0.843f, 0.600f, 0.129f}}},
+                    .secondary                = {{{0.408f, 0.616f, 0.416f}}},
+                    .alternate                = std::nullopt,
+                    .text                     = rgb_color{{{0.922f, 0.859f, 0.698f}}},
+                    .node_title_bar           = IM_COL32(140, 100, 21, 255),
+                    .node_title_bar_hovered   = IM_COL32(172, 122, 26, 255),
+                    .node_title_bar_selected  = IM_COL32(215, 153, 33, 255),
+                    .node_link                = IM_COL32(104, 157, 106, 220),
+                    .node_link_hovered        = IM_COL32(134, 187, 136, 255),
+                    .node_pin                 = IM_COL32(104, 157, 106, 255),
+                    .node_pin_hovered         = IM_COL32(134, 187, 136, 255),
+                    .node_grid_bg             = IM_COL32(30, 30, 30, 255),
+                    .node_background          = {},
+                    .node_background_hovered  = {},
+                    .node_background_selected = {},
+                    .node_outline             = {},
+                    .light =
+                        theme_preset::light_overrides{
+                            .bg_dark   = {{{0.922f, 0.859f, 0.698f}}}, // #ebdbb2
+                            .bg_mid    = {{{0.984f, 0.945f, 0.780f}}}, // #fbf1c7
+                            .accent    = {},
+                            .secondary = {},
+                            .text      = rgb_color{{{0.235f, 0.220f, 0.212f}}}, // #3c3836
+                        },
+                },
 
-        // Dracula - Purple/pink palette (dark + light)
-        {
-            .name                     = "Dracula",
-            .bg_dark                  = {{{0.157f, 0.165f, 0.212f}}},
-            .bg_mid                   = {{{0.267f, 0.278f, 0.353f}}},
-            .accent                   = {{{0.741f, 0.576f, 0.976f}}},
-            .secondary                = {{{1.000f, 0.475f, 0.776f}}},
-            .alternate                = std::nullopt,
-            .text                     = rgb_color{{{0.973f, 0.973f, 0.949f}}},
-            .node_title_bar           = IM_COL32(123, 96, 162, 255),
-            .node_title_bar_hovered   = IM_COL32(151, 118, 199, 255),
-            .node_title_bar_selected  = IM_COL32(189, 147, 249, 255),
-            .node_link                = IM_COL32(255, 121, 198, 220),
-            .node_link_hovered        = IM_COL32(255, 151, 218, 255),
-            .node_pin                 = IM_COL32(255, 121, 198, 255),
-            .node_pin_hovered         = IM_COL32(255, 151, 218, 255),
-            .node_grid_bg             = IM_COL32(30, 32, 44, 255),
-            .node_background          = {},
-            .node_background_hovered  = {},
-            .node_background_selected = {},
-            .node_outline             = {},
-            .light_bg_dark            = rgb_color{{{0.910f, 0.910f, 0.886f}}}, // #e8e8e2
-            .light_bg_mid             = rgb_color{{{0.973f, 0.973f, 0.949f}}}, // #f8f8f2
-            .light_accent             = {},
-            .light_secondary          = {},
-            .light_text               = rgb_color{{{0.157f, 0.165f, 0.212f}}}, // #282a36
-        },
+                // Dracula - Purple/pink palette (dark + light)
+                {
+                    .name                     = "Dracula",
+                    .bg_dark                  = {{{0.157f, 0.165f, 0.212f}}},
+                    .bg_mid                   = {{{0.267f, 0.278f, 0.353f}}},
+                    .accent                   = {{{0.741f, 0.576f, 0.976f}}},
+                    .secondary                = {{{1.000f, 0.475f, 0.776f}}},
+                    .alternate                = std::nullopt,
+                    .text                     = rgb_color{{{0.973f, 0.973f, 0.949f}}},
+                    .node_title_bar           = IM_COL32(123, 96, 162, 255),
+                    .node_title_bar_hovered   = IM_COL32(151, 118, 199, 255),
+                    .node_title_bar_selected  = IM_COL32(189, 147, 249, 255),
+                    .node_link                = IM_COL32(255, 121, 198, 220),
+                    .node_link_hovered        = IM_COL32(255, 151, 218, 255),
+                    .node_pin                 = IM_COL32(255, 121, 198, 255),
+                    .node_pin_hovered         = IM_COL32(255, 151, 218, 255),
+                    .node_grid_bg             = IM_COL32(30, 32, 44, 255),
+                    .node_background          = {},
+                    .node_background_hovered  = {},
+                    .node_background_selected = {},
+                    .node_outline             = {},
+                    .light =
+                        theme_preset::light_overrides{
+                            .bg_dark   = {{{0.910f, 0.910f, 0.886f}}}, // #e8e8e2
+                            .bg_mid    = {{{0.973f, 0.973f, 0.949f}}}, // #f8f8f2
+                            .accent    = {},
+                            .secondary = {},
+                            .text      = rgb_color{{{0.157f, 0.165f, 0.212f}}}, // #282a36
+                        },
+                },
 
-        // Nord - Arctic frost-blue palette (dark + light)
-        {
-            .name                     = "Nord",
-            .bg_dark                  = {{{0.180f, 0.204f, 0.251f}}},
-            .bg_mid                   = {{{0.231f, 0.259f, 0.322f}}},
-            .accent                   = {{{0.533f, 0.753f, 0.816f}}},
-            .secondary                = {{{0.639f, 0.745f, 0.549f}}},
-            .alternate                = std::nullopt,
-            .text                     = rgb_color{{{0.847f, 0.871f, 0.914f}}},
-            .node_title_bar           = IM_COL32(88, 125, 135, 255),
-            .node_title_bar_hovered   = IM_COL32(109, 154, 166, 255),
-            .node_title_bar_selected  = IM_COL32(136, 192, 208, 255),
-            .node_link                = IM_COL32(163, 190, 140, 220),
-            .node_link_hovered        = IM_COL32(183, 210, 170, 255),
-            .node_pin                 = IM_COL32(163, 190, 140, 255),
-            .node_pin_hovered         = IM_COL32(183, 210, 170, 255),
-            .node_grid_bg             = IM_COL32(36, 42, 54, 255),
-            .node_background          = {},
-            .node_background_hovered  = {},
-            .node_background_selected = {},
-            .node_outline             = {},
-            .light_bg_dark            = rgb_color{{{0.898f, 0.914f, 0.941f}}}, // #E5E9F0
-            .light_bg_mid             = rgb_color{{{0.925f, 0.937f, 0.957f}}}, // #ECEFF4
-            .light_accent             = rgb_color{{{0.369f, 0.506f, 0.675f}}}, // #5E81AC
-            .light_secondary          = {},
-            .light_text               = rgb_color{{{0.180f, 0.204f, 0.251f}}}, // #2E3440
-        },
+                // Nord - Arctic frost-blue palette (dark + light)
+                {
+                    .name                     = "Nord",
+                    .bg_dark                  = {{{0.180f, 0.204f, 0.251f}}},
+                    .bg_mid                   = {{{0.231f, 0.259f, 0.322f}}},
+                    .accent                   = {{{0.533f, 0.753f, 0.816f}}},
+                    .secondary                = {{{0.639f, 0.745f, 0.549f}}},
+                    .alternate                = std::nullopt,
+                    .text                     = rgb_color{{{0.847f, 0.871f, 0.914f}}},
+                    .node_title_bar           = IM_COL32(88, 125, 135, 255),
+                    .node_title_bar_hovered   = IM_COL32(109, 154, 166, 255),
+                    .node_title_bar_selected  = IM_COL32(136, 192, 208, 255),
+                    .node_link                = IM_COL32(163, 190, 140, 220),
+                    .node_link_hovered        = IM_COL32(183, 210, 170, 255),
+                    .node_pin                 = IM_COL32(163, 190, 140, 255),
+                    .node_pin_hovered         = IM_COL32(183, 210, 170, 255),
+                    .node_grid_bg             = IM_COL32(36, 42, 54, 255),
+                    .node_background          = {},
+                    .node_background_hovered  = {},
+                    .node_background_selected = {},
+                    .node_outline             = {},
+                    .light =
+                        theme_preset::light_overrides{
+                            .bg_dark   = {{{0.898f, 0.914f, 0.941f}}},          // #E5E9F0
+                            .bg_mid    = {{{0.925f, 0.937f, 0.957f}}},          // #ECEFF4
+                            .accent    = rgb_color{{{0.369f, 0.506f, 0.675f}}}, // #5E81AC
+                            .secondary = {},
+                            .text      = rgb_color{{{0.180f, 0.204f, 0.251f}}}, // #2E3440
+                        },
+                },
 
-        // Catppuccin - Pastel mauve/blue palette (Mocha dark + Latte light)
-        {
-            .name                     = "Catppuccin",
-            .bg_dark                  = {{{0.118f, 0.118f, 0.180f}}},
-            .bg_mid                   = {{{0.192f, 0.196f, 0.267f}}},
-            .accent                   = {{{0.796f, 0.651f, 0.969f}}},
-            .secondary                = {{{0.537f, 0.706f, 0.980f}}},
-            .alternate                = std::nullopt,
-            .text                     = rgb_color{{{0.804f, 0.839f, 0.957f}}},
-            .node_title_bar           = IM_COL32(132, 108, 161, 255),
-            .node_title_bar_hovered   = IM_COL32(162, 133, 198, 255),
-            .node_title_bar_selected  = IM_COL32(203, 166, 247, 255),
-            .node_link                = IM_COL32(137, 180, 250, 220),
-            .node_link_hovered        = IM_COL32(167, 200, 255, 255),
-            .node_pin                 = IM_COL32(137, 180, 250, 255),
-            .node_pin_hovered         = IM_COL32(167, 200, 255, 255),
-            .node_grid_bg             = IM_COL32(22, 22, 36, 255),
-            .node_background          = {},
-            .node_background_hovered  = {},
-            .node_background_selected = {},
-            .node_outline             = {},
-            .light_bg_dark            = rgb_color{{{0.902f, 0.914f, 0.937f}}}, // #E6E9EF Mantle
-            .light_bg_mid             = rgb_color{{{0.937f, 0.945f, 0.961f}}}, // #EFF1F5 Base
-            .light_accent             = rgb_color{{{0.533f, 0.224f, 0.937f}}}, // #8839EF Latte Mauve
-            .light_secondary          = rgb_color{{{0.118f, 0.400f, 0.961f}}}, // #1E66F5 Latte Blue
-            .light_text               = rgb_color{{{0.298f, 0.310f, 0.412f}}}, // #4C4F69 Latte Text
-        },
+                // Catppuccin - Pastel mauve/blue palette (Mocha dark + Latte light)
+                {
+                    .name                     = "Catppuccin",
+                    .bg_dark                  = {{{0.118f, 0.118f, 0.180f}}},
+                    .bg_mid                   = {{{0.192f, 0.196f, 0.267f}}},
+                    .accent                   = {{{0.796f, 0.651f, 0.969f}}},
+                    .secondary                = {{{0.537f, 0.706f, 0.980f}}},
+                    .alternate                = std::nullopt,
+                    .text                     = rgb_color{{{0.804f, 0.839f, 0.957f}}},
+                    .node_title_bar           = IM_COL32(132, 108, 161, 255),
+                    .node_title_bar_hovered   = IM_COL32(162, 133, 198, 255),
+                    .node_title_bar_selected  = IM_COL32(203, 166, 247, 255),
+                    .node_link                = IM_COL32(137, 180, 250, 220),
+                    .node_link_hovered        = IM_COL32(167, 200, 255, 255),
+                    .node_pin                 = IM_COL32(137, 180, 250, 255),
+                    .node_pin_hovered         = IM_COL32(167, 200, 255, 255),
+                    .node_grid_bg             = IM_COL32(22, 22, 36, 255),
+                    .node_background          = {},
+                    .node_background_hovered  = {},
+                    .node_background_selected = {},
+                    .node_outline             = {},
+                    .light =
+                        theme_preset::light_overrides{
+                            .bg_dark   = {{{0.902f, 0.914f, 0.937f}}},          // #E6E9EF Mantle
+                            .bg_mid    = {{{0.937f, 0.945f, 0.961f}}},          // #EFF1F5 Base
+                            .accent    = rgb_color{{{0.533f, 0.224f, 0.937f}}}, // #8839EF Latte Mauve
+                            .secondary = rgb_color{{{0.118f, 0.400f, 0.961f}}}, // #1E66F5 Latte Blue
+                            .text      = rgb_color{{{0.298f, 0.310f, 0.412f}}}, // #4C4F69 Latte Text
+                        },
+                },
 
-        // Solarized - Ethan Schoonover's palette (dark + light)
-        {
-            .name                     = "Solarized",
-            .bg_dark                  = {{{0.000f, 0.169f, 0.212f}}},
-            .bg_mid                   = {{{0.027f, 0.212f, 0.259f}}},
-            .accent                   = {{{0.149f, 0.545f, 0.824f}}},
-            .secondary                = {{{0.165f, 0.631f, 0.596f}}},
-            .alternate                = std::nullopt,
-            .text                     = rgb_color{{{0.514f, 0.580f, 0.588f}}},
-            .node_title_bar           = IM_COL32(25, 90, 137, 255),
-            .node_title_bar_hovered   = IM_COL32(30, 111, 168, 255),
-            .node_title_bar_selected  = IM_COL32(38, 139, 210, 255),
-            .node_link                = IM_COL32(42, 161, 152, 220),
-            .node_link_hovered        = IM_COL32(72, 191, 182, 255),
-            .node_pin                 = IM_COL32(42, 161, 152, 255),
-            .node_pin_hovered         = IM_COL32(72, 191, 182, 255),
-            .node_grid_bg             = IM_COL32(0, 33, 44, 255),
-            .node_background          = {},
-            .node_background_hovered  = {},
-            .node_background_selected = {},
-            .node_outline             = {},
-            .light_bg_dark            = rgb_color{{{0.933f, 0.910f, 0.835f}}}, // #EEE8D5 base2
-            .light_bg_mid             = rgb_color{{{0.992f, 0.965f, 0.890f}}}, // #FDF6E3 base3
-            .light_accent             = {},
-            .light_secondary          = {},
-            .light_text               = rgb_color{{{0.396f, 0.482f, 0.514f}}}, // #657B83 base00
-        },
-    });
+                // Solarized - Ethan Schoonover's palette (dark + light)
+                {
+                    .name                     = "Solarized",
+                    .bg_dark                  = {{{0.000f, 0.169f, 0.212f}}},
+                    .bg_mid                   = {{{0.027f, 0.212f, 0.259f}}},
+                    .accent                   = {{{0.149f, 0.545f, 0.824f}}},
+                    .secondary                = {{{0.165f, 0.631f, 0.596f}}},
+                    .alternate                = std::nullopt,
+                    .text                     = rgb_color{{{0.514f, 0.580f, 0.588f}}},
+                    .node_title_bar           = IM_COL32(25, 90, 137, 255),
+                    .node_title_bar_hovered   = IM_COL32(30, 111, 168, 255),
+                    .node_title_bar_selected  = IM_COL32(38, 139, 210, 255),
+                    .node_link                = IM_COL32(42, 161, 152, 220),
+                    .node_link_hovered        = IM_COL32(72, 191, 182, 255),
+                    .node_pin                 = IM_COL32(42, 161, 152, 255),
+                    .node_pin_hovered         = IM_COL32(72, 191, 182, 255),
+                    .node_grid_bg             = IM_COL32(0, 33, 44, 255),
+                    .node_background          = {},
+                    .node_background_hovered  = {},
+                    .node_background_selected = {},
+                    .node_outline             = {},
+                    .light =
+                        theme_preset::light_overrides{
+                            .bg_dark   = {{{0.933f, 0.910f, 0.835f}}}, // #EEE8D5 base2
+                            .bg_mid    = {{{0.992f, 0.965f, 0.890f}}}, // #FDF6E3 base3
+                            .accent    = {},
+                            .secondary = {},
+                            .text      = rgb_color{{{0.396f, 0.482f, 0.514f}}}, // #657B83 base00
+                        },
+                },
+            });
 
     // Node color name table for serialization
     static constexpr std::array<std::string_view, ImNodesCol_COUNT> node_color_names = {
@@ -328,7 +344,7 @@ namespace imgui_util::theme {
 
     const theme_preset *theme_manager::find_preset(const std::string_view name) {
         const auto *it = std::ranges::find(theme_presets, name, &theme_preset::name);
-        return it != theme_presets.end() ? &*it : nullptr;
+        return it != theme_presets.end() ? it : nullptr;
     }
 
     std::span<const theme_preset> theme_manager::get_presets() {
@@ -363,25 +379,22 @@ namespace imgui_util::theme {
 
         // Save preset RGB fields for round-trip fidelity
         for (const auto &[name, ptr]: theme_rgb_fields) {
-            const auto &c = current_theme_.*ptr;
-            file << name << "=" << std::format("{:.9g}", c.channels.at(0)) << ","
-                 << std::format("{:.9g}", c.channels.at(1)) << "," << std::format("{:.9g}", c.channels.at(2)) << "\n";
+            const auto &[r, g, b] = (current_theme_.*ptr).channels;
+            file << name << "=" << std::format("{:.9g},{:.9g},{:.9g}", r, g, b) << "\n";
         }
 
         // Save optional preset RGB fields
         for (const auto &[name, ptr]: theme_opt_rgb_fields) {
             if (const auto &opt = current_theme_.*ptr) {
-                file << name << "=" << std::format("{:.9g}", opt->channels.at(0)) << ","
-                     << std::format("{:.9g}", opt->channels.at(1)) << "," << std::format("{:.9g}", opt->channels.at(2))
-                     << "\n";
+                const auto &[r, g, b] = opt->channels;
+                file << name << "=" << std::format("{:.9g},{:.9g},{:.9g}", r, g, b) << "\n";
             }
         }
 
         // Save ImGui colors using named keys
         for (int i = 0; i < ImGuiCol_COUNT; i++) {
             const ImVec4 &c = current_theme_.colors.at(i);
-            file << ImGui::GetStyleColorName(i) << "=" << std::format("{:.9g}", c.x) << ","
-                 << std::format("{:.9g}", c.y) << "," << std::format("{:.9g}", c.z) << "," << std::format("{:.9g}", c.w)
+            file << ImGui::GetStyleColorName(i) << "=" << std::format("{:.9g},{:.9g},{:.9g},{:.9g}", c.x, c.y, c.z, c.w)
                  << "\n";
         }
 
@@ -409,26 +422,32 @@ namespace imgui_util::theme {
             int        index; // index into the corresponding constexpr table or color array
         };
 
-        // Node color keys need "node_" prefix; store owned strings so string_views remain valid.
-        std::vector<std::string> node_keys;
-        node_keys.reserve(ImNodesCol_COUNT);
-        for (int i = 0; i < ImNodesCol_COUNT; i++)
-            node_keys.push_back(std::string("node_") + std::string(node_color_names[i]));
+        // Full dispatch map including node keys — built once since all key strings are
+        // composed from static constexpr names (node_color_names) and ImGui style color names.
+        static const auto field_map = [] {
+            // Owned storage for "node_" prefixed keys so string_views remain valid.
+            static std::array<std::string, ImNodesCol_COUNT> node_keys = [] {
+                std::array<std::string, ImNodesCol_COUNT> keys;
+                for (int i = 0; i < ImNodesCol_COUNT; i++)
+                    keys[i] = std::string("node_") + std::string(node_color_names[i]);
+                return keys;
+            }();
 
-        std::unordered_map<std::string_view, field_entry> field_map;
-        field_map.reserve(static_cast<size_t>(ImGuiCol_COUNT) + static_cast<size_t>(ImNodesCol_COUNT) +
-                          theme_float_fields.size() + theme_rgb_fields.size() + theme_opt_rgb_fields.size());
-
-        for (int i = 0; i < static_cast<int>(theme_float_fields.size()); i++)
-            field_map.emplace(theme_float_fields[i].name, field_entry{field_kind::float_field, i});
-        for (int i = 0; i < static_cast<int>(theme_rgb_fields.size()); i++)
-            field_map.emplace(theme_rgb_fields[i].name, field_entry{field_kind::rgb_field, i});
-        for (int i = 0; i < static_cast<int>(theme_opt_rgb_fields.size()); i++)
-            field_map.emplace(theme_opt_rgb_fields[i].name, field_entry{field_kind::opt_rgb_field, i});
-        for (int i = 0; i < ImGuiCol_COUNT; i++)
-            field_map.emplace(ImGui::GetStyleColorName(i), field_entry{field_kind::imgui_color, i});
-        for (int i = 0; i < ImNodesCol_COUNT; i++)
-            field_map.emplace(std::string_view(node_keys[i]), field_entry{field_kind::node_color, i});
+            std::unordered_map<std::string_view, field_entry> map;
+            map.reserve(static_cast<size_t>(ImGuiCol_COUNT) + static_cast<size_t>(ImNodesCol_COUNT) +
+                        theme_float_fields.size() + theme_rgb_fields.size() + theme_opt_rgb_fields.size());
+            for (int i = 0; std::cmp_less(i, theme_float_fields.size()); i++)
+                map.emplace(theme_float_fields[i].name, field_entry{.kind = field_kind::float_field, .index = i});
+            for (int i = 0; std::cmp_less(i, theme_rgb_fields.size()); i++)
+                map.emplace(theme_rgb_fields[i].name, field_entry{.kind = field_kind::rgb_field, .index = i});
+            for (int i = 0; std::cmp_less(i, theme_opt_rgb_fields.size()); i++)
+                map.emplace(theme_opt_rgb_fields[i].name, field_entry{.kind = field_kind::opt_rgb_field, .index = i});
+            for (int i = 0; i < ImGuiCol_COUNT; i++)
+                map.emplace(ImGui::GetStyleColorName(i), field_entry{.kind = field_kind::imgui_color, .index = i});
+            for (int i = 0; i < ImNodesCol_COUNT; i++)
+                map.emplace(std::string_view(node_keys[i]), field_entry{.kind = field_kind::node_color, .index = i});
+            return map;
+        }();
 
         std::string line;
         bool        version_found = false;
@@ -455,20 +474,19 @@ namespace imgui_util::theme {
 
                 // O(1) dispatch for all known fields
                 if (auto it = field_map.find(key); it != field_map.end()) {
-                    const auto &[kind, idx] = it->second;
-                    switch (kind) {
+                    switch (const auto &[kind, idx] = it->second; kind) {
                         case field_kind::float_field:
-                            current_theme_.*(theme_float_fields[idx].ptr) =
-                                parse::parse_float(value, current_theme_.*(theme_float_fields[idx].ptr));
+                            current_theme_.*theme_float_fields[idx].ptr =
+                                parse::parse_float(value, current_theme_.*theme_float_fields[idx].ptr);
                             break;
                         case field_kind::rgb_field:
                             parse::parse_float_rgb(
-                                value, std::span<float, 3>{(current_theme_.*(theme_rgb_fields[idx].ptr)).channels});
+                                value, std::span<float, 3>{(current_theme_.*theme_rgb_fields[idx].ptr).channels});
                             break;
                         case field_kind::opt_rgb_field: {
                             rgb_color c{};
                             parse::parse_float_rgb(value, std::span<float, 3>{c.channels});
-                            current_theme_.*(theme_opt_rgb_fields[idx].ptr) = c;
+                            current_theme_.*theme_opt_rgb_fields[idx].ptr = c;
                             break;
                         }
                         case field_kind::imgui_color:
@@ -483,8 +501,7 @@ namespace imgui_util::theme {
 
                 // Backward compat: positional "color0=..." format
                 if (key.starts_with("color") && key.size() > 5 && key[5] >= '0' && key[5] <= '9') {
-                    const int idx = parse::parse_int(key.substr(5), -1);
-                    if (idx >= 0 && idx < ImGuiCol_COUNT) {
+                    if (const int idx = parse::parse_int(key.substr(5), -1); idx >= 0 && idx < ImGuiCol_COUNT) {
                         current_theme_.colors.at(idx) = parse::parse_vec4(value);
                     }
                 }
@@ -533,7 +550,7 @@ namespace imgui_util::theme {
             if (live_preview_) editing_theme_.apply();
         };
 
-        ImGui::Text("Presets:"); // NOLINT(cppcoreguidelines-pro-type-vararg)
+        ImGui::TextUnformatted("Presets:");
         ImGui::SameLine();
         if (ImGui::Button("Dark")) apply_builtin("Dark", ImGui::StyleColorsDark);
         ImGui::SameLine();
@@ -541,12 +558,12 @@ namespace imgui_util::theme {
         ImGui::SameLine();
         if (ImGui::Button("Classic")) apply_builtin("Classic", ImGui::StyleColorsClassic);
         ImGui::SameLine();
-        ImGui::Text("|"); // NOLINT(cppcoreguidelines-pro-type-vararg)
+        ImGui::TextUnformatted("|");
         ImGui::SameLine();
         for (size_t i = 0; i < theme_presets.size(); i++) {
             if (i > 0) ImGui::SameLine();
             const auto &preset     = theme_presets.at(i);
-            const auto preset_dir = preset.has_light() ? dir : theme_mode::dark;
+            const auto  preset_dir = preset.has_light() ? dir : theme_mode::dark;
             if (ImGui::Button(preset.name.data())) { // NOLINT(bugprone-not-null-terminated-result) — string literal
                 editing_theme_ = theme_config::from_preset(preset, preset_dir);
                 if (live_preview_) editing_theme_.apply();
@@ -572,11 +589,11 @@ namespace imgui_util::theme {
 
         ImGui::Separator();
 
-        if (tab_bar const tb{"ThemeCategories"}) {
-            if (tab_item const ti{"Sizes"}) {
+        if (const tab_bar tb{"ThemeCategories"}) {
+            if (const tab_item ti{"Sizes"}) {
                 render_sizes_tab();
             }
-            if (tab_item const ti{"Colors"}) {
+            if (const tab_item ti{"Colors"}) {
                 color_filter_.Draw("Filter Colors##filter", -FLT_MIN);
                 ImGui::Spacing();
                 render_color_category("Window Colors", window_color_indices);
@@ -596,13 +613,13 @@ namespace imgui_util::theme {
                 render_color_category("Scrollbar", scrollbar_indices);
                 render_color_category("Resize Grip", resize_grip_indices);
             }
-            if (tab_item const ti{"Fonts"}) {
+            if (const tab_item ti{"Fonts"}) {
                 render_fonts_tab();
             }
-            if (tab_item const ti{"Rendering"}) {
+            if (const tab_item ti{"Rendering"}) {
                 render_rendering_tab();
             }
-            if (tab_item const ti{"Node Editor"}) {
+            if (const tab_item ti{"Node Editor"}) {
                 render_node_colors();
             }
         }
@@ -758,14 +775,13 @@ namespace imgui_util::theme {
     // Code generation: produce a valid C++ theme_preset{...} initializer string
     // ============================================================================
 
-    constexpr std::string generate_preset_code(const theme_config &cfg) {
+    std::string generate_preset_code(const theme_config &cfg) {
         auto fmt_rgb = [](const rgb_color &c) {
             return std::format("{{{{{{{:.3f}f, {:.3f}f, {:.3f}f}}}}}}", c[0], c[1], c[2]);
         };
-        auto fmt_u32 = [](ImU32 c) {
-            return std::format("IM_COL32({}, {}, {}, {})", (c >> IM_COL32_R_SHIFT) & 0xFF,
-                               (c >> IM_COL32_G_SHIFT) & 0xFF, (c >> IM_COL32_B_SHIFT) & 0xFF,
-                               (c >> IM_COL32_A_SHIFT) & 0xFF);
+        auto fmt_u32 = [](const ImU32 c) {
+            return std::format("IM_COL32({}, {}, {}, {})", c >> IM_COL32_R_SHIFT & 0xFF, c >> IM_COL32_G_SHIFT & 0xFF,
+                               c >> IM_COL32_B_SHIFT & 0xFF, c >> IM_COL32_A_SHIFT & 0xFF);
         };
         auto fmt_opt_rgb = [&](const std::optional<rgb_color> &opt) -> std::string {
             if (!opt.has_value()) return "std::nullopt";
@@ -775,37 +791,43 @@ namespace imgui_util::theme {
         // Reconstruct node colors from the config's node_colors array
         std::string result;
         result.reserve(2048);
-        result += "theme_preset{\n";
-        result += std::format("    .name                     = \"{}\",\n", cfg.name);
-        result += std::format("    .bg_dark                  = {},\n", fmt_rgb(cfg.preset_bg_dark));
-        result += std::format("    .bg_mid                   = {},\n", fmt_rgb(cfg.preset_bg_mid));
-        result += std::format("    .accent                   = {},\n", fmt_rgb(cfg.preset_accent));
-        result += std::format("    .secondary                = {},\n", fmt_rgb(cfg.preset_secondary));
-        result += std::format("    .alternate                = {},\n", fmt_opt_rgb(cfg.preset_alternate));
-        result += std::format("    .text                     = {},\n", fmt_opt_rgb(cfg.preset_text));
-        result +=
-            std::format("    .node_title_bar           = {},\n", fmt_u32(cfg.node_colors.at(ImNodesCol_TitleBar)));
-        result += std::format("    .node_title_bar_hovered   = {},\n",
-                              fmt_u32(cfg.node_colors.at(ImNodesCol_TitleBarHovered)));
-        result += std::format("    .node_title_bar_selected  = {},\n",
-                              fmt_u32(cfg.node_colors.at(ImNodesCol_TitleBarSelected)));
-        result += std::format("    .node_link                = {},\n", fmt_u32(cfg.node_colors.at(ImNodesCol_Link)));
-        result +=
-            std::format("    .node_link_hovered        = {},\n", fmt_u32(cfg.node_colors.at(ImNodesCol_LinkHovered)));
-        result += std::format("    .node_pin                 = {},\n", fmt_u32(cfg.node_colors.at(ImNodesCol_Pin)));
-        result +=
-            std::format("    .node_pin_hovered         = {},\n", fmt_u32(cfg.node_colors.at(ImNodesCol_PinHovered)));
-        result += std::format("    .node_grid_bg             = {},\n",
-                              fmt_u32(cfg.node_colors.at(ImNodesCol_GridBackground)));
-        result += std::format("    .node_background          = {},\n",
-                              fmt_u32(cfg.node_colors.at(ImNodesCol_NodeBackground)));
-        result += std::format("    .node_background_hovered  = {},\n",
-                              fmt_u32(cfg.node_colors.at(ImNodesCol_NodeBackgroundHovered)));
-        result += std::format("    .node_background_selected = {},\n",
-                              fmt_u32(cfg.node_colors.at(ImNodesCol_NodeBackgroundSelected)));
-        result +=
-            std::format("    .node_outline             = {},\n", fmt_u32(cfg.node_colors.at(ImNodesCol_NodeOutline)));
-        result += "}";
+        const auto out = std::back_inserter(result);
+        std::format_to(out, "theme_preset{{\n");
+        std::format_to(out, "    .name                     = \"{}\",\n", cfg.name);
+        std::format_to(out, "    .bg_dark                  = {},\n", fmt_rgb(cfg.preset_bg_dark));
+        std::format_to(out, "    .bg_mid                   = {},\n", fmt_rgb(cfg.preset_bg_mid));
+        std::format_to(out, "    .accent                   = {},\n", fmt_rgb(cfg.preset_accent));
+        std::format_to(out, "    .secondary                = {},\n", fmt_rgb(cfg.preset_secondary));
+        std::format_to(out, "    .alternate                = {},\n", fmt_opt_rgb(cfg.preset_alternate));
+        std::format_to(out, "    .text                     = {},\n", fmt_opt_rgb(cfg.preset_text));
+        std::format_to(out, "    .node_title_bar           = {},\n", fmt_u32(cfg.node_colors.at(ImNodesCol_TitleBar)));
+        std::format_to(out, "    .node_title_bar_hovered   = {},\n",
+                       fmt_u32(cfg.node_colors.at(ImNodesCol_TitleBarHovered)));
+        std::format_to(out, "    .node_title_bar_selected  = {},\n",
+                       fmt_u32(cfg.node_colors.at(ImNodesCol_TitleBarSelected)));
+        std::format_to(out, "    .node_link                = {},\n", fmt_u32(cfg.node_colors.at(ImNodesCol_Link)));
+        std::format_to(out, "    .node_link_hovered        = {},\n",
+                       fmt_u32(cfg.node_colors.at(ImNodesCol_LinkHovered)));
+        std::format_to(out, "    .node_pin                 = {},\n", fmt_u32(cfg.node_colors.at(ImNodesCol_Pin)));
+        std::format_to(out, "    .node_pin_hovered         = {},\n",
+                       fmt_u32(cfg.node_colors.at(ImNodesCol_PinHovered)));
+        std::format_to(out, "    .node_grid_bg             = {},\n",
+                       fmt_u32(cfg.node_colors.at(ImNodesCol_GridBackground)));
+        // Emit std::nullopt for optional node fields that match from_preset_core defaults,
+        // so generated presets don't hardcode resolved defaults as explicit overrides.
+        auto fmt_opt_u32 = [&](const ImU32 c, const ImU32 default_val) -> std::string {
+            if (c == default_val) return "{}";
+            return fmt_u32(c);
+        };
+        std::format_to(out, "    .node_background          = {},\n",
+                       fmt_opt_u32(cfg.node_colors.at(ImNodesCol_NodeBackground), IM_COL32(32, 32, 38, 245)));
+        std::format_to(out, "    .node_background_hovered  = {},\n",
+                       fmt_opt_u32(cfg.node_colors.at(ImNodesCol_NodeBackgroundHovered), IM_COL32(42, 42, 48, 255)));
+        std::format_to(out, "    .node_background_selected = {},\n",
+                       fmt_opt_u32(cfg.node_colors.at(ImNodesCol_NodeBackgroundSelected), IM_COL32(50, 55, 70, 255)));
+        std::format_to(out, "    .node_outline             = {},\n",
+                       fmt_opt_u32(cfg.node_colors.at(ImNodesCol_NodeOutline), IM_COL32(60, 60, 68, 255)));
+        std::format_to(out, "}}");
         return result;
     }
 
@@ -813,7 +835,7 @@ namespace imgui_util::theme {
     // Validation: check a theme_config for common mistakes
     // ============================================================================
 
-    constexpr std::vector<std::string> validate(const theme_config &cfg) {
+    std::vector<std::string> validate(const theme_config &cfg) {
         std::vector<std::string> errors;
 
         // Check alpha values on all ImGui colors
@@ -843,9 +865,10 @@ namespace imgui_util::theme {
             {.ptr = &theme_config::scrollbar_rounding, .name = "scrollbar_rounding", .min = 0.0f, .max = 50.0f},
             {.ptr = &theme_config::grab_rounding, .name = "grab_rounding", .min = 0.0f, .max = 50.0f},
         });
-        for (const auto &[ptr, name, hi, lo]: rounding_checks) {
-            if (const float v = cfg.*ptr; v < lo || v > hi) {
-                errors.push_back(std::format("{} ({:.1f}) is out of reasonable range [{},{}]", name, v, lo, hi));
+        for (const auto &[ptr, name, min_val, max_val]: rounding_checks) {
+            if (const float v = cfg.*ptr; v < min_val || v > max_val) {
+                errors.push_back(
+                    std::format("{} ({:.1f}) is out of reasonable range [{},{}]", name, v, min_val, max_val));
             }
         }
 

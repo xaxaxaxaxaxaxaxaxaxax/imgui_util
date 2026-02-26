@@ -11,6 +11,7 @@
 #pragma once
 
 #include <array>
+#include <bitset>
 #include <cstdint>
 #include <imgui.h>
 #include <imnodes.h>
@@ -66,27 +67,32 @@ namespace imgui_util::theme {
         ImU32 node_pin_hovered;
         ImU32 node_grid_bg;
 
-        // Optional: node background override
-        std::optional<ImU32> node_background;
-        std::optional<ImU32> node_background_hovered;
-        std::optional<ImU32> node_background_selected;
-        std::optional<ImU32> node_outline;
+        // Node background colors (0 = use default: IM_COL32(32,32,38,245) etc.)
+        ImU32 node_background          = 0;
+        ImU32 node_background_hovered  = 0;
+        ImU32 node_background_selected = 0;
+        ImU32 node_outline             = 0;
 
         // Light-mode overrides -- from_preset_core picks these when offset_dir < 0
-        std::optional<rgb_color> light_bg_dark;
-        std::optional<rgb_color> light_bg_mid;
-        std::optional<rgb_color> light_accent;
-        std::optional<rgb_color> light_secondary;
-        std::optional<rgb_color> light_text;
+        struct light_overrides {
+            rgb_color                bg_dark;
+            rgb_color                bg_mid;
+            std::optional<rgb_color> accent;
+            std::optional<rgb_color> secondary;
+            std::optional<rgb_color> text;
+        };
+        std::optional<light_overrides> light;
 
         [[nodiscard]]
-        constexpr bool has_light() const {
-            return light_bg_mid.has_value();
+        constexpr bool has_light() const noexcept {
+            return light.has_value();
         }
     };
 
     // Type-safe dark/light mode selector (replaces raw float +1/-1)
     enum class theme_mode : int8_t { dark = 1, light = -1 };
+    static_assert(static_cast<float>(theme_mode::dark) == 1.0f, "theme_mode::dark must cast to +1.0f");
+    static_assert(static_cast<float>(theme_mode::light) == -1.0f, "theme_mode::light must cast to -1.0f");
 
     // ============================================================================
     // Full theme definition - stores all customizable colors
@@ -109,6 +115,9 @@ namespace imgui_util::theme {
 
         // ImNodes colors
         std::array<ImU32, ImNodesCol_COUNT> node_colors{};
+        // Tracks which node_colors entries were explicitly set by the preset
+        // (avoids using == 0 as sentinel, which would incorrectly overwrite black colors).
+        std::bitset<ImNodesCol_COUNT>       node_colors_set{};
 
         // ImNodes style values
         float node_corner_rounding = 0.0f;
@@ -143,10 +152,12 @@ namespace imgui_util::theme {
         static constexpr theme_config from_preset_core(const theme_preset &preset, theme_mode mode = theme_mode::dark);
 
         // Legacy overloads accepting raw float offset_dir (+1 dark, -1 light)
-        static theme_config from_preset(const theme_preset &preset, float offset_dir) {
+        [[deprecated("use theme_mode overload")]]
+        static theme_config from_preset(const theme_preset &preset, const float offset_dir) {
             return from_preset(preset, offset_dir > 0 ? theme_mode::dark : theme_mode::light);
         }
-        static constexpr theme_config from_preset_core(const theme_preset &preset, float offset_dir) {
+        [[deprecated("use theme_mode overload")]]
+        static constexpr theme_config from_preset_core(const theme_preset &preset, const float offset_dir) {
             return from_preset_core(preset, offset_dir > 0 ? theme_mode::dark : theme_mode::light);
         }
 
@@ -159,47 +170,62 @@ namespace imgui_util::theme {
     // Adding a new style float requires changing only this table -- apply() and capture_from_current()
     // both iterate it, eliminating duplication.
     struct style_field_pair {
-        std::string_view      name;         // serialization key
-        float theme_config::*theme_ptr;     // member in theme_config
-        float ImGuiStyle::*  imgui_ptr;     // member in ImGuiStyle
+        std::string_view name;          // serialization key
+        float theme_config::*theme_ptr; // member in theme_config
+        float ImGuiStyle::*imgui_ptr;   // member in ImGuiStyle
     };
 
     inline constexpr std::array style_float_map = std::to_array<style_field_pair>({
-        {.name = "window_rounding",    .theme_ptr = &theme_config::window_rounding,    .imgui_ptr = &ImGuiStyle::WindowRounding},
-        {.name = "frame_rounding",     .theme_ptr = &theme_config::frame_rounding,     .imgui_ptr = &ImGuiStyle::FrameRounding},
-        {.name = "window_border_size", .theme_ptr = &theme_config::window_border_size, .imgui_ptr = &ImGuiStyle::WindowBorderSize},
-        {.name = "frame_border_size",  .theme_ptr = &theme_config::frame_border_size,  .imgui_ptr = &ImGuiStyle::FrameBorderSize},
-        {.name = "tab_rounding",       .theme_ptr = &theme_config::tab_rounding,       .imgui_ptr = &ImGuiStyle::TabRounding},
-        {.name = "scrollbar_rounding", .theme_ptr = &theme_config::scrollbar_rounding, .imgui_ptr = &ImGuiStyle::ScrollbarRounding},
-        {.name = "grab_rounding",      .theme_ptr = &theme_config::grab_rounding,      .imgui_ptr = &ImGuiStyle::GrabRounding},
+        {.name      = "window_rounding",
+         .theme_ptr = &theme_config::window_rounding,
+         .imgui_ptr = &ImGuiStyle::WindowRounding},
+        {.name = "frame_rounding", .theme_ptr = &theme_config::frame_rounding, .imgui_ptr = &ImGuiStyle::FrameRounding},
+        {.name      = "window_border_size",
+         .theme_ptr = &theme_config::window_border_size,
+         .imgui_ptr = &ImGuiStyle::WindowBorderSize},
+        {.name      = "frame_border_size",
+         .theme_ptr = &theme_config::frame_border_size,
+         .imgui_ptr = &ImGuiStyle::FrameBorderSize},
+        {.name = "tab_rounding", .theme_ptr = &theme_config::tab_rounding, .imgui_ptr = &ImGuiStyle::TabRounding},
+        {.name      = "scrollbar_rounding",
+         .theme_ptr = &theme_config::scrollbar_rounding,
+         .imgui_ptr = &ImGuiStyle::ScrollbarRounding},
+        {.name = "grab_rounding", .theme_ptr = &theme_config::grab_rounding, .imgui_ptr = &ImGuiStyle::GrabRounding},
     });
+    static_assert(style_float_map.size() == 7,
+                  "style_float_map entry count mismatch -- did you add a new style float?");
 
     // Compile-time descriptor mapping a theme_config float field to its ImNodesStyle counterpart.
     struct node_style_field_pair {
-        std::string_view       name;        // serialization key
-        float theme_config::* theme_ptr;    // member in theme_config
-        float ImNodesStyle::* imnodes_ptr;  // member in ImNodesStyle
+        std::string_view name;            // serialization key
+        float theme_config::*theme_ptr;   // member in theme_config
+        float ImNodesStyle::*imnodes_ptr; // member in ImNodesStyle
     };
 
     inline constexpr std::array node_style_float_map = std::to_array<node_style_field_pair>({
-        {.name = "node_corner_rounding", .theme_ptr = &theme_config::node_corner_rounding, .imnodes_ptr = &ImNodesStyle::NodeCornerRounding},
-        {.name = "link_thickness",       .theme_ptr = &theme_config::link_thickness,       .imnodes_ptr = &ImNodesStyle::LinkThickness},
-        {.name = "pin_circle_radius",    .theme_ptr = &theme_config::pin_circle_radius,    .imnodes_ptr = &ImNodesStyle::PinCircleRadius},
+        {.name        = "node_corner_rounding",
+         .theme_ptr   = &theme_config::node_corner_rounding,
+         .imnodes_ptr = &ImNodesStyle::NodeCornerRounding},
+        {.name        = "link_thickness",
+         .theme_ptr   = &theme_config::link_thickness,
+         .imnodes_ptr = &ImNodesStyle::LinkThickness},
+        {.name        = "pin_circle_radius",
+         .theme_ptr   = &theme_config::pin_circle_radius,
+         .imnodes_ptr = &ImNodesStyle::PinCircleRadius},
     });
 
-    // Constexpr table of serializable float fields
-    inline constexpr std::array theme_float_fields = std::to_array<theme_field<float>>({
-        {.name = "window_rounding", .ptr = &theme_config::window_rounding},
-        {.name = "frame_rounding", .ptr = &theme_config::frame_rounding},
-        {.name = "window_border_size", .ptr = &theme_config::window_border_size},
-        {.name = "frame_border_size", .ptr = &theme_config::frame_border_size},
-        {.name = "tab_rounding", .ptr = &theme_config::tab_rounding},
-        {.name = "scrollbar_rounding", .ptr = &theme_config::scrollbar_rounding},
-        {.name = "grab_rounding", .ptr = &theme_config::grab_rounding},
-        {.name = "node_corner_rounding", .ptr = &theme_config::node_corner_rounding},
-        {.name = "link_thickness", .ptr = &theme_config::link_thickness},
-        {.name = "pin_circle_radius", .ptr = &theme_config::pin_circle_radius},
-    });
+    // Constexpr table of serializable float fields — derived from style_float_map + node_style_float_map
+    // to eliminate triple-edit maintenance burden (each source maps to a different runtime style struct).
+    inline constexpr auto theme_float_fields = [] {
+        constexpr auto                    n = style_float_map.size() + node_style_float_map.size();
+        std::array<theme_field<float>, n> arr{};
+        std::size_t                       k = 0;
+        for (const auto &f: style_float_map)
+            arr[k++] = {.name = f.name, .ptr = f.theme_ptr};
+        for (const auto &f: node_style_float_map)
+            arr[k++] = {.name = f.name, .ptr = f.theme_ptr};
+        return arr;
+    }();
 
     // Constexpr table of serializable RGB fields
     inline constexpr std::array theme_rgb_fields = std::to_array<theme_field<rgb_color>>({
@@ -230,15 +256,18 @@ namespace imgui_util::theme {
         theme_config theme{};
 
         // Direction multiplier: +1 offsets go brighter (dark mode), -1 go darker (light mode)
-        const float d        = static_cast<float>(mode);
-        const bool  is_light = d < 0.0f;
+        const auto d        = static_cast<float>(mode);
+        const bool is_light = d < 0.0f;
 
         // Pick light-mode overrides when available
-        const rgb_color bg_dark_c = (is_light && preset.light_bg_dark) ? *preset.light_bg_dark : preset.bg_dark;
-        const rgb_color bg_mid_c  = (is_light && preset.light_bg_mid) ? *preset.light_bg_mid : preset.bg_mid;
-        const rgb_color accent_c  = (is_light && preset.light_accent) ? *preset.light_accent : preset.accent;
-        const rgb_color second_c  = (is_light && preset.light_secondary) ? *preset.light_secondary : preset.secondary;
-        const std::optional<rgb_color> text_c = (is_light && preset.light_text) ? preset.light_text : preset.text;
+        const rgb_color bg_dark_c = (is_light && preset.light) ? preset.light->bg_dark : preset.bg_dark;
+        const rgb_color bg_mid_c  = (is_light && preset.light) ? preset.light->bg_mid : preset.bg_mid;
+        const rgb_color accent_c =
+            (is_light && preset.light && preset.light->accent) ? *preset.light->accent : preset.accent;
+        const rgb_color second_c =
+            (is_light && preset.light && preset.light->secondary) ? *preset.light->secondary : preset.secondary;
+        const std::optional<rgb_color> text_c =
+            (is_light && preset.light && preset.light->text) ? preset.light->text : preset.text;
 
         // Derive accent_hover and secondary_dim from resolved base colors
         const rgb_color accent_hover_c  = accent_c + 0.10f;
@@ -377,32 +406,40 @@ namespace imgui_util::theme {
         // ImNodes colors — always use dark preset values (node canvas stays dark)
         // ====================================================================
 
-        theme.node_colors.at(ImNodesCol_NodeBackground) = preset.node_background.value_or(IM_COL32(32, 32, 38, 245));
-        theme.node_colors.at(ImNodesCol_NodeBackgroundHovered) =
-            preset.node_background_hovered.value_or(IM_COL32(42, 42, 48, 255));
-        theme.node_colors.at(ImNodesCol_NodeBackgroundSelected) =
-            preset.node_background_selected.value_or(IM_COL32(50, 55, 70, 255));
-        theme.node_colors.at(ImNodesCol_NodeOutline)      = preset.node_outline.value_or(IM_COL32(60, 60, 68, 255));
-        theme.node_colors.at(ImNodesCol_TitleBar)         = preset.node_title_bar;
-        theme.node_colors.at(ImNodesCol_TitleBarHovered)  = preset.node_title_bar_hovered;
-        theme.node_colors.at(ImNodesCol_TitleBarSelected) = preset.node_title_bar_selected;
-        theme.node_colors.at(ImNodesCol_Link)             = preset.node_link;
-        theme.node_colors.at(ImNodesCol_LinkHovered)      = preset.node_link_hovered;
-        theme.node_colors.at(ImNodesCol_LinkSelected)     = preset.node_title_bar_selected;
-        theme.node_colors.at(ImNodesCol_Pin)              = preset.node_pin;
-        theme.node_colors.at(ImNodesCol_PinHovered)       = preset.node_pin_hovered;
-        theme.node_colors.at(ImNodesCol_BoxSelector)      = (preset.node_title_bar_selected & 0x00FFFFFF) | (40u << 24);
+        // Helper: set a node color and mark it as explicitly set
+        auto set_node = [&](const int idx, const ImU32 val) {
+            theme.node_colors.at(idx) = val;
+            theme.node_colors_set.set(static_cast<std::size_t>(idx));
+        };
+
+        set_node(ImNodesCol_NodeBackground,
+                 preset.node_background != 0 ? preset.node_background : IM_COL32(32, 32, 38, 245));
+        set_node(ImNodesCol_NodeBackgroundHovered,
+                 preset.node_background_hovered != 0 ? preset.node_background_hovered : IM_COL32(42, 42, 48, 255));
+        set_node(ImNodesCol_NodeBackgroundSelected,
+                 preset.node_background_selected != 0 ? preset.node_background_selected : IM_COL32(50, 55, 70, 255));
+        set_node(ImNodesCol_NodeOutline,
+                 preset.node_outline != 0 ? preset.node_outline : IM_COL32(60, 60, 68, 255));
+        set_node(ImNodesCol_TitleBar, preset.node_title_bar);
+        set_node(ImNodesCol_TitleBarHovered, preset.node_title_bar_hovered);
+        set_node(ImNodesCol_TitleBarSelected, preset.node_title_bar_selected);
+        set_node(ImNodesCol_Link, preset.node_link);
+        set_node(ImNodesCol_LinkHovered, preset.node_link_hovered);
+        set_node(ImNodesCol_LinkSelected, preset.node_title_bar_selected);
+        set_node(ImNodesCol_Pin, preset.node_pin);
+        set_node(ImNodesCol_PinHovered, preset.node_pin_hovered);
+        set_node(ImNodesCol_BoxSelector, (preset.node_title_bar_selected & 0x00FFFFFF) | (40u << 24));
 
         // Grid - derive line colors from background
-        theme.node_colors.at(ImNodesCol_GridBackground)  = preset.node_grid_bg;
-        theme.node_colors.at(ImNodesCol_GridLine)        = offset_u32_rgb(preset.node_grid_bg, 16, 120);
-        theme.node_colors.at(ImNodesCol_GridLinePrimary) = offset_u32_rgb(preset.node_grid_bg, 26, 180);
+        set_node(ImNodesCol_GridBackground, preset.node_grid_bg);
+        set_node(ImNodesCol_GridLine, offset_u32_rgb(preset.node_grid_bg, 16, 120));
+        set_node(ImNodesCol_GridLinePrimary, offset_u32_rgb(preset.node_grid_bg, 26, 180));
 
         // Minimap
-        theme.node_colors.at(ImNodesCol_MiniMapBackground)     = offset_u32_rgb(preset.node_grid_bg, -4, 220);
-        theme.node_colors.at(ImNodesCol_MiniMapNodeBackground) = preset.node_title_bar;
-        theme.node_colors.at(ImNodesCol_MiniMapNodeOutline)    = IM_COL32(40, 40, 48, 255);
-        theme.node_colors.at(ImNodesCol_MiniMapLink)           = (preset.node_link & 0x00FFFFFFu) | (180u << 24);
+        set_node(ImNodesCol_MiniMapBackground, offset_u32_rgb(preset.node_grid_bg, -4, 220));
+        set_node(ImNodesCol_MiniMapNodeBackground, preset.node_title_bar);
+        set_node(ImNodesCol_MiniMapNodeOutline, IM_COL32(40, 40, 48, 255));
+        set_node(ImNodesCol_MiniMapLink, (preset.node_link & 0x00FFFFFFu) | (180u << 24));
 
         return theme;
     }
@@ -446,6 +483,35 @@ namespace imgui_util::theme {
         }
 
         return result;
+    }
+
+    // Output-parameter lerp overload: writes result into `out` instead of constructing a new theme_config.
+    // Avoids one copy when the caller already owns the destination.
+    constexpr void lerp(const theme_config &a, const theme_config &b, const float t, theme_config &out) {
+        using color::float4_to_u32;
+        using color::u32_to_float4;
+
+        out.name = a.name;
+
+        for (int i = 0; i < ImGuiCol_COUNT; i++) {
+            out.colors.at(i) = lerp_vec4(a.colors.at(i), b.colors.at(i), t);
+        }
+
+        for (int i = 0; i < ImNodesCol_COUNT; i++) {
+            out.node_colors.at(i) =
+                float4_to_u32(lerp_vec4(u32_to_float4(a.node_colors.at(i)), u32_to_float4(b.node_colors.at(i)), t));
+        }
+
+        const float s = 1.0f - t;
+        for (const auto &[name, ptr]: theme_float_fields) {
+            out.*ptr = ((a.*ptr) * s) + ((b.*ptr) * t);
+        }
+
+        for (const auto &[name, ptr]: theme_rgb_fields) {
+            for (int j = 0; j < 3; j++) {
+                (out.*ptr).channels.at(j) = ((a.*ptr).channels.at(j) * s) + ((b.*ptr).channels.at(j) * t);
+            }
+        }
     }
 
 } // namespace imgui_util::theme

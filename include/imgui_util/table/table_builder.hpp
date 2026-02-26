@@ -32,15 +32,15 @@ namespace imgui_util {
 
     // Row highlight callback type: returns a color for custom row background, or nullopt for default
     template<typename RowT>
-    using row_highlight_fn = std::optional<ImU32> (*)(const RowT &);
+    using row_highlight_fn = std::move_only_function<std::optional<ImU32>(const RowT &)>;
 
     namespace detail {
 
         template<typename Fn>
         struct table_column {
             std::string_view      name;
-            float                 width; // 0.0f = stretch, >0 = fixed pixel width
-            ImGuiTableColumnFlags col_flags;
+            float                 width{}; // 0.0f = stretch, >0 = fixed pixel width
+            ImGuiTableColumnFlags col_flags{};
             Fn                    fn; // void(const RowT&) renderer for this column
         };
 
@@ -50,6 +50,10 @@ namespace imgui_util {
     template<typename Fn, typename RowT>
     concept column_renderer =
         std::invocable<Fn, const RowT &> && std::is_void_v<std::invoke_result_t<Fn, const RowT &>>;
+
+    // Fn must be a predicate on const RowT&
+    template<typename Fn, typename RowT>
+    concept row_predicate = std::predicate<Fn, const RowT &>;
 
     // RowT = your data row type, Cols = tuple of table_column<Fn> (built by add_column)
     // FilterFn = optional filter predicate type (std::monostate = no filter)
@@ -65,10 +69,10 @@ namespace imgui_util {
 
     public:
         using row_highlight_fn_t = row_highlight_fn<RowT>;
-        table_builder() = default;
+        table_builder()          = default;
 
         // All setters use && to enforce move-chain style (builder pattern)
-        table_builder set_id(std::string_view id) && {
+        table_builder set_id(const std::string_view id) && {
             id_ = id;
             return std::move(*this);
         }
@@ -76,7 +80,7 @@ namespace imgui_util {
             flags_ = flags;
             return std::move(*this);
         }
-        table_builder set_scroll_freeze(int cols, int rows) && {
+        table_builder set_scroll_freeze(const int cols, const int rows) && {
             freeze_cols_ = cols;
             freeze_rows_ = rows;
             return std::move(*this);
@@ -91,10 +95,16 @@ namespace imgui_util {
             auto col         = detail::table_column<std::decay_t<Fn>>{name, width, col_flags, std::forward<Fn>(fn)};
             auto new_cols    = std::tuple_cat(std::move(cols_), std::make_tuple(std::move(col)));
             using new_cols_t = decltype(new_cols);
-            return table_builder<RowT, new_cols_t, FilterFn, RowIdFn>{
-                id_,        flags_,     freeze_cols_, freeze_rows_,     std::move(new_cols),
-                std::move(filter_), selection_, std::move(row_id_fn_), last_clicked_row_,
-                row_highlight_fn_};
+            return table_builder<RowT, new_cols_t, FilterFn, RowIdFn>{id_,
+                                                                      flags_,
+                                                                      freeze_cols_,
+                                                                      freeze_rows_,
+                                                                      std::move(new_cols),
+                                                                      std::move(filter_),
+                                                                      selection_,
+                                                                      std::move(row_id_fn_),
+                                                                      last_clicked_row_,
+                                                                      std::move(row_highlight_fn_)};
         }
 
         // Row ID function: maps row -> unique int for selection tracking
@@ -102,10 +112,16 @@ namespace imgui_util {
             requires std::convertible_to<std::invoke_result_t<Fn, const RowT &>, int>
         [[nodiscard]]
         auto set_row_id(Fn &&fn) && {
-            return table_builder<RowT, Cols, FilterFn, std::decay_t<Fn>>{
-                id_,        flags_,     freeze_cols_, freeze_rows_,     std::move(cols_),
-                std::move(filter_), selection_, std::forward<Fn>(fn), last_clicked_row_,
-                row_highlight_fn_};
+            return table_builder<RowT, Cols, FilterFn, std::decay_t<Fn>>{id_,
+                                                                         flags_,
+                                                                         freeze_cols_,
+                                                                         freeze_rows_,
+                                                                         std::move(cols_),
+                                                                         std::move(filter_),
+                                                                         selection_,
+                                                                         std::forward<Fn>(fn),
+                                                                         last_clicked_row_,
+                                                                         std::move(row_highlight_fn_)};
         }
 
         // Pointer to external selection set; enables shift/ctrl multi-select
@@ -115,19 +131,41 @@ namespace imgui_util {
         }
 
         template<typename Fn>
-            requires std::invocable<Fn, const RowT &> &&
-                     std::convertible_to<std::invoke_result_t<Fn, const RowT &>, bool>
+            requires row_predicate<Fn, RowT>
         [[nodiscard]]
         auto set_filter(Fn &&fn) && {
-            return table_builder<RowT, Cols, std::decay_t<Fn>, RowIdFn>{
-                id_,        flags_,     freeze_cols_, freeze_rows_,     std::move(cols_),
-                std::forward<Fn>(fn), selection_, std::move(row_id_fn_), last_clicked_row_,
-                row_highlight_fn_};
+            auto result          = table_builder<RowT, Cols, std::decay_t<Fn>, RowIdFn>{id_,
+                                                                                        flags_,
+                                                                                        freeze_cols_,
+                                                                                        freeze_rows_,
+                                                                                        std::move(cols_),
+                                                                                        std::forward<Fn>(fn),
+                                                                                        selection_,
+                                                                                        std::move(row_id_fn_),
+                                                                                        last_clicked_row_,
+                                                                                        std::move(row_highlight_fn_)};
+            result.filter_dirty_ = true;
+            return result;
         }
 
         // Optional per-row background highlight; return std::nullopt for default
         table_builder set_row_highlight(row_highlight_fn_t fn) && {
-            row_highlight_fn_ = fn;
+            row_highlight_fn_ = std::move(fn);
+            return std::move(*this);
+        }
+
+        // Mark filtered indices as stale (call when source data changes)
+        void invalidate_filter() const { filter_dirty_ = true; }
+
+        // Custom empty-state renderer (replaces default "No data" message)
+        table_builder set_empty_state(std::move_only_function<void()> fn) && {
+            empty_state_fn_ = std::move(fn);
+            return std::move(*this);
+        }
+
+        // Callback invoked on double-click of a row
+        table_builder set_row_activate(std::move_only_function<void(const RowT &)> fn) && {
+            row_activate_fn_ = std::move(fn);
             return std::move(*this);
         }
 
@@ -154,7 +192,7 @@ namespace imgui_util {
         template<typename KeyFn>
             requires std::invocable<KeyFn, const RowT &> &&
                      std::totally_ordered<std::invoke_result_t<KeyFn, const RowT &>>
-        void sort_if_dirty(std::span<RowT> data, KeyFn key_fn, bool force = false) {
+        void sort_if_dirty(std::span<RowT> data, KeyFn key_fn, const bool force = false) {
             if (sort_specs_ && (sort_specs_->SpecsDirty || force)) {
                 if (sort_specs_->SpecsCount > 0) {
                     const bool ascending = sort_specs_->Specs[0].SortDirection == ImGuiSortDirection_Ascending;
@@ -167,18 +205,18 @@ namespace imgui_util {
             }
         }
 
-        using comparator_fn = bool (*)(const RowT &, const RowT &); // less-than comparator per column
+        using comparator_fn = std::move_only_function<bool(const RowT &, const RowT &)>; // less-than comparator per column
 
         // Multi-column sort: one comparator per column index, stable_sort in reverse spec order
-        void sort_if_dirty(std::span<RowT> data, std::span<const comparator_fn> comparators, bool force = false) {
+        void sort_if_dirty(std::span<RowT> data, std::span<comparator_fn> comparators, const bool force = false) {
             if ((sort_specs_ != nullptr) && (sort_specs_->SpecsDirty || force)) {
                 for (int s = sort_specs_->SpecsCount - 1; s >= 0; --s) {
                     const auto &spec = sort_specs_->Specs[s];
                     const auto  col  = static_cast<std::size_t>(spec.ColumnIndex);
                     if (col >= comparators.size() || !comparators[col]) continue;
 
-                    const bool  ascending = spec.SortDirection == ImGuiSortDirection_Ascending;
-                    const auto &cmp       = comparators[col];
+                    const bool ascending = spec.SortDirection == ImGuiSortDirection_Ascending;
+                    auto      &cmp       = comparators[col];
                     std::ranges::stable_sort(
                         data, [&](const RowT &a, const RowT &b) { return ascending ? cmp(a, b) : cmp(b, a); });
                 }
@@ -194,44 +232,21 @@ namespace imgui_util {
         // Render rows using ImGuiListClipper for virtualized scrolling
         void render_clipped(std::span<const RowT> data) {
             if constexpr (has_filter) {
-                filtered_indices_.clear();
-                filtered_indices_.reserve(data.size());
-                for (int i = 0; i < static_cast<int>(data.size()); ++i) {
-                    if (filter_(data[i])) filtered_indices_.push_back(i);
-                }
-                ImGuiListClipper clipper;
-                clipper.Begin(static_cast<int>(filtered_indices_.size()));
-                while (clipper.Step()) {
-                    for (int fi = clipper.DisplayStart; fi < clipper.DisplayEnd; ++fi) {
-                        const int i   = filtered_indices_[fi];
-                        const int rid = [&] {
-                            if constexpr (has_row_id)
-                                return static_cast<int>(row_id_fn_(data[i]));
-                            else
-                                return i;
-                        }();
-                        ImGui::PushID(rid);
-                        render_row_with_selection(data[i], rid);
-                        ImGui::PopID();
-                    }
-                }
+                rebuild_filter_span(data);
+                clip_and_render(static_cast<int>(filtered_indices_.size()), [&](const int fi) {
+                    const int i   = filtered_indices_[fi];
+                    const int rid = row_id_for(data[i], i);
+                    ImGui::PushID(rid);
+                    render_row_with_selection(data[i], rid);
+                    ImGui::PopID();
+                });
             } else {
-                ImGuiListClipper clipper;
-                clipper.Begin(static_cast<int>(data.size()));
-                while (clipper.Step()) {
-                    const int end = std::min(clipper.DisplayEnd, static_cast<int>(data.size()));
-                    for (int i = clipper.DisplayStart; i < end; ++i) {
-                        const int rid = [&] {
-                            if constexpr (has_row_id)
-                                return static_cast<int>(row_id_fn_(data[i]));
-                            else
-                                return i;
-                        }();
-                        ImGui::PushID(rid);
-                        render_row_with_selection(data[i], rid);
-                        ImGui::PopID();
-                    }
-                }
+                clip_and_render(static_cast<int>(data.size()), [&](int i) {
+                    const int rid = row_id_for(data[i], i);
+                    ImGui::PushID(rid);
+                    render_row_with_selection(data[i], rid);
+                    ImGui::PopID();
+                });
             }
         }
 
@@ -239,60 +254,38 @@ namespace imgui_util {
             requires std::convertible_to<std::ranges::range_reference_t<R>, const RowT &>
         void render_clipped(R &&data) { // NOLINT(cppcoreguidelines-missing-std-forward)
             if constexpr (has_filter) {
-                // Build filtered indices, then clip on filtered count
-                filtered_indices_.clear();
-                const auto count = static_cast<int>(std::ranges::size(data));
-                filtered_indices_.reserve(count);
-                if constexpr (std::ranges::random_access_range<R>) {
-                    auto it = std::ranges::begin(data);
-                    for (int i = 0; i < count; ++i) {
-                        if (filter_(*(it + i))) filtered_indices_.push_back(i);
-                    }
-                } else {
-                    int idx = 0;
-                    for (auto it = std::ranges::begin(data); idx < count; ++it, ++idx) {
-                        if (filter_(*it)) filtered_indices_.push_back(idx);
-                    }
-                }
-                ImGuiListClipper clipper;
-                clipper.Begin(static_cast<int>(filtered_indices_.size()));
-                while (clipper.Step()) {
+                rebuild_filter_range(data);
+                clip_and_render(static_cast<int>(filtered_indices_.size()), [&](const int fi) {
+                    const int i = filtered_indices_[fi];
                     if constexpr (std::ranges::random_access_range<R>) {
-                        auto it = std::ranges::begin(data);
-                        for (int fi = clipper.DisplayStart; fi < clipper.DisplayEnd; ++fi) {
-                            const int   i   = filtered_indices_[fi];
-                            const auto &row = *(it + i);
-                            ImGui::PushID(i);
-                            render_row_with_selection(row, i);
-                            ImGui::PopID();
-                        }
+                        const auto &row = *(std::ranges::begin(data) + i);
+                        ImGui::PushID(i);
+                        render_row_with_selection(row, i);
+                        ImGui::PopID();
                     } else {
-                        for (int fi = clipper.DisplayStart; fi < clipper.DisplayEnd; ++fi) {
-                            const int i  = filtered_indices_[fi];
-                            auto      it = std::ranges::begin(data);
-                            std::ranges::advance(it, i);
-                            ImGui::PushID(i);
-                            render_row_with_selection(*it, i);
-                            ImGui::PopID();
-                        }
+                        auto it = std::ranges::begin(data);
+                        std::ranges::advance(it, i);
+                        ImGui::PushID(i);
+                        render_row_with_selection(*it, i);
+                        ImGui::PopID();
                     }
-                }
+                });
             } else {
-                const auto       count = static_cast<int>(std::ranges::size(data));
-                ImGuiListClipper clipper;
-                clipper.Begin(count);
-                while (clipper.Step()) {
-                    const int end = std::min(clipper.DisplayEnd, count);
-                    if constexpr (std::ranges::random_access_range<R>) {
-                        auto it = std::ranges::begin(data);
-                        for (int i = clipper.DisplayStart; i < end; ++i) {
-                            const auto &row = *(it + i);
-                            ImGui::PushID(i);
-                            render_row_with_selection(row, i);
-                            ImGui::PopID();
-                        }
-                    } else {
-                        auto it = std::ranges::begin(data);
+                const auto count = static_cast<int>(std::ranges::size(data));
+                if constexpr (std::ranges::random_access_range<R>) {
+                    clip_and_render(count, [&](int i) {
+                        const auto &row = *(std::ranges::begin(data) + i);
+                        ImGui::PushID(i);
+                        render_row_with_selection(row, i);
+                        ImGui::PopID();
+                    });
+                } else {
+                    // Non-random-access: advance iterator sequentially per clipper step
+                    ImGuiListClipper clipper;
+                    clipper.Begin(count);
+                    while (clipper.Step()) {
+                        const int end = std::min(clipper.DisplayEnd, count);
+                        auto      it  = std::ranges::begin(data);
                         std::ranges::advance(it, clipper.DisplayStart);
                         for (int i = clipper.DisplayStart; i < end; ++i, ++it) {
                             ImGui::PushID(i);
@@ -308,9 +301,7 @@ namespace imgui_util {
         void render(std::span<const RowT> data, const float height = 0.0f) {
             if (begin(height)) {
                 if (data.empty()) {
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::TextDisabled("No data");
+                    render_empty_state();
                 } else {
                     render_clipped(data);
                 }
@@ -323,9 +314,7 @@ namespace imgui_util {
         void render(R &&data, const float height = 0.0f) {
             if (begin(height)) {
                 if (std::ranges::empty(data)) {
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::TextDisabled("No data");
+                    render_empty_state();
                 } else {
                     render_clipped(std::forward<R>(data));
                 }
@@ -335,16 +324,15 @@ namespace imgui_util {
 
         static void end() { ImGui::EndTable(); }
 
-        static void set_column_visible(int col_index, bool visible) {
+        static void set_column_visible(const int col_index, const bool visible) {
             ImGui::TableSetColumnEnabled(col_index, visible);
         }
 
     private:
         template<typename NewCols>
-        // NOLINTNEXTLINE(readability-function-size)
-        table_builder(std::string_view id, const ImGuiTableFlags flags, const int fc, const int fr, NewCols &&cols,
-                      FilterFn filter, std::unordered_set<int> *sel,
-                      RowIdFn row_id, int last_clicked, row_highlight_fn<RowT> highlight = nullptr) :
+        table_builder(const std::string_view id, const ImGuiTableFlags flags, const int fc, const int fr,
+                      NewCols &&cols, FilterFn filter, std::unordered_set<int> *sel, RowIdFn row_id,
+                      const int last_clicked, row_highlight_fn<RowT> highlight = {}) :
             id_(id),
             flags_(flags),
             freeze_cols_(fc),
@@ -354,20 +342,86 @@ namespace imgui_util {
             selection_(sel),
             row_id_fn_(std::move(row_id)),
             last_clicked_row_(last_clicked),
-            row_highlight_fn_(highlight) {}
+            row_highlight_fn_(std::move(highlight)) {}
 
-        std::string_view          id_          = "";
-        ImGuiTableFlags           flags_       = ImGuiTableFlags_None;
-        int                       freeze_cols_ = 0; // TableSetupScrollFreeze columns
-        int                       freeze_rows_ = 0; // TableSetupScrollFreeze rows
-        Cols                      cols_{};          // tuple of table_column<Fn>
-        ImGuiTableSortSpecs      *sort_specs_ = nullptr;
-        [[no_unique_address]] FilterFn filter_{};               // optional row visibility predicate
-        std::unordered_set<int>  *selection_ = nullptr;         // external selection state
-        [[no_unique_address]] RowIdFn  row_id_fn_{};            // optional: maps row -> unique id
-        int                       last_clicked_row_ = -1;       // for shift-select range
-        mutable std::vector<int>  filtered_indices_;             // cached filtered row indices
-        row_highlight_fn_t        row_highlight_fn_ = nullptr;   // optional per-row highlight
+        std::string_view     id_;
+        ImGuiTableFlags      flags_       = ImGuiTableFlags_None;
+        int                  freeze_cols_ = 0; // TableSetupScrollFreeze columns
+        int                  freeze_rows_ = 0; // TableSetupScrollFreeze rows
+        Cols                 cols_{};          // tuple of table_column<Fn>
+        ImGuiTableSortSpecs *sort_specs_ = nullptr;
+        [[no_unique_address]]
+        FilterFn                 filter_{};            // optional row visibility predicate
+        std::unordered_set<int> *selection_ = nullptr; // external selection state
+        [[no_unique_address]]
+        RowIdFn                           row_id_fn_{};                // optional: maps row -> unique id
+        int                               last_clicked_row_ = -1;      // for shift-select range
+        mutable std::vector<int>          filtered_indices_;           // cached filtered row indices
+        mutable bool                      filter_dirty_     = true;    // rebuild filtered_indices_ when true
+        row_highlight_fn_t                row_highlight_fn_;           // optional per-row highlight
+        std::move_only_function<void()>             empty_state_fn_;  // custom empty-state renderer
+        std::move_only_function<void(const RowT &)> row_activate_fn_; // double-click/Enter callback
+
+        void render_empty_state() {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            if (empty_state_fn_)
+                empty_state_fn_();
+            else
+                ImGui::TextDisabled("No data");
+        }
+
+        // Compute row id: uses row_id_fn_ if available, otherwise falls back to index
+        int row_id_for(const RowT &row, const int index) const {
+            if constexpr (has_row_id)
+                return static_cast<int>(row_id_fn_(row));
+            else
+                return index;
+        }
+
+        // Clipper helper: runs ImGuiListClipper and calls per_row(visible_index) for each visible row
+        template<typename PerRow>
+        static void clip_and_render(const int count, PerRow per_row) {
+            ImGuiListClipper clipper;
+            clipper.Begin(count);
+            while (clipper.Step()) {
+                for (int i = clipper.DisplayStart; i < std::min(clipper.DisplayEnd, count); ++i) {
+                    per_row(i);
+                }
+            }
+        }
+
+        // Rebuild filtered indices from a span
+        void rebuild_filter_span(std::span<const RowT> data) const {
+            if (!filter_dirty_) return;
+            filtered_indices_.clear();
+            filtered_indices_.reserve(data.size());
+            for (int i = 0; i < static_cast<int>(data.size()); ++i) {
+                if (filter_(data[i])) filtered_indices_.push_back(i);
+            }
+            filter_dirty_ = false;
+        }
+
+        // Rebuild filtered indices from a sized range
+        template<std::ranges::sized_range R>
+        void rebuild_filter_range(R &&data) const { // NOLINT(cppcoreguidelines-missing-std-forward)
+            if (!filter_dirty_) return;
+            filtered_indices_.clear();
+            const auto count = static_cast<int>(std::ranges::size(data));
+            filtered_indices_.reserve(count);
+            if constexpr (std::ranges::random_access_range<R>) {
+                auto it = std::ranges::begin(data);
+                for (int i = 0; i < count; ++i) {
+                    if (filter_(*(it + i))) filtered_indices_.push_back(i);
+                }
+            } else {
+                int idx = 0;
+                for (auto it = std::ranges::begin(data); idx < count; ++it, ++idx) {
+                    if (filter_(*it)) filtered_indices_.push_back(idx);
+                }
+            }
+            filter_dirty_ = false;
+        }
 
         void apply_row_highlight(const RowT &row) {
             if (row_highlight_fn_) {
@@ -377,19 +431,25 @@ namespace imgui_util {
             }
         }
 
-        void render_row_with_selection(const RowT &data, int rid) {
+        void check_row_activate(const RowT &data) {
+            if (row_activate_fn_ && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                row_activate_fn_(data);
+            }
+        }
+
+        void render_row_with_selection(const RowT &data, const int rid) {
+            ImGui::TableNextRow();
+            apply_row_highlight(data);
+
             if (selection_ != nullptr) {
-                ImGui::TableNextRow();
-                apply_row_highlight(data);
                 ImGui::TableSetColumnIndex(0);
                 const bool was_selected = selection_->contains(rid);
                 bool       is_selected  = was_selected;
                 ImGui::Selectable("##sel", &is_selected,
-                                  ImGuiSelectableFlags_SpanAllColumns |
-                                      ImGuiSelectableFlags_AllowOverlap); // NOLINT(hicpp-signed-bitwise)
+                                  ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap);
+                check_row_activate(data);
                 if (is_selected != was_selected) {
-                    const auto &io = ImGui::GetIO();
-                    if (io.KeyShift && last_clicked_row_ >= 0) {
+                    if (const auto &io = ImGui::GetIO(); io.KeyShift && last_clicked_row_ >= 0) {
                         const int lo = std::min(last_clicked_row_, rid);
                         const int hi = std::max(last_clicked_row_, rid);
                         for (int r = lo; r <= hi; ++r)
@@ -406,11 +466,12 @@ namespace imgui_util {
                     last_clicked_row_ = rid;
                 }
                 ImGui::SameLine();
-                render_columns(data, std::make_index_sequence<std::tuple_size_v<Cols>>{});
-            } else {
-                ImGui::TableNextRow();
-                apply_row_highlight(data);
-                render_columns(data, std::make_index_sequence<std::tuple_size_v<Cols>>{});
+            }
+
+            render_columns(data, std::make_index_sequence<std::tuple_size_v<Cols>>{});
+
+            if (selection_ == nullptr) {
+                check_row_activate(data);
             }
         }
 
@@ -418,12 +479,10 @@ namespace imgui_util {
         void setup_columns(std::index_sequence<Is...> /*seq*/) {
             (([]<typename Col>(const Col &col) {
                 auto           flags = col.col_flags;
-                constexpr auto mask  = ImGuiTableColumnFlags_WidthFixed |
-                                      ImGuiTableColumnFlags_WidthStretch; // NOLINT(hicpp-signed-bitwise)
-                if (!(flags & mask)) {                                    // NOLINT(hicpp-signed-bitwise)
-                    flags |= (col.width == column_stretch)
-                                 ? ImGuiTableColumnFlags_WidthStretch // NOLINT(hicpp-signed-bitwise)
-                                 : ImGuiTableColumnFlags_WidthFixed;
+                constexpr auto mask  = ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_WidthStretch;
+                if (!(flags & mask)) {
+                    flags |= (col.width == column_stretch) ? ImGuiTableColumnFlags_WidthStretch
+                                                           : ImGuiTableColumnFlags_WidthFixed;
                 }
                 ImGui::TableSetupColumn(col.name.data(), flags, col.width);
             }(std::get<Is>(cols_))),

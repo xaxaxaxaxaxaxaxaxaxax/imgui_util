@@ -9,9 +9,6 @@
 // Mirrors core/raii.hpp conventions for ImPlot instead of ImGui.
 #pragma once
 #include <implot.h>
-#include <concepts>
-#include <initializer_list>
-#include <ranges>
 #include <variant>
 
 #include "imgui_util/core/raii.hpp"
@@ -131,20 +128,20 @@ namespace imgui_util::implot {
 
     // Multi-push entry types
     struct plot_style_var_entry {
-        ImPlotStyleVar                   idx;
+        ImPlotStyleVar                   idx{};
         std::variant<float, ImVec2, int> val;
     };
 
     struct plot_style_color_entry {
-        ImPlotCol              idx{};
-        std::variant<ImVec4>   val;
+        ImPlotCol idx{};
+        ImVec4    val;
     };
 
     // Helper lambdas for multi_push template instantiation
     constexpr auto push_plot_style_var_fn   = [](ImPlotStyleVar idx, const auto &v) { ImPlot::PushStyleVar(idx, v); };
-    constexpr auto pop_plot_style_var_fn    = [](int count) { ImPlot::PopStyleVar(count); };
+    constexpr auto pop_plot_style_var_fn    = [](const int count) { ImPlot::PopStyleVar(count); };
     constexpr auto push_plot_style_color_fn = [](ImPlotCol idx, const auto &v) { ImPlot::PushStyleColor(idx, v); };
-    constexpr auto pop_plot_style_color_fn  = [](int count) { ImPlot::PopStyleColor(count); };
+    constexpr auto pop_plot_style_color_fn  = [](const int count) { ImPlot::PopStyleColor(count); };
 
     // Type aliases for direct use: if (implot::plot p{"Title"}) { ... }
     using plot             = raii_scope<plot_trait>;
@@ -164,14 +161,14 @@ namespace imgui_util::implot {
     using drag_drop_source_item   = raii_scope<drag_drop_source_item_trait>;
 
     // Push multiple plot style vars/colors in one shot; pops all in destructor.
-    using plot_style_vars  = multi_push<plot_style_var_entry, push_plot_style_var_fn, pop_plot_style_var_fn>;
+    using plot_style_vars   = multi_push<plot_style_var_entry, push_plot_style_var_fn, pop_plot_style_var_fn>;
     using plot_style_colors = multi_push<plot_style_color_entry, push_plot_style_color_fn, pop_plot_style_color_fn>;
 
     // RAII wrapper for ImPlot context lifetime
     class [[nodiscard]] context {
     public:
-        context() { ImPlot::CreateContext(); }
-        ~context() { ImPlot::DestroyContext(); }
+        context() noexcept { ImPlot::CreateContext(); }
+        ~context() noexcept { ImPlot::DestroyContext(); }
         context(const context &)            = delete;
         context &operator=(const context &) = delete;
         context(context &&)                 = delete;

@@ -20,13 +20,13 @@ namespace imgui_util::theme {
 
     // Generate a valid C++ theme_preset{...} initializer string from a theme_config.
     [[nodiscard]]
-    constexpr std::string generate_preset_code(const theme_config &cfg);
+    std::string generate_preset_code(const theme_config &cfg);
 
     // Validate a theme_config, returning a list of human-readable error strings.
     // Checks for: alpha values out of [0,1], fully transparent window background,
     // nonsensical rounding values, etc.
     [[nodiscard]]
-    constexpr std::vector<std::string> validate(const theme_config &cfg);
+    std::vector<std::string> validate(const theme_config &cfg);
 
     class theme_manager {
     public:

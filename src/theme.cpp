@@ -27,9 +27,8 @@ namespace imgui_util::theme {
 
         const ImNodesStyle &defaults = ImNodes::GetStyle();
         for (int i = 0; i < ImNodesCol_COUNT; i++) {
-            // Slots left at zero were not explicitly set by the preset;
-            // fill them from the live ImNodes defaults.
-            if (cfg.node_colors[i] == 0) {               // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+            // Only fill entries not explicitly set by the preset (tracked via bitset).
+            if (!cfg.node_colors_set.test(static_cast<std::size_t>(i))) {
                 cfg.node_colors[i] = defaults.Colors[i]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
             }
         }
@@ -44,7 +43,7 @@ namespace imgui_util::theme {
         ImGuiStyle &style = ImGui::GetStyle();
 
         // Style values via shared field map
-        for (const auto &[name, tptr, sptr]: style_float_map)
+        for (const auto &[t_name, tptr, sptr]: style_float_map)
             style.*sptr = this->*tptr;
 
         // Copy all colors
@@ -52,7 +51,7 @@ namespace imgui_util::theme {
 
         // Apply ImNodes style via shared field map
         ImNodesStyle &node_style = ImNodes::GetStyle();
-        for (const auto &[name, tptr, nptr]: node_style_float_map)
+        for (const auto &[t_name, tptr, nptr]: node_style_float_map)
             node_style.*nptr = this->*tptr;
         std::ranges::copy(node_colors, node_style.Colors);
     }
@@ -67,14 +66,14 @@ namespace imgui_util::theme {
 
         // Capture ImGui style floats via shared field map
         const ImGuiStyle &style = ImGui::GetStyle();
-        for (const auto &[name, tptr, sptr]: style_float_map)
+        for (const auto &[t_name, tptr, sptr]: style_float_map)
             theme.*tptr = style.*sptr;
 
         std::ranges::copy(std::span(style.Colors, ImGuiCol_COUNT), theme.colors.begin());
 
         // Capture ImNodes style floats via shared field map
         const ImNodesStyle &node_style = ImNodes::GetStyle();
-        for (const auto &[name, tptr, nptr]: node_style_float_map)
+        for (const auto &[t_name, tptr, nptr]: node_style_float_map)
             theme.*tptr = node_style.*nptr;
         std::ranges::copy(std::span(node_style.Colors, ImNodesCol_COUNT), theme.node_colors.begin());
 

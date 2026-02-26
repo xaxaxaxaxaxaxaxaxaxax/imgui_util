@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <imgui.h>
 
 namespace imgui_util::color {
@@ -74,22 +75,21 @@ namespace imgui_util::color {
 
     // Multiply each channel by factor, clamp, return as ImVec4
     [[nodiscard]]
-    constexpr ImVec4 scale(const rgb_color &c, const float factor, float a = 1.0f) noexcept {
-        return {
-            std::clamp(c.channels[0] * factor, 0.0f, 1.0f),
-            std::clamp(c.channels[1] * factor, 0.0f, 1.0f), // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-            std::clamp(c.channels[2] * factor, 0.0f, 1.0f),
-            a}; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+    constexpr ImVec4 scale(const rgb_color &c, const float factor, const float a = 1.0f) noexcept {
+        return rgb(c * factor, a);
     }
 
     // Add delta to each channel, clamp, return as ImVec4
     [[nodiscard]]
-    constexpr ImVec4 offset(const rgb_color &c, const float delta, float a = 1.0f) noexcept {
-        return {
-            std::clamp(c.channels[0] + delta, 0.0f, 1.0f),
-            std::clamp(c.channels[1] + delta, 0.0f, 1.0f), // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-            std::clamp(c.channels[2] + delta, 0.0f, 1.0f),
-            a}; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+    constexpr ImVec4 offset(const rgb_color &c, const float delta, const float a = 1.0f) noexcept {
+        return rgb(c + delta, a);
+    }
+
+    // Add amount to each RGB channel of an ImVec4, clamp to [0,1], preserving alpha
+    [[nodiscard]]
+    constexpr ImVec4 offset(const ImVec4 &color, const float amount) noexcept {
+        return {std::clamp(color.x + amount, 0.0f, 1.0f), std::clamp(color.y + amount, 0.0f, 1.0f),
+                std::clamp(color.z + amount, 0.0f, 1.0f), color.w};
     }
 
     // Constexpr packed RGBA <-> float4 conversions (mirrors ImGui::ColorConvert*)
@@ -115,7 +115,7 @@ namespace imgui_util::color {
     // Offset the RGB channels of a packed ImU32 color by an integer delta, replacing alpha.
     // Useful for deriving grid line colors from a grid background.
     [[nodiscard]]
-    constexpr ImU32 offset_u32_rgb(const ImU32 color, const int delta, const ImU32 alpha) noexcept {
+    constexpr ImU32 offset_u32_rgb(const ImU32 color, const int delta, const uint8_t alpha) noexcept {
         const int r = std::clamp(static_cast<int>((color >> IM_COL32_R_SHIFT) & 0xFF) + delta, 0, 255);
         const int g = std::clamp(static_cast<int>((color >> IM_COL32_G_SHIFT) & 0xFF) + delta, 0, 255);
         const int b = std::clamp(static_cast<int>((color >> IM_COL32_B_SHIFT) & 0xFF) + delta, 0, 255);
