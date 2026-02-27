@@ -151,4 +151,9 @@ namespace imgui_util::color {
         return IM_COL32(r, g, b, alpha);
     }
 
+    /// @brief Perceptual luminance of an ImVec4 color (Rec. 601 luma).
+    [[nodiscard]] constexpr float luminance(const ImVec4 &c) noexcept {
+        return c.x * 0.299f + c.y * 0.587f + c.z * 0.114f;
+    }
+
 } // namespace imgui_util::color

@@ -528,6 +528,15 @@ namespace imgui_util::theme {
         return true;
     }
 
+    void theme_manager::apply_preset(const std::string_view name) {
+        const auto *preset = find_preset(name);
+        if (!preset) {
+            Log::warning("Theme", "preset '", name, "' not found");
+            return;
+        }
+        set_theme(theme_config::from_preset(*preset));
+    }
+
     // ============================================================================
     // Theme Editor UI
     // ============================================================================
@@ -538,8 +547,7 @@ namespace imgui_util::theme {
 
         // Detect light/dark mode from current WindowBg luminance
         const ImVec4 &win_bg = editing_theme_.colors.at(ImGuiCol_WindowBg);
-        const float   lum    = win_bg.x * 0.299f + win_bg.y * 0.587f + win_bg.z * 0.114f;
-        const auto    dir    = lum > 0.5f ? theme_mode::light : theme_mode::dark;
+        const auto    dir    = color::luminance(win_bg) > 0.5f ? theme_mode::light : theme_mode::dark;
 
         // ImGui builtin style presets (set all colors directly)
         auto apply_builtin = [&](const char *name, void (*fn)(ImGuiStyle *)) {
@@ -820,13 +828,15 @@ namespace imgui_util::theme {
             return fmt_u32(c);
         };
         std::format_to(out, "    .node_background          = {},\n",
-                       fmt_opt_u32(cfg.node_colors.at(ImNodesCol_NodeBackground), IM_COL32(32, 32, 38, 245)));
-        std::format_to(out, "    .node_background_hovered  = {},\n",
-                       fmt_opt_u32(cfg.node_colors.at(ImNodesCol_NodeBackgroundHovered), IM_COL32(42, 42, 48, 255)));
-        std::format_to(out, "    .node_background_selected = {},\n",
-                       fmt_opt_u32(cfg.node_colors.at(ImNodesCol_NodeBackgroundSelected), IM_COL32(50, 55, 70, 255)));
+                       fmt_opt_u32(cfg.node_colors.at(ImNodesCol_NodeBackground), default_node_background));
+        std::format_to(
+            out, "    .node_background_hovered  = {},\n",
+            fmt_opt_u32(cfg.node_colors.at(ImNodesCol_NodeBackgroundHovered), default_node_background_hovered));
+        std::format_to(
+            out, "    .node_background_selected = {},\n",
+            fmt_opt_u32(cfg.node_colors.at(ImNodesCol_NodeBackgroundSelected), default_node_background_selected));
         std::format_to(out, "    .node_outline             = {},\n",
-                       fmt_opt_u32(cfg.node_colors.at(ImNodesCol_NodeOutline), IM_COL32(60, 60, 68, 255)));
+                       fmt_opt_u32(cfg.node_colors.at(ImNodesCol_NodeOutline), default_node_outline));
         std::format_to(out, "}}");
         return result;
     }

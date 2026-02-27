@@ -88,11 +88,19 @@ namespace imgui_util {
                                   IM_COL32(30, 30, 30, 255));
 
             bool changed = false;
+
+            if (std::cmp_not_equal(events.size(), last_event_count_)) {
+                max_track_dirty_  = true;
+                last_event_count_ = static_cast<int>(events.size());
+            }
+
             render_ruler(ctx);
             const auto [tracks_top, actual_track_h] = render_tracks(ctx, events);
             render_events(ctx, events, tracks_top, actual_track_h, changed);
             handle_event_drag(ctx, events, changed);
             render_playhead(ctx, playhead, changed);
+
+            if (changed) max_track_dirty_ = true;
 
             return changed;
         }
@@ -123,6 +131,9 @@ namespace imgui_util {
         int                           dragging_event_               = -1;
         enum class drag_edge { none, body, left, right } drag_edge_ = drag_edge::none;
         float drag_offset_                                          = 0.0f;
+        int   cached_max_track_                                     = 0;
+        bool  max_track_dirty_                                      = true;
+        int   last_event_count_                                     = -1;
 
         struct render_context {
             ImDrawList *dl{};
@@ -183,8 +194,12 @@ namespace imgui_util {
         }
 
         [[nodiscard]] track_layout render_tracks(const render_context           &ctx,
-                                                 const std::span<timeline_event> events) const noexcept {
-            const int   max_track    = events.empty() ? 0 : std::ranges::max(events, {}, &timeline_event::track).track;
+                                                 const std::span<timeline_event> events) noexcept {
+            if (max_track_dirty_) {
+                cached_max_track_ = events.empty() ? 0 : std::ranges::max(events, {}, &timeline_event::track).track;
+                max_track_dirty_  = false;
+            }
+            const int   max_track    = cached_max_track_;
             const int   num_tracks   = max_track + 1;
             const float tracks_top   = ctx.canvas_pos.y + ruler_h;
             const float tracks_avail = ctx.height - ruler_h;

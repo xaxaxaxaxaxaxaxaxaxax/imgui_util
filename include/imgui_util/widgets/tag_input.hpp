@@ -20,7 +20,6 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -121,10 +120,14 @@ namespace imgui_util {
             const float input_w = wrap_width - cursor_x;
             ImGui::SetCursorScreenPos({origin.x + cursor_x, origin.y + cursor_y});
 
-            // Per-instance buffer keyed by ImGui ID to avoid sharing across multiple tag_input widgets
-            const ImGuiID                                             buf_id = ImGui::GetID("##tag_buf");
-            static std::unordered_map<ImGuiID, std::array<char, 128>> input_bufs;
-            auto                                                     &input_buf = input_bufs[buf_id];
+            // Single static buffer -- only one InputText can be active at a time.
+            // Reset when switching between different tag_input instances.
+            static std::array<char, 128> input_buf{};
+            static ImGuiID               active_buf_id = 0;
+            if (const ImGuiID buf_id = ImGui::GetID("##tag_buf"); active_buf_id != buf_id) {
+                input_buf[0]  = '\0';
+                active_buf_id = buf_id;
+            }
 
             const item_width iw{input_w > 0.0f ? input_w : -1.0f};
             if (ImGui::InputTextWithHint("##tag_add", "Add tag...", input_buf.data(), input_buf.size(),

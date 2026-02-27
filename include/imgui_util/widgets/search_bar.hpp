@@ -17,7 +17,10 @@
 #include <array>
 #include <concepts>
 #include <imgui.h>
+#include <optional>
 #include <string_view>
+
+#include "imgui_util/core/fmt_buf.hpp"
 
 namespace imgui_util::search {
 
@@ -84,6 +87,12 @@ namespace imgui_util::search {
                 }
             }
 
+            if (result_count_.has_value()) {
+                ImGui::SameLine();
+                const fmt_buf<32> badge("{} results", *result_count_);
+                ImGui::TextDisabled("%s", badge.c_str());
+            }
+
             return changed;
         }
 
@@ -126,10 +135,14 @@ namespace imgui_util::search {
             focus();
         }
 
+        /// @brief Set the result count badge. Pass std::nullopt to hide.
+        void set_result_count(const std::optional<std::size_t> count) noexcept { result_count_ = count; }
+
     private:
         std::array<char, BufferSize> buffer_{};
         std::size_t                  len_              = 0;
         bool                         focus_next_frame_ = false;
+        std::optional<std::size_t>   result_count_;
     };
 
 } // namespace imgui_util::search

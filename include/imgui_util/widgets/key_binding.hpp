@@ -128,6 +128,12 @@ namespace imgui_util {
             if (ImGui::Button(text.c_str(), {btn_width, height})) {
                 *capturing = 1;
             }
+            // Right-click to clear the binding
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                combo->key  = ImGuiKey_None;
+                combo->mods = ImGuiMod_None;
+                changed     = true;
+            }
         }
 
         // Label

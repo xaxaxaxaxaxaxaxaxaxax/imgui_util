@@ -87,6 +87,14 @@ namespace imgui_util::theme {
     static_assert(static_cast<float>(theme_mode::dark) == 1.0f, "theme_mode::dark must cast to +1.0f");
     static_assert(static_cast<float>(theme_mode::light) == -1.0f, "theme_mode::light must cast to -1.0f");
 
+    /// @brief Default node color constants used when a preset does not override them.
+    /// @{
+    inline constexpr ImU32 default_node_background          = IM_COL32(32, 32, 38, 245);
+    inline constexpr ImU32 default_node_background_hovered  = IM_COL32(42, 42, 48, 255);
+    inline constexpr ImU32 default_node_background_selected = IM_COL32(50, 55, 70, 255);
+    inline constexpr ImU32 default_node_outline             = IM_COL32(60, 60, 68, 255);
+    /// @}
+
     /// @brief Complete theme state: ImGui colors, ImNodes colors, and style floats.
     ///
     /// Constructed from a theme_preset via from_preset() (runtime, fills ImNodes
@@ -369,12 +377,12 @@ namespace imgui_util::theme {
         };
 
         set_node(ImNodesCol_NodeBackground,
-                 preset.node_background != 0 ? preset.node_background : IM_COL32(32, 32, 38, 245));
+                 preset.node_background != 0 ? preset.node_background : default_node_background);
         set_node(ImNodesCol_NodeBackgroundHovered,
-                 preset.node_background_hovered != 0 ? preset.node_background_hovered : IM_COL32(42, 42, 48, 255));
+                 preset.node_background_hovered != 0 ? preset.node_background_hovered : default_node_background_hovered);
         set_node(ImNodesCol_NodeBackgroundSelected,
-                 preset.node_background_selected != 0 ? preset.node_background_selected : IM_COL32(50, 55, 70, 255));
-        set_node(ImNodesCol_NodeOutline, preset.node_outline != 0 ? preset.node_outline : IM_COL32(60, 60, 68, 255));
+                 preset.node_background_selected != 0 ? preset.node_background_selected : default_node_background_selected);
+        set_node(ImNodesCol_NodeOutline, preset.node_outline != 0 ? preset.node_outline : default_node_outline);
         set_node(ImNodesCol_TitleBar, preset.node_title_bar);
         set_node(ImNodesCol_TitleBarHovered, preset.node_title_bar_hovered);
         set_node(ImNodesCol_TitleBarSelected, preset.node_title_bar_selected);
@@ -405,7 +413,7 @@ namespace imgui_util::theme {
      * @param b End color (returned when t == 1).
      * @param t Interpolation factor.
      */
-    constexpr ImVec4 lerp_vec4(const ImVec4 a, const ImVec4 b, const float t) noexcept {
+    [[nodiscard]] constexpr ImVec4 lerp_vec4(const ImVec4 a, const ImVec4 b, const float t) noexcept {
         return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t};
     }
 
@@ -425,13 +433,13 @@ namespace imgui_util::theme {
 
         // Lerp ImGui colors
         for (int i = 0; i < ImGuiCol_COUNT; i++) {
-            result.colors.at(i) = lerp_vec4(a.colors.at(i), b.colors.at(i), t);
+            result.colors[i] = lerp_vec4(a.colors[i], b.colors[i], t);
         }
 
         // Lerp ImNodes colors (component-wise on packed U32)
         for (int i = 0; i < ImNodesCol_COUNT; i++) {
-            result.node_colors.at(i) =
-                float4_to_u32(lerp_vec4(u32_to_float4(a.node_colors.at(i)), u32_to_float4(b.node_colors.at(i)), t));
+            result.node_colors[i] =
+                float4_to_u32(lerp_vec4(u32_to_float4(a.node_colors[i]), u32_to_float4(b.node_colors[i]), t));
         }
 
         // Lerp style floats via constexpr table
@@ -443,47 +451,12 @@ namespace imgui_util::theme {
         // Lerp preset RGB fields via constexpr table
         for (const auto &[name, ptr]: theme_rgb_fields) {
             for (int j = 0; j < 3; j++) {
-                (result.*ptr).channels.at(j) = (a.*ptr).channels.at(j) * s + (b.*ptr).channels.at(j) * t;
+                (result.*ptr).channels[j] = (a.*ptr).channels[j] * s + (b.*ptr).channels[j] * t;
             }
         }
 
         return result;
     }
 
-    /**
-     * @brief Output-parameter lerp overload -- writes result into @p out.
-     *
-     * Avoids one copy when the caller already owns the destination.
-     * @param a   Start theme (used when t == 0).
-     * @param b   End theme (used when t == 1).
-     * @param t   Interpolation factor.
-     * @param out Destination theme_config, modified in-place.
-     */
-    constexpr void lerp(const theme_config &a, const theme_config &b, const float t, theme_config &out) {
-        using color::float4_to_u32;
-        using color::u32_to_float4;
-
-        out.name = a.name;
-
-        for (int i = 0; i < ImGuiCol_COUNT; i++) {
-            out.colors.at(i) = lerp_vec4(a.colors.at(i), b.colors.at(i), t);
-        }
-
-        for (int i = 0; i < ImNodesCol_COUNT; i++) {
-            out.node_colors.at(i) =
-                float4_to_u32(lerp_vec4(u32_to_float4(a.node_colors.at(i)), u32_to_float4(b.node_colors.at(i)), t));
-        }
-
-        const float s = 1.0f - t;
-        for (const auto &[name, ptr]: theme_float_fields) {
-            out.*ptr = a.*ptr * s + b.*ptr * t;
-        }
-
-        for (const auto &[name, ptr]: theme_rgb_fields) {
-            for (int j = 0; j < 3; j++) {
-                (out.*ptr).channels.at(j) = (a.*ptr).channels.at(j) * s + (b.*ptr).channels.at(j) * t;
-            }
-        }
-    }
 
 } // namespace imgui_util::theme

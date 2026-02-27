@@ -57,6 +57,12 @@ namespace imgui_util::layout {
             ++count_;
         }
 
+        /// @brief Call next() then invoke a callable for the item.
+        void item(auto&& callable) noexcept(noexcept(callable())) {
+            next();
+            callable();
+        }
+
     private:
         float spacing_;
         int   count_ = 0;

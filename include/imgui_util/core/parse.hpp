@@ -55,7 +55,7 @@ namespace imgui_util::parse {
     [[nodiscard]] constexpr std::optional<T> try_parse(const std::string_view sv) noexcept {
         T result{};
         auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), result);
-        if (ec != std::errc::invalid_argument && ec != std::errc::result_out_of_range) return result;
+        if (ec == std::errc{}) return result;
 
         return std::nullopt;
     }
@@ -102,6 +102,13 @@ namespace imgui_util::parse {
         return try_parse<std::int64_t>(sv);
     }
 
+    /// @brief Parse "true"/"false"/"1"/"0" into a bool, returning nullopt on unrecognized input.
+    [[nodiscard]] constexpr std::optional<bool> parse_bool(const std::string_view sv) noexcept {
+        if (sv == "true" || sv == "1") return true;
+        if (sv == "false" || sv == "0") return false;
+        return std::nullopt;
+    }
+
     /**
      * @brief Iterate comma-separated tokens, invoking fn(index, token) for each.
      *
@@ -137,7 +144,7 @@ namespace imgui_util::parse {
      * @return True if at least one component was successfully parsed.
      */
     template<size_t N>
-    constexpr bool parse_float_components(const std::string_view sv, const std::span<float, N> out) noexcept {
+    constexpr bool parse_float_components(const std::string_view sv, std::span<float, N> out) noexcept {
         bool parsed = false;
         for_each_csv_token(sv, N, [&](size_t i, const std::string_view part) {
             if (auto v = try_parse<float>(part)) {
@@ -149,13 +156,21 @@ namespace imgui_util::parse {
     }
 
     /// @brief Parse 3 comma-separated floats as RGB into a span.
-    constexpr bool parse_float_rgb(const std::string_view sv, const std::span<float, 3> out) noexcept {
+    constexpr bool parse_float_rgb(const std::string_view sv, std::span<float, 3> out) noexcept {
         return parse_float_components<3>(sv, out);
     }
 
     /// @brief Parse 4 comma-separated floats as RGBA into a span.
-    constexpr bool parse_float_rgba(const std::string_view sv, const std::span<float, 4> out) noexcept {
+    constexpr bool parse_float_rgba(const std::string_view sv, std::span<float, 4> out) noexcept {
         return parse_float_components<4>(sv, out);
+    }
+
+    /// @brief Parse "x, y" comma-separated floats into an ImVec2.
+    [[nodiscard]] constexpr ImVec2 parse_vec2(const std::string_view sv,
+                                              const ImVec2           default_val = {0.0f, 0.0f}) noexcept {
+        std::array components = {default_val.x, default_val.y};
+        parse_float_components<2>(sv, std::span{components});
+        return {components[0], components[1]};
     }
 
     /// @brief Parse "x, y, z, w" comma-separated floats into an ImVec4.

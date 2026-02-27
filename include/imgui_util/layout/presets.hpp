@@ -19,16 +19,14 @@ namespace imgui_util::layout {
 
     /**
      * @brief Add flags to a base flag set.
-     *
-     * Handles ImGui's int-typedef / enum mismatch via separate template params.
      * @param base   Base flag value.
      * @param flags  Flags to add.
      * @return Combined flag value.
      */
-    template<typename T, typename U>
-        requires(std::integral<T> || std::is_enum_v<T>) && (std::integral<U> || std::is_enum_v<U>)
+    template<typename T, typename U = T>
+        requires((std::integral<T> || std::is_enum_v<T>) && std::convertible_to<U, T>)
     [[nodiscard]] constexpr T with(T base, U flags) noexcept {
-        return static_cast<T>(base | flags);
+        return static_cast<T>(base | static_cast<T>(flags));
     }
 
     /**
@@ -37,10 +35,10 @@ namespace imgui_util::layout {
      * @param flags  Flags to remove.
      * @return Resulting flag value.
      */
-    template<typename T, typename U>
-        requires(std::integral<T> || std::is_enum_v<T>) && (std::integral<U> || std::is_enum_v<U>)
+    template<typename T, typename U = T>
+        requires((std::integral<T> || std::is_enum_v<T>) && std::convertible_to<U, T>)
     [[nodiscard]] constexpr T without(T base, U flags) noexcept {
-        return static_cast<T>(base & ~flags);
+        return static_cast<T>(base & ~static_cast<T>(flags));
     }
 
     namespace window {
@@ -88,6 +86,8 @@ namespace imgui_util::layout {
 
         constexpr ImGuiTableColumnFlags default_sort =
             ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortAscending;
+
+        constexpr ImGuiTableColumnFlags frozen_default_sort = frozen_column | default_sort;
 
     } // namespace column
 

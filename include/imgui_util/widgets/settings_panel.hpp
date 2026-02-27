@@ -101,8 +101,6 @@ namespace imgui_util {
                     it->render_fn();
                 }
             }
-
-            sections_.clear();
         }
 
     private:

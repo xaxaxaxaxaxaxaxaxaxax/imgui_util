@@ -12,7 +12,11 @@
 
 #include <imgui.h>
 
+#include "imgui_util/theme/color_math.hpp"
+
 namespace imgui_util::theme {
+
+    using color::rgb_color;
 
     /**
      * @brief Detect light/dark mode from current ImGui WindowBg luminance.
@@ -21,9 +25,8 @@ namespace imgui_util::theme {
      * @return True if the current theme appears to be light mode.
      */
     [[nodiscard]] inline bool is_light_mode() noexcept {
-        const ImVec4 &bg        = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
-        const float   luminance = 0.299f * bg.x + 0.587f * bg.y + 0.114f * bg.z;
-        return luminance > 0.5f;
+        const ImVec4 &bg = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+        return color::luminance(bg) > 0.5f;
     }
 
     /**
@@ -48,6 +51,14 @@ namespace imgui_util::theme {
      * @param dark  Color to use in dark mode.
      */
     [[nodiscard]] inline ImVec4 choose(const ImVec4 &light, const ImVec4 &dark) noexcept {
+        return is_light_cached() ? light : dark;
+    }
+    /**
+     * @brief Pick an rgb_color based on cached light/dark mode detection.
+     * @param light Color to use in light mode.
+     * @param dark  Color to use in dark mode.
+     */
+    [[nodiscard]] inline rgb_color choose(const rgb_color &light, const rgb_color &dark) noexcept {
         return is_light_cached() ? light : dark;
     }
     /**

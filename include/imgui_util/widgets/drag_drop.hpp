@@ -109,4 +109,23 @@ namespace imgui_util::drag_drop {
         }
     }
 
+    /**
+     * @brief Begin a drag-drop source with a payload and custom tooltip callback.
+     * @tparam T            Trivially copyable payload type.
+     * @tparam TooltipFn    Callable rendering custom drag tooltip content.
+     * @param type          Payload type identifier string.
+     * @param value         Value to store in the payload.
+     * @param tooltip_fn    Callback invoked to render the drag tooltip.
+     * @param flags         ImGui drag-drop flags.
+     */
+    template<typename T, std::invocable TooltipFn>
+        requires payload<T>
+    void source(const char *type, const T &value, TooltipFn &&tooltip_fn,
+                const ImGuiDragDropFlags flags = 0) noexcept {
+        if (const drag_drop_source src{flags}) {
+            set_payload(type, value);
+            std::forward<TooltipFn>(tooltip_fn)();
+        }
+    }
+
 } // namespace imgui_util::drag_drop

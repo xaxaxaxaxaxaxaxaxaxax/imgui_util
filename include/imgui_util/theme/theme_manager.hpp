@@ -59,6 +59,15 @@ namespace imgui_util::theme {
         [[nodiscard]] static const theme_preset *find_preset(std::string_view name);
 
         /**
+         * @brief Apply a built-in preset by name.
+         *
+         * Looks up the preset, builds a theme_config, and applies it.
+         * Logs a warning and does nothing if the preset is not found.
+         * @param name Preset name (must match an entry from get_presets()).
+         */
+        void apply_preset(std::string_view name);
+
+        /**
          * @brief Serialize the current theme to a JSON file.
          * @param path Destination file path.
          * @return True on success.

@@ -124,14 +124,11 @@ namespace imgui_util {
             if (t <= keys.front().time) return keys.front().value;
             if (t >= keys.back().time) return keys.back().value;
 
-            // Find the segment containing t
-            std::size_t seg = 0;
-            for (std::size_t i = 0; i + 1 < keys.size(); ++i) {
-                if (t >= keys[i].time && t <= keys[i + 1].time) {
-                    seg = i;
-                    break;
-                }
-            }
+            // Find the segment containing t using binary search
+            auto it = std::lower_bound(keys.begin(), keys.end(), t,
+                                       [](const keyframe &k, float val) { return k.time < val; });
+            if (it == keys.begin()) it = keys.begin() + 1;
+            const std::size_t seg = static_cast<std::size_t>(it - keys.begin()) - 1;
 
             const auto &k0 = keys[seg];
             const auto &k1 = keys[seg + 1];
@@ -197,6 +194,8 @@ namespace imgui_util {
         ImU32  curve_color_  = IM_COL32(255, 200, 50, 255);
         int    selected_key_ = -1;
         int    dragging_key_ = -1;
+
+        static constexpr float point_radius = 5.0f;
 
         enum class drag_part { none, point, tangent_in, tangent_out };
         drag_part dragging_part_ = drag_part::none;
@@ -320,7 +319,6 @@ namespace imgui_util {
 
         void render_keyframes(const render_context &ctx, std::vector<keyframe> &keys, bool &modified) {
             for (int ki = 0; std::cmp_less(ki, keys.size()); ++ki) {
-                constexpr float point_radius                 = 5.0f;
                 auto &[time, value, tangent_in, tangent_out] = keys[static_cast<std::size_t>(ki)];
                 const ImVec2 pos                             = ctx.to_screen(time, value);
                 const bool   is_selected                     = ki == selected_key_;
@@ -405,8 +403,6 @@ namespace imgui_util {
         }
 
         void handle_click_detection(const render_context &ctx, const std::vector<keyframe> &keys) {
-            constexpr float point_radius = 5.0f;
-
             if (!ctx.canvas_hovered || !ImGui::IsMouseClicked(0) || dragging_part_ != drag_part::none) return;
 
             int   closest      = -1;
@@ -433,7 +429,6 @@ namespace imgui_util {
 
             bool on_point = false;
             for (const auto &key: keys) {
-                constexpr float point_radius = 5.0f;
                 if (const ImVec2 pos = ctx.to_screen(key.time, key.value);
                     std::hypot(ctx.mouse.x - pos.x, ctx.mouse.y - pos.y) < point_radius * 2.0f) {
                     on_point = true;

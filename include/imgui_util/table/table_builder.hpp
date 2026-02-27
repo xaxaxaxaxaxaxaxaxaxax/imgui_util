@@ -147,10 +147,8 @@ namespace imgui_util {
         template<typename Fn>
             requires row_predicate<Fn, RowT>
         [[nodiscard]] auto set_filter(Fn &&fn) && {
-            auto result = table_builder<RowT, Cols, std::decay_t<Fn>, RowIdFn>{
+            return table_builder<RowT, Cols, std::decay_t<Fn>, RowIdFn>{
                 cfg_, std::move(cols_), std::forward<Fn>(fn), std::move(row_id_fn_), std::move(row_highlight_fn_)};
-            result.filter_dirty_ = true;
-            return result;
         }
 
         /// @brief Set a per-row highlight callback for custom row background colors.
@@ -206,11 +204,10 @@ namespace imgui_util {
         void sort_if_dirty(std::span<RowT> data, KeyFn key_fn, const bool force = false) {
             if (sort_specs_ && (sort_specs_->SpecsDirty || force)) {
                 if (sort_specs_->SpecsCount > 0) {
-                    const bool ascending = sort_specs_->Specs[0].SortDirection == ImGuiSortDirection_Ascending;
-                    std::ranges::stable_sort(data, [&](const RowT &a, const RowT &b) {
-                        return ascending ? std::invoke(key_fn, a) < std::invoke(key_fn, b)
-                                         : std::invoke(key_fn, b) < std::invoke(key_fn, a);
-                    });
+                    if (sort_specs_->Specs[0].SortDirection == ImGuiSortDirection_Ascending)
+                        std::ranges::stable_sort(data, std::less{}, key_fn);
+                    else
+                        std::ranges::stable_sort(data, std::greater{}, key_fn);
                 }
                 sort_specs_->SpecsDirty = false;
             }
@@ -241,31 +238,26 @@ namespace imgui_util {
             }
         }
 
+        /**
+         * @brief Sort by a single comparator, respecting the current sort direction.
+         * @param data  Mutable span of rows to sort in-place.
+         * @param comp  Less-than comparator for the rows.
+         */
+        void sort_if_dirty(std::span<RowT> data, comparator_fn comp) {
+            if (sort_specs_ != nullptr && sort_specs_->SpecsDirty) {
+                if (sort_specs_->SpecsCount > 0) {
+                    const bool ascending = sort_specs_->Specs[0].SortDirection == ImGuiSortDirection_Ascending;
+                    std::ranges::stable_sort(
+                        data, [&](const RowT &a, const RowT &b) { return ascending ? comp(a, b) : comp(b, a); });
+                }
+                sort_specs_->SpecsDirty = false;
+            }
+        }
+
         /// @brief Render a single row (no clipper, no selection).
         void render_single_row(const RowT &data) {
             ImGui::TableNextRow();
             render_columns(data, std::make_index_sequence<std::tuple_size_v<Cols>>{});
-        }
-
-        /// @brief Render rows with ImGuiListClipper for virtual scrolling.
-        void render_clipped(std::span<const RowT> data) {
-            if constexpr (has_filter) {
-                rebuild_filter_span(data);
-                clip_and_render(static_cast<int>(filtered_indices_.size()), [&](const int fi) {
-                    const int i   = filtered_indices_[fi];
-                    const int rid = row_id_for(data[i], i);
-                    ImGui::PushID(rid);
-                    render_row_with_selection(data[i], rid);
-                    ImGui::PopID();
-                });
-            } else {
-                clip_and_render(static_cast<int>(data.size()), [&](int i) {
-                    const int rid = row_id_for(data[i], i);
-                    ImGui::PushID(rid);
-                    render_row_with_selection(data[i], rid);
-                    ImGui::PopID();
-                });
-            }
         }
 
         template<std::ranges::sized_range R>
@@ -354,7 +346,7 @@ namespace imgui_util {
 
     private:
         template<typename NewCols>
-        table_builder(table_config cfg, NewCols &&cols, FilterFn filter, RowIdFn row_id,
+        table_builder(const table_config cfg, NewCols &&cols, FilterFn filter, RowIdFn row_id,
                       row_highlight_fn<RowT> highlight = {}) :
             cfg_(cfg),
             cols_(std::forward<NewCols>(cols)),
@@ -400,16 +392,6 @@ namespace imgui_util {
                     per_row(i);
                 }
             }
-        }
-
-        void rebuild_filter_span(std::span<const RowT> data) const {
-            if (!filter_dirty_) return;
-            filtered_indices_.clear();
-            filtered_indices_.reserve(data.size());
-            for (int i = 0; i < static_cast<int>(data.size()); ++i) {
-                if (filter_(data[i])) filtered_indices_.push_back(i);
-            }
-            filter_dirty_ = false;
         }
 
         template<std::ranges::sized_range R>

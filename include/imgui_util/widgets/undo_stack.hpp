@@ -92,6 +92,16 @@ namespace imgui_util {
             return false;
         }
 
+        /// @brief Handle Ctrl+Z / Ctrl+Y and invoke callback with current() on change.
+        template<std::invocable<const State &> F>
+        bool handle_shortcuts(F &&callback) noexcept {
+            if (handle_shortcuts()) {
+                std::forward<F>(callback)(current());
+                return true;
+            }
+            return false;
+        }
+
         /**
          * @brief Render a clickable history panel with undo/redo toolbar.
          * @param panel_id  ImGui window ID for the panel.

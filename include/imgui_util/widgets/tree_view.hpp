@@ -80,6 +80,12 @@ namespace imgui_util {
             }
         }
 
+        /// @brief Clear the current selection.
+        void deselect() noexcept { selected_ = nullptr; }
+
+        /// @brief Programmatically select a node (stores address; node must remain valid).
+        void select(const NodeT &node) noexcept { selected_ = &node; }
+
     private:
         const char     *id_;
         children_fn     children_fn_;
@@ -87,10 +93,6 @@ namespace imgui_util {
         select_fn       select_fn_;
         context_menu_fn context_fn_;
         leaf_fn         leaf_fn_;
-        // WARNING: raw pointer into caller's node storage -- dangles if the container
-        // is reallocated (e.g. std::vector resize) between frames. Callers must ensure
-        // node addresses remain stable for the lifetime of this tree_view, or call
-        // render() each frame so that selection is re-evaluated before use.
         const NodeT    *selected_ = nullptr;
 
         void render_node(const NodeT &node) { // NOLINT(misc-no-recursion)

@@ -137,8 +137,11 @@ namespace imgui_util::implot {
 
     /// @brief Entry for batched style-color pushes via multi_push.
     struct plot_style_color_entry {
-        ImPlotCol idx{};
-        ImVec4    val;
+        ImPlotCol                   idx{};
+        std::variant<ImVec4, ImU32> val;
+
+        plot_style_color_entry(const ImPlotCol i, const ImVec4 &c) noexcept : idx{i}, val{c} {}
+        plot_style_color_entry(const ImPlotCol i, const ImU32 c) noexcept : idx{i}, val{c} {}
     };
 
     constexpr auto push_plot_style_var_fn   = [](ImPlotStyleVar idx, const auto &v) { ImPlot::PushStyleVar(idx, v); };

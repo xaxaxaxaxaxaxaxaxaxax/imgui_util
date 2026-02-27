@@ -170,8 +170,8 @@ namespace imgui_util {
     struct tab_bar_trait {
         static constexpr auto policy = end_policy::conditional;
         using storage                = std::monostate;
-        static bool begin(const char *str_id, const ImGuiTabBarFlags flags = 0) noexcept {
-            return ImGui::BeginTabBar(str_id, flags);
+        static bool begin(const char *id, const ImGuiTabBarFlags flags = 0) noexcept {
+            return ImGui::BeginTabBar(id, flags);
         }
         static void end() noexcept { ImGui::EndTabBar(); }
     };

@@ -38,7 +38,13 @@ namespace imgui_util {
          * @param callback  Action invoked when the command is selected.
          */
         void add(std::string name, std::move_only_function<void()> callback) {
-            commands_.push_back({.name = std::move(name), .callback = std::move(callback)});
+            commands_.push_back({.name = std::move(name), .description = {}, .callback = std::move(callback)});
+        }
+
+        /// @brief Register a command with a description shown in the results list.
+        void add(std::string name, const std::string_view description, std::move_only_function<void()> callback) {
+            commands_.push_back(
+                {.name = std::move(name), .description = std::string(description), .callback = std::move(callback)});
         }
 
         /// @brief Remove all registered commands.
@@ -48,8 +54,8 @@ namespace imgui_util {
         void open() noexcept {
             should_open_ = true;
             filter_.fill('\0');
-            prev_filter_.fill('\0');
-            selected_ = 0;
+            filter_dirty_ = true;
+            selected_     = 0;
         }
 
         /// @brief Render the command palette. Call once per frame.
@@ -75,7 +81,8 @@ namespace imgui_util {
                 // Filter input
                 if (ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
                 ImGui::SetNextItemWidth(-1.0f);
-                ImGui::InputTextWithHint("##input", "Type a command...", filter_.data(), filter_.size());
+                if (ImGui::InputTextWithHint("##input", "Type a command...", filter_.data(), filter_.size()))
+                    filter_dirty_ = true;
 
                 update_scored_results();
                 handle_keyboard();
@@ -86,6 +93,7 @@ namespace imgui_util {
     private:
         struct command_entry {
             std::string                     name;
+            std::string                     description;
             std::move_only_function<void()> callback;
         };
 
@@ -95,17 +103,16 @@ namespace imgui_util {
         };
 
         void update_scored_results() {
+            if (!filter_dirty_) return;
+            filter_dirty_ = false;
             const std::string_view query{filter_.data()};
-            if (filter_ != prev_filter_) {
-                prev_filter_ = filter_;
-                scored_.clear();
-                for (int i = 0; std::cmp_less(i, commands_.size()); ++i) {
-                    if (int score = 0; query.empty() || fuzzy_match(query, commands_[i].name, score)) {
-                        scored_.push_back({.idx = i, .score = score});
-                    }
+            scored_.clear();
+            for (int i = 0; std::cmp_less(i, commands_.size()); ++i) {
+                if (int score = 0; query.empty() || fuzzy_match(query, commands_[i].name, score)) {
+                    scored_.push_back({.idx = i, .score = score});
                 }
-                std::ranges::sort(scored_, [](const auto &a, const auto &b) { return a.score > b.score; });
             }
+            std::ranges::sort(scored_, [](const auto &a, const auto &b) { return a.score > b.score; });
         }
 
         void handle_keyboard() {
@@ -130,12 +137,16 @@ namespace imgui_util {
             ImGui::Separator();
             const int max_visible = std::min(static_cast<int>(scored_.size()), 10);
             for (int i = 0; i < max_visible; ++i) {
-                auto &[name, callback] = commands_[scored_[i].idx];
-                const bool sel         = i == selected_;
+                auto &[name, description, callback] = commands_[scored_[i].idx];
+                const bool sel                      = i == selected_;
 
                 if (ImGui::Selectable(name.c_str(), sel)) {
                     callback();
                     ImGui::CloseCurrentPopup();
+                }
+                if (!description.empty()) {
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("%s", description.c_str());
                 }
                 if (sel) ImGui::SetItemDefaultFocus();
             }
@@ -178,9 +189,9 @@ namespace imgui_util {
         std::vector<command_entry> commands_;
         std::vector<scored_entry>  scored_; // transient per-frame
         std::array<char, 128>      filter_{};
-        std::array<char, 128>      prev_filter_{};
-        int                        selected_    = 0;
-        bool                       should_open_ = false;
+        int                        selected_     = 0;
+        bool                       should_open_  = false;
+        bool                       filter_dirty_ = true;
     };
 
 } // namespace imgui_util

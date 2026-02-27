@@ -39,7 +39,7 @@ namespace imgui_util {
         struct spinner_setup {
             ImDrawList *dl{};
             ImVec2      center;
-            ImU32       col{};
+            ImVec4      col{};
         };
 
         [[nodiscard]] inline spinner_setup spinner_begin(const char *label, const float radius,
@@ -47,11 +47,10 @@ namespace imgui_util {
             const float  diameter = radius * 2.0f;
             const ImVec2 pos      = ImGui::GetCursorScreenPos();
             ImGui::InvisibleButton(label, {diameter, diameter});
-            const ImVec4 resolved = resolve_spinner_color(color);
             return {
                 .dl     = ImGui::GetWindowDrawList(),
                 .center = {pos.x + radius, pos.y + radius},
-                .col    = ImGui::ColorConvertFloat4ToU32(resolved),
+                .col    = resolve_spinner_color(color),
             };
         }
 
@@ -69,13 +68,14 @@ namespace imgui_util {
     inline void spinner(const char *label, const float radius = 8.0f, const float thickness = 2.0f,
                         const ImVec4 &color = {}) noexcept {
         const auto [dl, center, col] = detail::spinner_begin(label, radius, color);
+        const ImU32 col32 = ImGui::ColorConvertFloat4ToU32(col);
 
         const float start = std::fmod(static_cast<float>(ImGui::GetTime()) * 5.0f, detail::spinner_pi * 2.0f);
         const float end   = start + detail::spinner_pi * 1.2f; // ~216 degree arc
 
         dl->PathClear();
         dl->PathArcTo(center, radius, start, end, detail::spinner_segments);
-        dl->PathStroke(col, 0, thickness);
+        dl->PathStroke(col32, 0, thickness);
     }
 
     /**
@@ -120,9 +120,9 @@ namespace imgui_util {
     inline void spinner_progress(const char *label, const float progress, const float radius = 8.0f,
                                  const float thickness = 2.0f, const ImVec4 &color = {}) noexcept {
         const auto [dl, center, col] = detail::spinner_begin(label, radius, color);
+        const ImU32 col32 = ImGui::ColorConvertFloat4ToU32(col);
 
-        const ImVec4 resolved = ImGui::ColorConvertU32ToFloat4(col);
-        const ImU32  bg_col = ImGui::ColorConvertFloat4ToU32({resolved.x, resolved.y, resolved.z, resolved.w * 0.25f});
+        const ImU32  bg_col = ImGui::ColorConvertFloat4ToU32({col.x, col.y, col.z, col.w * 0.25f});
 
         dl->PathClear();
         dl->PathArcTo(center, radius, 0.0f, detail::spinner_pi * 2.0f, detail::spinner_segments);
@@ -132,7 +132,7 @@ namespace imgui_util {
         const float end_angle = -detail::spinner_pi * 0.5f + clamped * (detail::spinner_pi * 2.0f);
         dl->PathClear();
         dl->PathArcTo(center, radius, -detail::spinner_pi * 0.5f, end_angle, detail::spinner_segments);
-        dl->PathStroke(col, 0, thickness);
+        dl->PathStroke(col32, 0, thickness);
     }
 
 } // namespace imgui_util

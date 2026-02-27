@@ -64,8 +64,8 @@ namespace imgui_util {
 
         /// @brief Normalized + pixel position of a slider handle.
         struct handle_pos {
-            float t;  ///< Normalized position in [0, 1].
-            float px; ///< Pixel X position on screen.
+            float t  = 0.0f; ///< Normalized position in [0, 1].
+            float px = 0.0f; ///< Pixel X position on screen.
         };
 
         /// @brief Geometry needed to map between pixel and normalized slider space.

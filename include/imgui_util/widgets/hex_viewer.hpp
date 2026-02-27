@@ -114,7 +114,9 @@ namespace imgui_util {
         // editing state
         std::optional<std::size_t>   editing_offset_;
         std::array<char, 3>          edit_buf_{};
-        bool                         modified_ = false;
+        bool                         modified_       = false;
+        float                        cached_char_w_  = 0.0f;
+        float                        cached_space_w_ = 0.0f;
 
         void draw_row_backgrounds(const ImVec2 row_pos, const float row_h, const std::size_t row_offset,
                                   const std::size_t row_bytes, const row_layout &lay) const {
@@ -239,8 +241,12 @@ namespace imgui_util {
 
             const std::size_t total_rows = (data_size + bytes_per_row_ - 1) / bytes_per_row_;
 
-            const float      char_w  = ImGui::CalcTextSize("F").x;
-            const float      space_w = ImGui::CalcTextSize(" ").x;
+            if (cached_char_w_ == 0.0f) {
+                cached_char_w_  = ImGui::CalcTextSize("F").x;
+                cached_space_w_ = ImGui::CalcTextSize(" ").x;
+            }
+            const float      char_w  = cached_char_w_;
+            const float      space_w = cached_space_w_;
             const row_layout lay{
                 .char_w    = char_w,
                 .space_w   = space_w,

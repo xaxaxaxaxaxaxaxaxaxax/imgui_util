@@ -21,6 +21,7 @@
 
 #include "imgui_util/core/fmt_buf.hpp"
 #include "imgui_util/core/raii.hpp"
+#include "imgui_util/theme/color_math.hpp"
 #include "imgui_util/widgets/text.hpp"
 
 namespace imgui_util {
@@ -66,10 +67,8 @@ namespace imgui_util {
             const fmt_buf<128> armed_label("Confirm {}##{}", label, str_id);
             const style_colors sc{
                 {ImGuiCol_Button, armed_color},
-                {ImGuiCol_ButtonHovered,
-                 ImVec4{armed_color.x * 1.1f, armed_color.y * 1.1f, armed_color.z * 1.1f, armed_color.w}},
-                {ImGuiCol_ButtonActive,
-                 ImVec4{armed_color.x * 0.9f, armed_color.y * 0.9f, armed_color.z * 0.9f, armed_color.w}},
+                {ImGuiCol_ButtonHovered, color::offset(armed_color, 0.1f)},
+                {ImGuiCol_ButtonActive, color::offset(armed_color, -0.1f)},
             };
             if (ImGui::Button(armed_label.c_str())) {
                 *armed_val = 0;

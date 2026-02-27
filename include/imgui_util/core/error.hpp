@@ -66,6 +66,7 @@ namespace imgui_util {
         explicit constexpr ui_error(const ui_error_code c, std::string d) : code{c}, detail{std::move(d)} {}
 
         /// @brief Format the error as "code_name" or "code_name: detail".
+        // NOTE: effectively constexpr in C++26 only (std::format_to_n, P2510R3).
         [[nodiscard]] constexpr fmt_buf<256> message() const {
             const auto base = to_string(code);
             if (detail.empty()) return fmt_buf<256>("{}", base);
@@ -91,17 +92,12 @@ namespace imgui_util {
     /// @brief Alias for std::expected<void, ui_error>.
     using ui_expected_void = std::expected<void, ui_error>;
 
-    /// @brief Create an unexpected ui_error from a code alone.
-    [[nodiscard]] constexpr std::unexpected<ui_error> make_ui_error(const ui_error_code code) {
-        return std::unexpected{ui_error{code}};
-    }
-
     /**
-     * @brief Create an unexpected ui_error with a detail message.
+     * @brief Create an unexpected ui_error, optionally with a detail message.
      * @param code   The error code.
-     * @param detail Additional context (not constexpr due to heap allocation).
+     * @param detail Additional context (empty by default).
      */
-    [[nodiscard]] inline std::unexpected<ui_error> make_ui_error(const ui_error_code code, std::string detail) {
+    [[nodiscard]] inline std::unexpected<ui_error> make_ui_error(const ui_error_code code, std::string detail = {}) {
         return std::unexpected{ui_error{code, std::move(detail)}};
     }
 
@@ -156,7 +152,6 @@ struct std::formatter<imgui_util::ui_error> {
     static constexpr auto parse(const std::format_parse_context &ctx) { return ctx.begin(); }
 
     static constexpr auto format(const imgui_util::ui_error &err, std::format_context &ctx) {
-        if (err.detail.empty()) return std::format_to(ctx.out(), "{}", imgui_util::to_string(err.code));
-        return std::format_to(ctx.out(), "{}: {}", imgui_util::to_string(err.code), err.detail);
+        return std::format_to(ctx.out(), "{}", err.message().sv());
     }
 };

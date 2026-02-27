@@ -52,11 +52,18 @@ namespace imgui_util::notification_center {
 
         struct state {
             std::vector<notification> entries;
+            int                       unread_count = 0;
         };
 
         [[nodiscard]] inline auto &get_state() noexcept {
             static state s;
             return s;
+        }
+
+        inline void decrement_unread_if(state &s, const notification &e) noexcept {
+            if (!e.read) {
+                --s.unread_count;
+            }
         }
 
         /// @brief Return a short text icon for the given severity (e.g. "[i]", "[!]").
@@ -71,7 +78,7 @@ namespace imgui_util::notification_center {
                 case severity::success:
                     return "[+]";
             }
-            return "[i]";
+            std::unreachable();
         }
 
         [[nodiscard]] inline ImVec4 severity_color(const severity sev) noexcept {
@@ -85,7 +92,7 @@ namespace imgui_util::notification_center {
                 case severity::success:
                     return theme::success_color();
             }
-            return theme::info_color();
+            std::unreachable();
         }
 
         /// @brief Format a time_point as a human-readable relative duration (e.g. "5m ago").
@@ -99,27 +106,27 @@ namespace imgui_util::notification_center {
             return fmt_buf<32>("{}d ago", diff / 86400);
         }
 
-        inline void render_toolbar(std::vector<notification> &entries) {
+        inline void render_toolbar(state &s) {
             if (ImGui::Button("Mark All Read")) {
-                for (auto &e: entries)
+                for (auto &e: s.entries)
                     e.read = true;
+                s.unread_count = 0;
             }
             ImGui::SameLine();
             if (ImGui::Button("Clear All")) {
-                entries.clear();
+                s.entries.clear();
+                s.unread_count = 0;
             }
             ImGui::SameLine();
             {
-                const fmt_buf<32> badge("{} unread", static_cast<int>(std::ranges::count_if(entries, [](const auto &e) {
-                    return !e.read;
-                })));
+                const fmt_buf<32> badge("{} unread", s.unread_count);
                 dim_text(badge.sv());
             }
         }
 
         /// @brief Render a single notification row. Returns true if @p entries was mutated (dismiss).
-        inline bool render_notification_row(notification &e, int row, const std::size_t idx,
-                                            std::vector<notification> &entries) {
+        inline bool render_notification_row(notification &e, int row, const std::size_t idx, state &s) {
+            auto    &entries = s.entries;
             const id entry_id{row};
 
             // Unread indicator: slightly brighter background
@@ -153,7 +160,10 @@ namespace imgui_util::notification_center {
             if (!e.action_label.empty() && e.action) {
                 if (ImGui::SmallButton(e.action_label.c_str())) {
                     e.action();
-                    e.read = true;
+                    if (!e.read) {
+                        e.read = true;
+                        --s.unread_count;
+                    }
                 }
                 ImGui::SameLine();
             }
@@ -161,14 +171,16 @@ namespace imgui_util::notification_center {
             {
                 const fmt_buf<32> dismiss_label("Dismiss##d{}", row);
                 if (ImGui::SmallButton(dismiss_label.c_str())) {
+                    decrement_unread_if(s, e);
                     entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(idx));
                     return true; // iterator invalidated
                 }
             }
 
             // Mark as read on hover
-            if (ImGui::IsItemHovered()) {
+            if (ImGui::IsItemHovered() && !e.read) {
                 e.read = true;
+                --s.unread_count;
             }
 
             ImGui::Separator();
@@ -179,8 +191,7 @@ namespace imgui_util::notification_center {
 
     /// @brief Return the number of unread notifications.
     [[nodiscard]] inline int unread_count() noexcept {
-        const auto &entries = detail::get_state().entries;
-        return static_cast<int>(std::ranges::count_if(entries, [](const auto &e) { return !e.read; }));
+        return detail::get_state().unread_count;
     }
 
     /**
@@ -193,7 +204,8 @@ namespace imgui_util::notification_center {
      */
     inline void push(std::string title, std::string detail_text, const severity sev = severity::info,
                      std::string action_label = {}, std::move_only_function<void()> action = {}) {
-        detail::get_state().entries.push_back({
+        auto &[entries, unread_count] = detail::get_state();
+        entries.push_back({
             .title        = std::move(title),
             .detail       = std::move(detail_text),
             .sev          = sev,
@@ -202,6 +214,7 @@ namespace imgui_util::notification_center {
             .timestamp    = std::chrono::steady_clock::now(),
             .read         = false,
         });
+        ++unread_count;
     }
 
     /**
@@ -210,10 +223,11 @@ namespace imgui_util::notification_center {
      * @param open     Optional pointer to a bool controlling window visibility.
      */
     inline void render_panel(const char *panel_id, bool *open = nullptr) {
-        auto &entries = detail::get_state().entries;
+        auto &s       = detail::get_state();
+        auto &entries = s.entries;
 
         if (const window win{panel_id, open}) {
-            detail::render_toolbar(entries);
+            detail::render_toolbar(s);
             ImGui::Separator();
 
             // Scrollable list (newest first)
@@ -226,7 +240,7 @@ namespace imgui_util::notification_center {
                     for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row) {
                         const auto idx = static_cast<std::size_t>(count - 1 - row);
 
-                        if (auto &e = entries[idx]; detail::render_notification_row(e, row, idx, entries))
+                        if (auto &e = entries[idx]; detail::render_notification_row(e, row, idx, s))
                             break; // iterator invalidated by dismiss
                     }
                 }
@@ -236,20 +250,25 @@ namespace imgui_util::notification_center {
 
     /// @brief Mark every notification as read.
     inline void mark_all_read() noexcept {
-        for (auto &e: detail::get_state().entries)
+        auto &[entries, unread_count] = detail::get_state();
+        for (auto &e: entries)
             e.read = true;
+        unread_count = 0;
     }
 
     /// @brief Remove a notification by index.
     inline void dismiss(const std::size_t index) {
-        if (auto &entries = detail::get_state().entries; index < entries.size()) {
-            entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(index));
+        if (auto &s = detail::get_state(); index < s.entries.size()) {
+            detail::decrement_unread_if(s, s.entries[index]);
+            s.entries.erase(s.entries.begin() + static_cast<std::ptrdiff_t>(index));
         }
     }
 
     /// @brief Remove all notifications.
     inline void clear_all() noexcept {
-        detail::get_state().entries.clear();
+        auto &[entries, unread_count] = detail::get_state();
+        entries.clear();
+        unread_count = 0;
     }
 
 } // namespace imgui_util::notification_center
