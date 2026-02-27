@@ -206,6 +206,7 @@ namespace imgui_util {
                 return;
             case severity::info:
                 ImGui::TextUnformatted(text.data(), text.data() + text.size());
+                return;
         }
     }
 
@@ -217,6 +218,19 @@ namespace imgui_util {
             data->Buf = s.data();
         }
         return 0;
+    }
+
+    [[nodiscard]] inline bool input_text(const char *label, std::string &str,
+                                         const ImGuiInputTextFlags flags = 0) noexcept {
+        return ImGui::InputText(label, str.data(), str.capacity() + 1,
+                                flags | ImGuiInputTextFlags_CallbackResize, input_text_callback_std_string, &str);
+    }
+
+    [[nodiscard]] inline bool input_text_multiline(const char *label, std::string &str, const ImVec2 &size = {0, 0},
+                                                   const ImGuiInputTextFlags flags = 0) noexcept {
+        return ImGui::InputTextMultiline(label, str.data(), str.capacity() + 1, size,
+                                         flags | ImGuiInputTextFlags_CallbackResize, input_text_callback_std_string,
+                                         &str);
     }
 
     /// @brief Render a label/value row in a 2-column ImGui table.

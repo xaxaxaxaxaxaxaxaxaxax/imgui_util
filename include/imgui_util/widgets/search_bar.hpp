@@ -25,7 +25,7 @@
 namespace imgui_util::search {
 
     [[nodiscard]] constexpr bool char_equal_ignore_case(const char a, const char b) noexcept {
-        auto to_lower = [](const char c) -> char {
+        constexpr auto to_lower = [](const char c) constexpr noexcept -> char {
             return c >= 'A' && c <= 'Z' ? static_cast<char>(c + ('a' - 'A')) : c;
         };
         return to_lower(a) == to_lower(b);

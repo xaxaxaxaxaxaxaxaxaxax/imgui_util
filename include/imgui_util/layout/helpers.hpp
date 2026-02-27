@@ -18,48 +18,49 @@
 /// @endcode
 #pragma once
 
+#include <algorithm>
 #include <imgui.h>
 
 namespace imgui_util::layout {
 
-    /**
-     * @brief Offset the cursor so the next widget of the given width is horizontally centered
-     *        within the available content region.
-     * @param widget_width  Width of the widget to center (pixels).
-     */
     inline void center_next(const float widget_width) noexcept {
-        const float avail = ImGui::GetContentRegionAvail().x;
-        const float offset = (avail - widget_width) * 0.5f;
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (offset > 0.0f ? offset : 0.0f));
+        const float offset = (ImGui::GetContentRegionAvail().x - widget_width) * 0.5f;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(offset, 0.0f));
     }
 
-    /**
-     * @brief Offset the cursor so the next widget of the given width is right-aligned
-     *        within the available content region.
-     * @param widget_width  Width of the widget to right-align (pixels).
-     */
     inline void right_align_next(const float widget_width) noexcept {
-        const float avail = ImGui::GetContentRegionAvail().x;
-        const float offset = avail - widget_width;
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (offset > 0.0f ? offset : 0.0f));
+        const float offset = ImGui::GetContentRegionAvail().x - widget_width;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(offset, 0.0f));
     }
 
-    /// @brief RAII helper that auto-inserts SameLine between items.
+    inline void left_align_next(const float indent = 0.0f) noexcept {
+        ImGui::SetCursorPosX(ImGui::GetCursorStartPos().x + std::max(indent, 0.0f));
+    }
+
+    inline void vertical_pad(const float pixels) noexcept {
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + pixels);
+    }
+
+    inline void label_left(const char *label, const float widget_width) noexcept {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(label);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(widget_width);
+    }
+
+    [[nodiscard]] inline float remaining_width() noexcept { return ImGui::GetContentRegionAvail().x; }
+
+    [[nodiscard]] inline float remaining_height() noexcept { return ImGui::GetContentRegionAvail().y; }
+
     class [[nodiscard]] horizontal_layout {
     public:
-        /// @brief Construct a horizontal layout group.
-        /// @param spacing  Pixel spacing between items (-1.0f = use default ImGui spacing).
         explicit horizontal_layout(const float spacing = -1.0f) noexcept : spacing_(spacing) {}
 
-        /// @brief Call before each item. Inserts SameLine after the first item.
         void next() noexcept {
-            if (started_) {
-                ImGui::SameLine(0.0f, spacing_);
-            }
+            if (started_) ImGui::SameLine(0.0f, spacing_);
             started_ = true;
         }
 
-        /// @brief Call next() then invoke a callable for the item.
         decltype(auto) item(auto &&callable) noexcept(noexcept(callable())) {
             next();
             return callable();
@@ -67,7 +68,7 @@ namespace imgui_util::layout {
 
     private:
         float spacing_;
-        bool                 started_ = false;
+        bool  started_ = false;
     };
 
 } // namespace imgui_util::layout

@@ -105,8 +105,8 @@ namespace imgui_util {
         };
 
         struct scored_entry {
-            int idx;
-            int score;
+            int idx{};
+            int score{};
         };
 
         void update_scored_results() {

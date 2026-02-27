@@ -97,8 +97,8 @@ namespace imgui_util {
             }
 
             render_ruler(ctx);
-            const auto [tracks_top, actual_track_h] = render_tracks(ctx, events);
-            render_events(ctx, events, tracks_top, actual_track_h, changed);
+            const auto [tracks_top, actual_track_h] = render_tracks_impl(ctx, events);
+            render_events(ctx, events, tracks_top, actual_track_h);
             handle_event_drag(ctx, events, changed);
             render_playhead(ctx, playhead, changed);
 
@@ -152,7 +152,7 @@ namespace imgui_util {
             }
 
             render_ruler(ctx);
-            const auto [tracks_top, actual_track_h] = render_tracks_readonly(ctx, events);
+            const auto [tracks_top, actual_track_h] = render_tracks_impl(ctx, events);
             render_events_readonly(ctx, events, tracks_top, actual_track_h);
             render_playhead(ctx, playhead, changed);
 
@@ -249,8 +249,8 @@ namespace imgui_util {
             }
         }
 
-        [[nodiscard]] track_layout render_tracks(const render_context           &ctx,
-                                                 const std::span<timeline_event> events) noexcept {
+        template<typename EventSpan>
+        [[nodiscard]] track_layout render_tracks_impl(const render_context &ctx, const EventSpan &events) noexcept {
             if (max_track_dirty_) {
                 cached_max_track_ = events.empty() ? 0 : std::ranges::max(events, {}, &timeline_event::track).track;
                 max_track_dirty_  = false;
@@ -282,26 +282,35 @@ namespace imgui_util {
             return {.tracks_top = tracks_top, .actual_track_h = actual_track_h};
         }
 
+        static void render_event_rects(const render_context &ctx, const timeline_event &ev, const float tracks_top,
+                                       const float actual_track_h) noexcept {
+            constexpr float event_padding = 2.0f;
+            const float     x0 = ctx.time_to_x(ev.start);
+            const float     x1 = ctx.time_to_x(ev.end);
+            const float     y0 = tracks_top + static_cast<float>(ev.track) * actual_track_h + event_padding;
+            const float     y1 = y0 + actual_track_h - event_padding * 2.0f;
+
+            ctx.dl->AddRectFilled({x0, y0}, {x1, y1}, ev.color, 3.0f);
+            ctx.dl->AddRect({x0, y0}, {x1, y1}, IM_COL32(255, 255, 255, 60), 3.0f);
+
+            if (!ev.label.empty() && x1 - x0 > 20.0f) {
+                ctx.dl->PushClipRect({x0, y0}, {x1, y1}, true);
+                ctx.dl->AddText({x0 + 4.0f, y0 + 2.0f}, IM_COL32(255, 255, 255, 220), ev.label.data(),
+                                ev.label.data() + ev.label.size());
+                ctx.dl->PopClipRect();
+            }
+        }
+
         void render_events(const render_context &ctx, const std::span<timeline_event> events, const float tracks_top,
-                           const float actual_track_h, bool & /*changed*/) noexcept {
+                           const float actual_track_h) noexcept {
             for (int i = 0; std::cmp_less(i, events.size()); ++i) {
-                constexpr float event_padding           = 2.0f;
-                auto &[start, end, label, color, track] = events[static_cast<std::size_t>(i)];
+                const auto &ev = events[static_cast<std::size_t>(i)];
+                render_event_rects(ctx, ev, tracks_top, actual_track_h);
 
-                const float x0 = ctx.time_to_x(start);
-                const float x1 = ctx.time_to_x(end);
-                const float y0 = tracks_top + static_cast<float>(track) * actual_track_h + event_padding;
-                const float y1 = y0 + actual_track_h - event_padding * 2.0f;
-
-                ctx.dl->AddRectFilled({x0, y0}, {x1, y1}, color, 3.0f);
-                ctx.dl->AddRect({x0, y0}, {x1, y1}, IM_COL32(255, 255, 255, 60), 3.0f);
-
-                if (!label.empty() && x1 - x0 > 20.0f) {
-                    ctx.dl->PushClipRect({x0, y0}, {x1, y1}, true);
-                    ctx.dl->AddText({x0 + 4.0f, y0 + 2.0f}, IM_COL32(255, 255, 255, 220), label.data(),
-                                    label.data() + label.size());
-                    ctx.dl->PopClipRect();
-                }
+                const float x0 = ctx.time_to_x(ev.start);
+                const float x1 = ctx.time_to_x(ev.end);
+                const float y0 = tracks_top + static_cast<float>(ev.track) * actual_track_h + 2.0f;
+                const float y1 = y0 + actual_track_h - 4.0f;
 
                 if (ctx.canvas_hovered && dragging_event_ == -1) {
                     if (ctx.mouse.x >= x0 && ctx.mouse.x <= x1 && ctx.mouse.y >= y0 && ctx.mouse.y <= y1) {
@@ -324,7 +333,7 @@ namespace imgui_util {
                             if (ImGui::IsMouseClicked(0)) {
                                 dragging_event_ = i;
                                 drag_edge_      = drag_edge::body;
-                                drag_offset_    = ctx.x_to_time(ctx.mouse.x) - start;
+                                drag_offset_    = ctx.x_to_time(ctx.mouse.x) - ev.start;
                             }
                         }
                     }
@@ -332,58 +341,10 @@ namespace imgui_util {
             }
         }
 
-        [[nodiscard]] track_layout render_tracks_readonly(const render_context                    &ctx,
-                                                        const std::span<const timeline_event> events) noexcept {
-            if (max_track_dirty_) {
-                cached_max_track_ = events.empty() ? 0 : std::ranges::max(events, {}, &timeline_event::track).track;
-                max_track_dirty_  = false;
-            }
-            const int   max_track    = cached_max_track_;
-            const int   num_tracks   = max_track + 1;
-            const float tracks_top   = ctx.canvas_pos.y + ruler_h;
-            const float tracks_avail = ctx.height - ruler_h;
-            const float actual_track_h =
-                std::min(track_height_, num_tracks > 0 ? tracks_avail / static_cast<float>(num_tracks) : tracks_avail);
-
-            for (int t = 0; t < num_tracks; ++t) {
-                const float y0 = tracks_top + static_cast<float>(t) * actual_track_h;
-                const float y1 = y0 + actual_track_h;
-
-                const ImU32 track_bg = t % 2 == 0 ? IM_COL32(35, 35, 35, 255) : IM_COL32(40, 40, 40, 255);
-                ctx.dl->AddRectFilled({ctx.canvas_pos.x, y0}, {ctx.canvas_pos.x + ctx.canvas_w, y1}, track_bg);
-
-                if (std::cmp_less(t, track_labels_.size())) {
-                    const auto &tl = track_labels_[static_cast<std::size_t>(t)];
-                    ctx.dl->AddText({ctx.canvas_pos.x + 4.0f, y0 + 2.0f}, IM_COL32(140, 140, 140, 255), tl.data(),
-                                    tl.data() + tl.size());
-                }
-
-                ctx.dl->AddLine({ctx.canvas_pos.x, y1}, {ctx.canvas_pos.x + ctx.canvas_w, y1},
-                                IM_COL32(60, 60, 60, 255));
-            }
-
-            return {.tracks_top = tracks_top, .actual_track_h = actual_track_h};
-        }
-
         static void render_events_readonly(const render_context &ctx, const std::span<const timeline_event> events,
                                            const float tracks_top, const float actual_track_h) noexcept {
-            for (const auto &[start, end, label, color, track] : events) {
-                constexpr float event_padding = 2.0f;
-
-                const float x0 = ctx.time_to_x(start);
-                const float x1 = ctx.time_to_x(end);
-                const float y0 = tracks_top + static_cast<float>(track) * actual_track_h + event_padding;
-                const float y1 = y0 + actual_track_h - event_padding * 2.0f;
-
-                ctx.dl->AddRectFilled({x0, y0}, {x1, y1}, color, 3.0f);
-                ctx.dl->AddRect({x0, y0}, {x1, y1}, IM_COL32(255, 255, 255, 60), 3.0f);
-
-                if (!label.empty() && x1 - x0 > 20.0f) {
-                    ctx.dl->PushClipRect({x0, y0}, {x1, y1}, true);
-                    ctx.dl->AddText({x0 + 4.0f, y0 + 2.0f}, IM_COL32(255, 255, 255, 220), label.data(),
-                                    label.data() + label.size());
-                    ctx.dl->PopClipRect();
-                }
+            for (const auto &ev: events) {
+                render_event_rects(ctx, ev, tracks_top, actual_track_h);
             }
         }
 

@@ -179,22 +179,35 @@ namespace imgui_util::implot {
 
     public:
         context() noexcept : ctx_(ImPlot::CreateContext()) {}
-        ~context() {
-            if (ctx_)
-                ImPlot::DestroyContext(ctx_);
+        ~context() noexcept {
+            if (ctx_) ImPlot::DestroyContext(ctx_);
         }
         context(const context &)            = delete;
         context &operator=(const context &) = delete;
         context(context &&o) noexcept : ctx_(std::exchange(o.ctx_, nullptr)) {}
         context &operator=(context &&o) noexcept {
-            if (this != &o) {
-                if (ctx_) ImPlot::DestroyContext(ctx_);
-                ctx_ = std::exchange(o.ctx_, nullptr);
-            }
+            if (ctx_) ImPlot::DestroyContext(ctx_);
+            ctx_ = std::exchange(o.ctx_, nullptr);
             return *this;
         }
         [[nodiscard]] ImPlotContext        *get() const noexcept { return ctx_; }
         [[nodiscard]] explicit operator bool() const noexcept { return ctx_ != nullptr; }
     };
+
+    /// @brief Adapts a callable (int idx) -> ImPlotPoint into an ImPlotGetter + void* pair.
+    template<typename F>
+        requires std::is_invocable_r_v<ImPlotPoint, F, int>
+    struct getter {
+        F                              fn;
+        static ImPlotPoint callback(const int idx, void *data) noexcept { return static_cast<getter *>(data)->fn(idx); }
+        [[nodiscard]] ImPlotGetter     get() noexcept { return &callback; }
+        [[nodiscard]] void            *data() noexcept { return this; }
+    };
+    template<typename F> getter(F) -> getter<F>;
+
+    /// @brief Adapts a contiguous span of ImPlotPoint (or layout-compatible) for PlotLineG/PlotScatterG.
+    inline ImPlotPoint span_getter(const int idx, void *data) noexcept {
+        return static_cast<const ImPlotPoint *>(data)[idx];
+    }
 
 } // namespace imgui_util::implot

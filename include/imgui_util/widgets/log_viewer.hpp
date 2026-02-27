@@ -229,9 +229,9 @@ namespace imgui_util {
         }
 
         void render_row(const int row) const {
-            const auto       &entry  = entry_at(filtered_[static_cast<std::size_t>(row)]);
-            const auto        text   = entry_text(entry);
-            const auto prefix = level_prefix(entry.lvl);
+            const auto &entry  = entry_at(filtered_[static_cast<std::size_t>(row)]);
+            const auto  text   = entry_text(entry);
+            const auto  prefix = level_prefix(entry.lvl);
 
             const id id_scope{row};
             const bool has_color = entry.lvl != level::info;

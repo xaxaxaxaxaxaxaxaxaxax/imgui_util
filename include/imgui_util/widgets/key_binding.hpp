@@ -54,9 +54,19 @@ namespace imgui_util {
     namespace detail {
 
         [[nodiscard]] constexpr bool is_modifier_key(const ImGuiKey key) noexcept {
-            return key == ImGuiKey_LeftCtrl || key == ImGuiKey_RightCtrl || key == ImGuiKey_LeftShift
-                || key == ImGuiKey_RightShift || key == ImGuiKey_LeftAlt || key == ImGuiKey_RightAlt
-                || key == ImGuiKey_LeftSuper || key == ImGuiKey_RightSuper;
+            switch (key) {
+                case ImGuiKey_LeftCtrl:
+                case ImGuiKey_RightCtrl:
+                case ImGuiKey_LeftShift:
+                case ImGuiKey_RightShift:
+                case ImGuiKey_LeftAlt:
+                case ImGuiKey_RightAlt:
+                case ImGuiKey_LeftSuper:
+                case ImGuiKey_RightSuper:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         [[nodiscard]] inline ImGuiKeyChord current_modifiers() noexcept {

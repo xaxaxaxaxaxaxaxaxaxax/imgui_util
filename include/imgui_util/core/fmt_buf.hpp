@@ -47,8 +47,10 @@ namespace imgui_util {
         [[nodiscard]] constexpr const char      *end() const noexcept { return buf.data() + len; }
         [[nodiscard]] constexpr std::string_view sv() const noexcept { return {buf.data(), len}; }
         [[nodiscard]] constexpr size_t           size() const noexcept { return len; }
+        [[nodiscard]] static constexpr size_t    capacity() noexcept { return N - 1; }
         [[nodiscard]] constexpr bool             empty() const noexcept { return len == 0; }
         [[nodiscard]] constexpr bool             truncated() const noexcept { return len >= N - 1; }
+        [[nodiscard]] constexpr char             operator[](const size_t i) const noexcept { return buf[i]; }
         explicit constexpr operator std::string_view() const noexcept { return {buf.data(), len}; }
 
         /// @brief Clear the buffer, resetting length to zero.
@@ -62,9 +64,9 @@ namespace imgui_util {
         constexpr void append(std::format_string<Args...> fmt, Args &&...args) {
             if (len >= N - 1) return;
             const auto remaining = static_cast<std::ptrdiff_t>(N - 1 - len);
-            auto result = std::format_to_n(buf.data() + len, remaining, fmt, std::forward<Args>(args)...);
-            len         = static_cast<uint16_t>(result.out - buf.data());
-            buf[len]    = '\0';
+            auto       result    = std::format_to_n(buf.data() + len, remaining, fmt, std::forward<Args>(args)...);
+            len                  = static_cast<uint16_t>(result.out - buf.data());
+            buf[len]             = '\0';
         }
 
         // Heap-allocating conversion for when you actually need a std::string
@@ -92,7 +94,8 @@ namespace imgui_util {
 
     /// @brief Format byte size with B/KB/MB/GB suffixes (e.g. 1536 -> "1.5 KB").
     // NOTE: effectively constexpr in C++26 only (std::format_to_n, P2510R3).
-    [[nodiscard]] constexpr fmt_buf<32> format_bytes(const std::integral auto bytes_in) { // NOLINT(readability-function-size)
+    [[nodiscard]] constexpr fmt_buf<32>
+    format_bytes(const std::integral auto bytes_in) { // NOLINT(readability-function-size)
         const auto        bytes = static_cast<int64_t>(bytes_in);
         constexpr int64_t kb    = 1024;
         constexpr int64_t mb    = kb * 1024;
@@ -107,6 +110,42 @@ namespace imgui_util {
             return fmt_buf<32>("{:.1f} MB", static_cast<double>(bytes) / static_cast<double>(mb));
         }
         return fmt_buf<32>("{:.2f} GB", static_cast<double>(bytes) / static_cast<double>(gb));
+    }
+
+    /// @brief Format seconds into human-readable duration (e.g. 3661.5 -> "1h 1m 1.5s", 0.003 -> "3.0ms").
+    // NOTE: effectively constexpr in C++26 only (std::format_to_n, P2510R3).
+    [[nodiscard]] constexpr fmt_buf<32> format_duration(const double seconds) {
+        if (seconds < 0.001) {
+            return fmt_buf<32>("{:.0f}us", seconds * 1e6);
+        }
+        if (seconds < 1.0) {
+            return fmt_buf<32>("{:.1f}ms", seconds * 1e3);
+        }
+        if (seconds < 60.0) {
+            return fmt_buf<32>("{:.1f}s", seconds);
+        }
+        const auto total = static_cast<int64_t>(seconds);
+        const auto h     = total / 3600;
+        const auto m     = (total % 3600) / 60;
+        const auto s     = seconds - static_cast<double>(h * 3600 + m * 60);
+        if (h > 0) return fmt_buf<32>("{}h {}m {:.0f}s", h, m, s);
+        return fmt_buf<32>("{}m {:.1f}s", m, s);
+    }
+
+    /// @brief Format a percentage (e.g. 0.754 -> "75.4%").
+    // Switch on precision to avoid dynamic format spec (libstdc++ consteval bug with "{:.{}f}").
+    [[nodiscard]] constexpr fmt_buf<16> format_percent(const double ratio, const int precision = 1) {
+        const double val = ratio * 100.0;
+        switch (precision) {
+            case 0:
+                return fmt_buf<16>("{:.0f}%", val);
+            case 2:
+                return fmt_buf<16>("{:.2f}%", val);
+            case 3:
+                return fmt_buf<16>("{:.3f}%", val);
+            default:
+                return fmt_buf<16>("{:.1f}%", val);
+        }
     }
 
 } // namespace imgui_util

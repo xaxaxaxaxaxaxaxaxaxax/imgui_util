@@ -75,9 +75,7 @@ namespace imgui_util {
 
         [[nodiscard]] constexpr std::string_view code_name() const noexcept { return to_string(code); }
 
-        [[nodiscard]] constexpr bool operator==(const ui_error &other) const noexcept {
-            return code == other.code && detail == other.detail;
-        }
+        [[nodiscard]] constexpr bool operator==(const ui_error &other) const noexcept = default;
 
         friend std::ostream &operator<<(std::ostream &os, const ui_error &err) { return os << err.message().sv(); }
     };

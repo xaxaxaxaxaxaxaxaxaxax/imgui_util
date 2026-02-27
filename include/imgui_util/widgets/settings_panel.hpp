@@ -112,7 +112,7 @@ namespace imgui_util {
 
         void render_tree() noexcept {
             std::unordered_map<std::string_view, std::vector<int>> children_of;
-            for (int i = 0; std::cmp_less(i ,sections_.size()); ++i) {
+            for (int i = 0; std::cmp_less(i, sections_.size()); ++i) {
                 children_of[sections_[static_cast<std::size_t>(i)].parent].push_back(i);
             }
 

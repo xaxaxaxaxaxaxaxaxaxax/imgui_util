@@ -118,17 +118,13 @@ namespace imgui_util {
                 }
 
                 if (danger_) {
-                    const style_colors danger_style{std::initializer_list<style_color_entry>{
+                    const style_colors sc{std::initializer_list<style_color_entry>{
                         {ImGuiCol_Button, colors::error_dark},
                         {ImGuiCol_ButtonHovered, colors::error},
                         {ImGuiCol_ButtonActive, color::offset(colors::error, 0.1f)}}};
-                    if (ImGui::Button(ok_label_, {120, 0})) {
-                        dismiss(open, on_ok_);
-                    }
+                    if (ImGui::Button(ok_label_, {120, 0})) dismiss(open, on_ok_);
                 } else {
-                    if (ImGui::Button(ok_label_, {120, 0})) {
-                        dismiss(open, on_ok_);
-                    }
+                    if (ImGui::Button(ok_label_, {120, 0})) dismiss(open, on_ok_);
                 }
 
                 if (show_cancel_) {

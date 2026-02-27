@@ -17,40 +17,34 @@
 
 namespace imgui_util::layout {
 
-    /**
-     * @brief Add flags to a base flag set.
-     * @param base   Base flag value.
-     * @param flags  Flags to add.
-     * @return Combined flag value.
-     */
-    template<typename T, typename U = T>
-        requires((std::integral<T> || std::is_enum_v<T>) && std::convertible_to<U, T>)
-    [[nodiscard]] constexpr T with(T base, U flags) noexcept {
-        return static_cast<T>(base | static_cast<T>(flags));
-    }
+    template<typename T>
+    concept flag_type = std::integral<T> || std::is_enum_v<T>;
 
-    template<typename T, typename... Us>
-        requires(sizeof...(Us) > 1 && (std::convertible_to<Us, T> && ...))
+    template<flag_type T, std::convertible_to<T>... Us>
+        requires(sizeof...(Us) >= 1)
     [[nodiscard]] constexpr T with(T base, Us... flags) noexcept {
         return static_cast<T>((base | ... | static_cast<T>(flags)));
     }
 
-    /**
-     * @brief Remove flags from a base flag set.
-     * @param base   Base flag value.
-     * @param flags  Flags to remove.
-     * @return Resulting flag value.
-     */
-    template<typename T, typename U = T>
-        requires((std::integral<T> || std::is_enum_v<T>) && std::convertible_to<U, T>)
-    [[nodiscard]] constexpr T without(T base, U flags) noexcept {
-        return static_cast<T>(base & ~static_cast<T>(flags));
-    }
-
-    template<typename T, typename... Us>
-        requires(sizeof...(Us) > 1 && (std::convertible_to<Us, T> && ...))
+    template<flag_type T, std::convertible_to<T>... Us>
+        requires(sizeof...(Us) >= 1)
     [[nodiscard]] constexpr T without(T base, Us... flags) noexcept {
         return static_cast<T>((base & ... & ~static_cast<T>(flags)));
+    }
+
+    template<flag_type T, std::convertible_to<T> U = T>
+    [[nodiscard]] constexpr bool has_all(T base, U flags) noexcept {
+        return (base & static_cast<T>(flags)) == static_cast<T>(flags);
+    }
+
+    template<flag_type T, std::convertible_to<T> U = T>
+    [[nodiscard]] constexpr bool has_any(T base, U flags) noexcept {
+        return (base & static_cast<T>(flags)) != static_cast<T>(0);
+    }
+
+    template<flag_type T, std::convertible_to<T> U = T>
+    [[nodiscard]] constexpr T toggle(T base, U flags) noexcept {
+        return static_cast<T>(base ^ static_cast<T>(flags));
     }
 
     namespace window {
@@ -107,25 +101,25 @@ namespace imgui_util::layout {
 
     } // namespace column
 
-    /// @brief Compile-time width/height pair with ImVec2 conversion and builder-style overrides.
     struct size_preset {
         float width;
         float height;
 
-        /// @brief Explicit conversion to ImVec2 -- use static_cast.
-        explicit constexpr                  operator ImVec2() const noexcept { return {width, height}; }
-        [[nodiscard]] constexpr ImVec2      vec2() const noexcept { return {width, height}; }
-        /// @brief Return a copy with a different width.
+        explicit constexpr             operator ImVec2() const noexcept { return {width, height}; }
+        [[nodiscard]] constexpr ImVec2 vec2() const noexcept { return {width, height}; }
         [[nodiscard]] constexpr size_preset with_width(const float w) const noexcept {
             return {.width = w, .height = height};
         }
-        /// @brief Return a copy with a different height.
         [[nodiscard]] constexpr size_preset with_height(const float h) const noexcept {
             return {.width = width, .height = h};
         }
         [[nodiscard]] constexpr size_preset scaled(const float s) const noexcept {
             return {.width = width * s, .height = height * s};
         }
+        [[nodiscard]] constexpr size_preset operator+(const size_preset &rhs) const noexcept {
+            return {.width = width + rhs.width, .height = height + rhs.height};
+        }
+        friend constexpr bool operator==(const size_preset &, const size_preset &) noexcept = default;
     };
 
     constexpr size_preset dialog_size{.width = 500.0f, .height = 400.0f};

@@ -240,9 +240,9 @@ namespace imgui_util::notification_center {
                         to_dismiss.push_back(idx);
                 }
 
-                for (const unsigned long &to_dismis: std::ranges::reverse_view(to_dismiss)) {
-                    detail::decrement_unread_if(s, entries[to_dismis]);
-                    entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(to_dismis));
+                for (const auto idx: std::ranges::reverse_view(to_dismiss)) {
+                    detail::decrement_unread_if(s, entries[idx]);
+                    entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(idx));
                 }
             }
         }

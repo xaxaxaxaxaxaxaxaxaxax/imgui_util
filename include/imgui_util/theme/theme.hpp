@@ -366,16 +366,10 @@ namespace imgui_util::theme {
             theme.node_colors_set.set(static_cast<std::size_t>(idx));
         };
 
-        set_node(ImNodesCol_NodeBackground,
-                 preset.node_background.has_value() ? *preset.node_background : default_node_background);
-        set_node(ImNodesCol_NodeBackgroundHovered,
-                 preset.node_background_hovered.has_value() ? *preset.node_background_hovered
-                                                            : default_node_background_hovered);
-        set_node(ImNodesCol_NodeBackgroundSelected,
-                 preset.node_background_selected.has_value() ? *preset.node_background_selected
-                                                             : default_node_background_selected);
-        set_node(ImNodesCol_NodeOutline,
-                 preset.node_outline.has_value() ? *preset.node_outline : default_node_outline);
+        set_node(ImNodesCol_NodeBackground, preset.node_background.value_or(default_node_background));
+        set_node(ImNodesCol_NodeBackgroundHovered, preset.node_background_hovered.value_or(default_node_background_hovered));
+        set_node(ImNodesCol_NodeBackgroundSelected, preset.node_background_selected.value_or(default_node_background_selected));
+        set_node(ImNodesCol_NodeOutline, preset.node_outline.value_or(default_node_outline));
         set_node(ImNodesCol_TitleBar, preset.node_title_bar);
         set_node(ImNodesCol_TitleBarHovered, preset.node_title_bar_hovered);
         set_node(ImNodesCol_TitleBarSelected, preset.node_title_bar_selected);
@@ -446,20 +440,14 @@ namespace imgui_util::theme {
 
         // Lerp preset RGB fields via constexpr table
         for (const auto &[name, ptr]: theme_rgb_fields) {
-            for (int j = 0; j < 3; j++) {
-                (result.*ptr).channels[j] = (a.*ptr).channels[j] * s + (b.*ptr).channels[j] * t;
-            }
+            result.*ptr = color::lerp(a.*ptr, b.*ptr, t);
         }
 
         // Lerp optional preset RGB fields
         for (const auto &[name, ptr]: theme_opt_rgb_fields) {
             const auto &oa = a.*ptr;
             if (const auto &ob = b.*ptr; oa && ob) {
-                rgb_color c{};
-                for (int j = 0; j < 3; j++) {
-                    c.channels[j] = oa->channels[j] * s + ob->channels[j] * t;
-                }
-                result.*ptr = c;
+                result.*ptr = color::lerp(*oa, *ob, t);
             } else if (oa) {
                 result.*ptr = oa;
             } else if (ob) {

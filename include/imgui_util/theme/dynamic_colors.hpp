@@ -70,24 +70,33 @@ namespace imgui_util::theme {
     /// @brief Amber warning color.
     [[nodiscard]] inline ImVec4 warning_color() noexcept {
         const float a = detail::text_alpha();
-        return choose({0.75f, 0.55f, 0.05f, a}, {1.0f, 0.8f, 0.2f, a});
+        return choose(ImVec4{0.75f, 0.55f, 0.05f, a}, ImVec4{1.0f, 0.8f, 0.2f, a});
     }
     /// @brief Green success color.
     [[nodiscard]] inline ImVec4 success_color() noexcept {
         const float a = detail::text_alpha();
-        return choose({0.10f, 0.55f, 0.25f, a}, {0.30f, 0.85f, 0.45f, a});
+        return choose(ImVec4{0.10f, 0.55f, 0.25f, a}, ImVec4{0.30f, 0.85f, 0.45f, a});
     }
     /// @brief Red error color.
     [[nodiscard]] inline ImVec4 error_color() noexcept {
         const float a = detail::text_alpha();
-        return choose({0.7f, 0.1f, 0.1f, a}, {0.8f, 0.15f, 0.15f, a});
+        return choose(ImVec4{0.7f, 0.1f, 0.1f, a}, ImVec4{0.8f, 0.15f, 0.15f, a});
     }
     /// @brief Blue informational color.
     [[nodiscard]] inline ImVec4 info_color() noexcept {
         const float a = detail::text_alpha();
-        return choose({0.15f, 0.45f, 0.70f, a}, {0.35f, 0.65f, 0.95f, a});
+        return choose(ImVec4{0.15f, 0.45f, 0.70f, a}, ImVec4{0.35f, 0.65f, 0.95f, a});
+    }
+    /// @brief Muted/secondary text color for less prominent content.
+    [[nodiscard]] inline ImVec4 muted_color() noexcept {
+        const float a = detail::text_alpha();
+        return choose(ImVec4{0.45f, 0.45f, 0.48f, a}, ImVec4{0.58f, 0.58f, 0.62f, a});
     }
 
     /// @}
+
+    [[nodiscard]] constexpr ImVec4 contrast_text(const ImVec4 &bg, const float alpha = 1.0f) noexcept {
+        return color::luminance(bg) > 0.5f ? ImVec4{0.0f, 0.0f, 0.0f, alpha} : ImVec4{1.0f, 1.0f, 1.0f, alpha};
+    }
 
 } // namespace imgui_util::theme

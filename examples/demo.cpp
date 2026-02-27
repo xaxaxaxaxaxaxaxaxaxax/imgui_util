@@ -76,8 +76,7 @@ namespace {
             const auto &fname    = entry.path().filename().string();
             int         pid      = 0;
             const auto [ptr, ec] = std::from_chars(fname.data(), fname.data() + fname.size(), pid);
-            if (ec != std::errc{} || ptr != fname.data() + fname.size())
-                continue; // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
+            if (ec != std::errc{} || ptr != fname.data() + fname.size()) continue;
 
             const auto stat_line = read_file_line(entry.path() / "stat");
             if (stat_line.empty()) continue;
@@ -147,6 +146,15 @@ namespace {
     struct demo_state {
         theme::theme_manager themes;
         bool                 show_theme_editor = false;
+
+        // example window toggles
+        bool show_example_process_monitor = false;
+        bool show_example_log             = false;
+        bool show_example_curve_editor    = false;
+        bool show_example_diff_viewer     = false;
+        bool show_example_hex_editor      = false;
+        bool show_example_settings        = false;
+        bool show_example_timeline        = false;
 
 
         // table
@@ -274,8 +282,9 @@ namespace {
         }
     }
 
-    void section_table(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Table Builder")) return;
+    void show_example_process_monitor(demo_state &s) {
+        const iu::window w{"Example: Process Monitor", &s.show_example_process_monitor};
+        if (!w) return;
 
         ImGui::TextWrapped("Live process list from /proc. Fluent table API with multi-column "
                            "sorting, Ctrl/Shift selection, and virtual clipping.");
@@ -338,8 +347,9 @@ namespace {
         }
     }
 
-    void section_log_viewer(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Log Viewer")) return;
+    void show_example_log(demo_state &s) {
+        const iu::window w{"Example: Advanced Log", &s.show_example_log};
+        if (!w) return;
 
         ImGui::TextWrapped("Ring-buffer log with level filtering, search, auto-scroll, and timestamps.");
         ImGui::Spacing();
@@ -362,11 +372,11 @@ namespace {
             for (auto &[lvl, text]: pending_logs())
                 emit(lvl, text);
             pending_logs().clear();
-        }, "##log_search", "##log_child");
+        }, "##log_demo");
     }
 
     void section_spinner(const demo_state & /**/) {
-        if (!ImGui::CollapsingHeader("Spinner")) return;
+        if (!ImGui::TreeNode("Spinner")) return;
 
         ImGui::TextWrapped("Indeterminate spinning arc and determinate progress arc.");
         ImGui::Spacing();
@@ -389,18 +399,19 @@ namespace {
         iu::spinner_progress("##prog2", 0.25f, 10.0f, 2.5f, iu::colors::error);
         ImGui::SameLine();
         iu::spinner_progress("##prog3", 0.75f, 10.0f, 2.5f, iu::colors::success);
+        ImGui::TreePop();
     }
 
     void section_toolbar(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Toolbar")) return;
+        if (!ImGui::TreeNode("Toolbar")) return;
 
         ImGui::TextWrapped("Fluent toolbar builder with buttons, toggles, separators, and tooltips.");
         ImGui::Spacing();
 
         iu::toolbar()
-            .button("New", [&] { iu::toast::show("New clicked"); }, "Create new item")
-            .button("Open", [&] { iu::toast::show("Open clicked"); }, "Open existing item")
-            .button("Save", [&] { iu::toast::show("Saved!", iu::severity::success); }, "Save current item")
+            .button("New", [&] { (void) iu::toast::show("New clicked"); }, "Create new item")
+            .button("Open", [&] { (void) iu::toast::show("Open clicked"); }, "Open existing item")
+            .button("Save", [&] { (void) iu::toast::show("Saved!", iu::severity::success); }, "Save current item")
             .separator()
             .toggle("Grid", &s.show_grid, "Toggle grid overlay")
             .toggle("Snap", &s.snap_enabled, "Toggle snap to grid")
@@ -408,10 +419,11 @@ namespace {
 
         ImGui::Spacing();
         iu::fmt_text("Grid: {}, Snap: {}", s.show_grid ? "ON" : "OFF", s.snap_enabled ? "ON" : "OFF");
+        ImGui::TreePop();
     }
 
     void section_drag_drop(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Drag & Drop")) return;
+        if (!ImGui::TreeNode("Drag & Drop")) return;
 
         ImGui::TextWrapped("Type-safe drag-drop helpers. Drag items to reorder.");
         ImGui::Spacing();
@@ -425,10 +437,12 @@ namespace {
                 }
             }
         }
+        ImGui::TreePop();
     }
 
-    void section_settings_panel(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Settings Panel")) return;
+    void show_example_settings(demo_state &s) {
+        const iu::window w{"Example: Settings Panel", &s.show_example_settings};
+        if (!w) return;
 
         ImGui::TextWrapped("Tree-navigated settings panel with left-side navigation and right-side content.");
         ImGui::Spacing();
@@ -448,7 +462,7 @@ namespace {
     }
 
     void section_splitter(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Splitter")) return;
+        if (!ImGui::TreeNode("Splitter")) return;
 
         ImGui::TextWrapped("Resizable split panels. Drag the divider to resize.");
         ImGui::Spacing();
@@ -475,10 +489,11 @@ namespace {
                 iu::fmt_text("Right item {}", i);
         }
         iu::fmt_text("Ratio: {:.0f}% / {:.0f}%", s.split_ratio * 100.0f, (1.0f - s.split_ratio) * 100.0f);
+        ImGui::TreePop();
     }
 
     void section_modal(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Modal Builder")) return;
+        if (!ImGui::TreeNode("Modal Builder")) return;
 
         ImGui::TextWrapped("Fluent modal dialog builder with ok/cancel, danger mode, and keyboard shortcuts.");
         ImGui::Spacing();
@@ -489,7 +504,7 @@ namespace {
 
         iu::modal_builder("Delete Item?")
             .message("Are you sure? This action cannot be undone.")
-            .ok_button("Delete", [&] { iu::toast::show("Deleted!", iu::severity::error); })
+            .ok_button("Delete", [&] { (void) iu::toast::show("Deleted!", iu::severity::error); })
             .cancel_button("Cancel", [] {})
             .danger()
             .render(&s.show_confirm_modal);
@@ -500,27 +515,29 @@ namespace {
             ImGui::SliderInt("##modal_slider", &s.modal_slider_val, 0, 100);
             iu::fmt_text("Current: {}", s.modal_slider_val);
         })
-            .ok_button(
-                "Apply",
-                [&] { iu::toast::show(std::format("Applied value: {}", s.modal_slider_val), iu::severity::success); })
+            .ok_button("Apply",
+                       [&] {
+            (void) iu::toast::show(std::format("Applied value: {}", s.modal_slider_val), iu::severity::success);
+        })
             .cancel_button("Cancel", [] {})
             .size(350, 0)
             .render(&s.show_body_modal);
+        ImGui::TreePop();
     }
 
     void section_toast(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Toast Notifications")) return;
+        if (!ImGui::TreeNode("Toast Notifications")) return;
 
         ImGui::TextWrapped("Stackable toast notifications with fade-out, click-to-dismiss, and configurable position.");
         ImGui::Spacing();
 
-        if (ImGui::Button("Info")) iu::toast::show("This is an info toast.");
+        if (ImGui::Button("Info")) (void) iu::toast::show("This is an info toast.");
         ImGui::SameLine();
-        if (ImGui::Button("Success")) iu::toast::show("Operation succeeded!", iu::severity::success);
+        if (ImGui::Button("Success")) (void) iu::toast::show("Operation succeeded!", iu::severity::success);
         ImGui::SameLine();
-        if (ImGui::Button("Warning")) iu::toast::show("Low disk space.", iu::severity::warning);
+        if (ImGui::Button("Warning")) (void) iu::toast::show("Low disk space.", iu::severity::warning);
         ImGui::SameLine();
-        if (ImGui::Button("Error")) iu::toast::show("Connection failed!", iu::severity::error);
+        if (ImGui::Button("Error")) (void) iu::toast::show("Connection failed!", iu::severity::error);
         ImGui::SameLine();
         if (ImGui::Button("Clear All")) iu::toast::clear();
 
@@ -528,10 +545,11 @@ namespace {
         constexpr std::array positions = {"Bottom-Right", "Top-Right", "Bottom-Left", "Top-Left"};
         if (ImGui::Combo("Position", &s.toast_pos_idx, positions.data(), static_cast<int>(positions.size())))
             iu::toast::set_position(static_cast<iu::toast::position>(s.toast_pos_idx));
+        ImGui::TreePop();
     }
 
     void section_tree_view(const demo_state & /**/) {
-        if (!ImGui::CollapsingHeader("Tree View")) return;
+        if (!ImGui::TreeNode("Tree View")) return;
 
         ImGui::TextWrapped("Callback-based tree view with selection and right-click context menus.");
         ImGui::Spacing();
@@ -563,8 +581,9 @@ namespace {
             .set_label([](const scene_node &n) { return n.name; })
             .set_on_select([](const scene_node &n) { last_selected = &n; })
             .set_on_context_menu([](const scene_node &n) {
-            if (ImGui::MenuItem("Rename")) iu::toast::show(std::format("Rename: {}", n.name));
-            if (ImGui::MenuItem("Delete")) iu::toast::show(std::format("Delete: {}", n.name), iu::severity::error);
+            if (ImGui::MenuItem("Rename")) (void) iu::toast::show(std::format("Rename: {}", n.name));
+            if (ImGui::MenuItem("Delete"))
+                (void) iu::toast::show(std::format("Delete: {}", n.name), iu::severity::error);
         }).render(std::span{root});
 
         ImGui::Spacing();
@@ -572,10 +591,11 @@ namespace {
             iu::fmt_text("Selected: {}", last_selected->name);
         else
             ImGui::TextDisabled("Click a node to select");
+        ImGui::TreePop();
     }
 
     void section_undo_stack(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Undo Stack")) return;
+        if (!ImGui::TreeNode("Undo Stack")) return;
 
         ImGui::TextWrapped("Generic undo/redo with Ctrl+Z/Y shortcuts and clickable history panel.");
         ImGui::Spacing();
@@ -601,14 +621,15 @@ namespace {
         ImGui::SameLine();
         ImGui::Checkbox("History Panel", &s.show_undo_history);
 
-        if (s.undo.handle_shortcuts()) iu::toast::show("Undo/Redo");
+        if (s.undo.handle_shortcuts()) (void) iu::toast::show("Undo/Redo");
 
         if (s.show_undo_history && s.undo.render_history_panel("Undo History##demo"))
-            iu::toast::show("Undo/Redo");
+            (void) iu::toast::show("Undo/Redo");
+        ImGui::TreePop();
     }
 
     void section_menu_bar_builder(const demo_state & /**/) {
-        if (!ImGui::CollapsingHeader("Menu Bar Builder")) return;
+        if (!ImGui::TreeNode("Menu Bar Builder")) return;
 
         ImGui::TextWrapped("Fluent menu bar builder rendered inside this section.");
         ImGui::Spacing();
@@ -619,49 +640,52 @@ namespace {
         iu::menu_bar_builder()
             .menu("File",
                   [&](auto &m) {
-            (void) m.item("New", [&] { iu::toast::show("File > New"); }, "Ctrl+N")
-                .item("Open", [&] { iu::toast::show("File > Open"); }, "Ctrl+O")
+            (void) m.item("New", [&] { (void) iu::toast::show("File > New"); }, "Ctrl+N")
+                .item("Open", [&] { (void) iu::toast::show("File > Open"); }, "Ctrl+O")
                 .separator()
-                .item("Save", [&] { iu::toast::show("File > Save", iu::severity::success); }, "Ctrl+S")
+                .item("Save", [&] { (void) iu::toast::show("File > Save", iu::severity::success); }, "Ctrl+S")
                 .separator()
                 .item("Quit", [] {}, "Alt+F4", false);
         })
             .menu("Edit",
                   [&](auto &m) {
-            (void) m.item("Undo", [&] { iu::toast::show("Edit > Undo"); }, "Ctrl+Z")
-                .item("Redo", [&] { iu::toast::show("Edit > Redo"); }, "Ctrl+Y")
+            (void) m.item("Undo", [&] { (void) iu::toast::show("Edit > Undo"); }, "Ctrl+Z")
+                .item("Redo", [&] { (void) iu::toast::show("Edit > Redo"); }, "Ctrl+Y")
                 .separator()
                 .checkbox("Auto-save", &auto_save);
         })
             .menu("View", [&](auto &m) {
             (void) m.checkbox("Grid", &show_grid_m).separator().item("Reset Layout", [&] {
-                iu::toast::show("Layout reset");
+                (void) iu::toast::show("Layout reset");
             });
         }).render();
 
         iu::fmt_text("Auto-save: {}, Grid: {}", auto_save ? "ON" : "OFF", show_grid_m ? "ON" : "OFF");
+        ImGui::TreePop();
     }
 
     void section_confirm_button(const demo_state & /**/) {
-        if (!ImGui::CollapsingHeader("Confirm Button")) return;
+        if (!ImGui::TreeNode("Confirm Button")) return;
 
         ImGui::TextWrapped("Click-to-arm, click-again-to-confirm button for destructive actions.");
         ImGui::Spacing();
 
-        if (iu::confirm_button("Delete Item", "##del")) iu::toast::show("Item deleted!", iu::severity::error);
+        if (iu::confirm_button("Delete Item", "##del")) (void) iu::toast::show("Item deleted!", iu::severity::error);
         ImGui::SameLine();
         if (iu::confirm_button("Reset All", "##reset", 5.0f))
-            iu::toast::show("Everything reset!", iu::severity::warning);
+            (void) iu::toast::show("Everything reset!", iu::severity::warning);
+        ImGui::TreePop();
     }
 
-    void section_curve_editor(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Curve Editor")) return;
+    void show_example_curve_editor(demo_state &s) {
+        const iu::window w{"Example: Curve Editor", &s.show_example_curve_editor};
+        if (!w) return;
 
         ImGui::TextWrapped("Keyframe curve editor with cubic hermite interpolation. "
                            "Double-click to add, Delete to remove, drag to move.");
         ImGui::Spacing();
 
-        if (s.curve.render("##curve", s.curve_keys)) iu::toast::show("Curve modified");
+        if (s.curve.render("##curve", s.curve_keys)) (void) iu::toast::show("Curve modified");
 
         ImGui::Spacing();
         const float t   = std::fmod(static_cast<float>(ImGui::GetTime()) * 0.2f, 1.0f);
@@ -669,8 +693,9 @@ namespace {
         iu::fmt_text("t={:.2f}  value={:.3f}  keyframes={}", t, val, s.curve_keys.size());
     }
 
-    void section_diff_viewer(const demo_state &s) {
-        if (!ImGui::CollapsingHeader("Diff Viewer")) return;
+    void show_example_diff_viewer(demo_state &s) {
+        const iu::window w{"Example: Diff Viewer", &s.show_example_diff_viewer};
+        if (!w) return;
 
         ImGui::TextWrapped("Side-by-side diff viewer with synchronized scrolling and line numbers.");
         ImGui::Spacing();
@@ -695,8 +720,9 @@ namespace {
         s.diff.render("##diff_demo", left, right);
     }
 
-    void section_hex_viewer(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Hex Viewer")) return;
+    void show_example_hex_editor(demo_state &s) {
+        const iu::window w{"Example: Hex Editor", &s.show_example_hex_editor};
+        if (!w) return;
 
         ImGui::TextWrapped("Memory/hex byte viewer with address gutter, ASCII column, and editing. "
                            "Double-click a byte to edit.");
@@ -704,12 +730,12 @@ namespace {
 
         s.hex.add_highlight(0, 5, IM_COL32(100, 200, 255, 40));
         if (s.hex.render_editable("##hex_demo", std::span{s.hex_data}, 0x1000))
-            iu::toast::show("Byte modified", iu::severity::warning);
+            (void) iu::toast::show("Byte modified", iu::severity::warning);
         s.hex.clear_highlights();
     }
 
     void section_inline_edit(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Inline Edit")) return;
+        if (!ImGui::TreeNode("Inline Edit")) return;
 
         ImGui::TextWrapped("Click-to-edit text label. Double-click to enter edit mode, "
                            "Enter to commit, Escape to cancel.");
@@ -718,23 +744,25 @@ namespace {
         ImGui::TextUnformatted("Label:");
         ImGui::SameLine();
         if (iu::inline_edit("##inline_demo", s.inline_text, 300.0f))
-            iu::toast::show(std::format("Committed: {}", s.inline_text), iu::severity::success);
+            (void) iu::toast::show(std::format("Committed: {}", s.inline_text), iu::severity::success);
+        ImGui::TreePop();
     }
 
     void section_key_binding(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Key Binding")) return;
+        if (!ImGui::TreeNode("Key Binding")) return;
 
         ImGui::TextWrapped("Key binding capture widget. Click the button, then press a key combo to bind.");
         ImGui::Spacing();
 
         if (iu::key_binding_editor("Save", &s.kb_save))
-            iu::toast::show(std::format("Save bound to: {}", iu::to_string(s.kb_save).sv()));
+            (void) iu::toast::show(std::format("Save bound to: {}", iu::to_string(s.kb_save).sv()));
         if (iu::key_binding_editor("Open", &s.kb_open))
-            iu::toast::show(std::format("Open bound to: {}", iu::to_string(s.kb_open).sv()));
+            (void) iu::toast::show(std::format("Open bound to: {}", iu::to_string(s.kb_open).sv()));
+        ImGui::TreePop();
     }
 
     void section_notification_center(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Notification Center")) return;
+        if (!ImGui::TreeNode("Notification Center")) return;
 
         ImGui::TextWrapped("Persistent notification history panel with severity, actions, and relative timestamps.");
         ImGui::Spacing();
@@ -744,7 +772,7 @@ namespace {
         ImGui::SameLine();
         if (ImGui::Button("Push Error"))
             iu::notification_center::push("Deploy Failed", "Connection timed out", iu::severity::error, "Retry",
-                                          [] { iu::toast::show("Retrying..."); });
+                                          [] { (void) iu::toast::show("Retrying..."); });
         ImGui::SameLine();
         if (ImGui::Button("Toggle Panel")) s.show_notifications = !s.show_notifications;
         ImGui::SameLine();
@@ -752,10 +780,11 @@ namespace {
 
         if (s.show_notifications)
             iu::notification_center::render_panel("Notifications##nc_panel", &s.show_notifications);
+        ImGui::TreePop();
     }
 
     void section_range_slider(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Range Slider")) return;
+        if (!ImGui::TreeNode("Range Slider")) return;
 
         ImGui::TextWrapped("Dual-handle range slider for min/max selection.");
         ImGui::Spacing();
@@ -764,21 +793,23 @@ namespace {
         (void) iu::range_slider("Int Range", &s.range_int_lo, &s.range_int_hi, 0, 100);
 
         iu::fmt_text("Float: [{:.1f}, {:.1f}]  Int: [{}, {}]", s.range_lo, s.range_hi, s.range_int_lo, s.range_int_hi);
+        ImGui::TreePop();
     }
 
     void section_reorder_list(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Reorder List")) return;
+        if (!ImGui::TreeNode("Reorder List")) return;
 
         ImGui::TextWrapped("Drag-to-reorder list with grip handles and insertion indicator.");
         ImGui::Spacing();
 
         if (iu::reorder_list("##reorder_demo", s.reorder_items,
                              [](const std::string &item) { ImGui::TextUnformatted(item.c_str()); }))
-            iu::toast::show("Order changed");
+            (void) iu::toast::show("Order changed");
+        ImGui::TreePop();
     }
 
     void section_search_bar(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Search Bar")) return;
+        if (!ImGui::TreeNode("Search Bar")) return;
 
         ImGui::TextWrapped("Case-insensitive search bar with clear button. Filters the list below.");
         ImGui::Spacing();
@@ -792,22 +823,25 @@ namespace {
         for (const auto *item: items) {
             if (s.search.matches(std::string_view{item})) ImGui::BulletText("%s", item);
         }
+        ImGui::TreePop();
     }
 
     void section_tag_input(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Tag Input")) return;
+        if (!ImGui::TreeNode("Tag Input")) return;
 
         ImGui::TextWrapped("Tag/chip input with pill rendering. Type and press Enter to add, X to remove.");
         ImGui::Spacing();
 
-        if (iu::tag_input("Tags##demo", s.tags, 10)) iu::toast::show(std::format("{} tags", s.tags.size()));
+        if (iu::tag_input("Tags##demo", s.tags, 10)) (void) iu::toast::show(std::format("{} tags", s.tags.size()));
 
         ImGui::Spacing();
         iu::fmt_text("Tags: {}", s.tags.size());
+        ImGui::TreePop();
     }
 
-    void section_timeline(demo_state &s) {
-        if (!ImGui::CollapsingHeader("Timeline")) return;
+    void show_example_timeline(demo_state &s) {
+        const iu::window w{"Example: Timeline", &s.show_example_timeline};
+        if (!w) return;
 
         ImGui::TextWrapped("Horizontal timeline with tracks, draggable events, and playhead. "
                            "Drag events to move/resize, click ruler to scrub playhead.");
@@ -817,7 +851,7 @@ namespace {
         (void) s.tl.set_snap(0.5f).set_track_labels(track_labels);
 
         if (s.tl.render("##timeline_demo", s.tl_events, s.tl_playhead, 0.0f, 20.0f))
-            iu::toast::show(iu::fmt_buf<32>("Playhead: {:.1f}", s.tl_playhead).sv());
+            (void) iu::toast::show(iu::fmt_buf<32>("Playhead: {:.1f}", s.tl_playhead).sv());
     }
 
 } // anonymous namespace
@@ -867,7 +901,7 @@ int main() {
     state.palette.add("Add Warning Log", [&] { push_log(iu::log_viewer::level::warning, "Command palette warning"); });
     state.palette.add("Add Error Log", [&] { push_log(iu::log_viewer::level::error, "Command palette error"); });
     state.palette.add("Clear Toasts", [] { iu::toast::clear(); });
-    state.palette.add("Show Success Toast", [] { iu::toast::show("From palette!", iu::severity::success); });
+    state.palette.add("Show Success Toast", [] { (void) iu::toast::show("From palette!", iu::severity::success); });
     state.palette.add("Refresh Processes", [&] { state.processes = scan_processes(); });
 
     Log::info("Demo", "imgui_util demo started");
@@ -883,36 +917,55 @@ int main() {
 
         ImGui::ShowDemoWindow(&show_demo);
 
-        // Append imgui_util sections into the same "Dear ImGui Demo" window.
+        // Hook imgui_util into the "Dear ImGui Demo" window.
         if (const iu::window w{"Dear ImGui Demo"}) {
-            ImGui::SeparatorText("imgui_util");
-            if (ImGui::Button("Theme Editor")) state.show_theme_editor = !state.show_theme_editor;
+            // Append to the demo menu bar: Examples > imgui_util section.
+            if (ImGui::BeginMenuBar()) {
+                if (ImGui::BeginMenu("Examples")) {
+                    ImGui::SeparatorText("imgui_util");
+                    ImGui::MenuItem("Theme Editor", nullptr, &state.show_theme_editor);
+                    ImGui::MenuItem("Curve Editor", nullptr, &state.show_example_curve_editor);
+                    ImGui::MenuItem("Diff Viewer", nullptr, &state.show_example_diff_viewer);
+                    ImGui::MenuItem("Hex Editor", nullptr, &state.show_example_hex_editor);
+                    ImGui::MenuItem("Advanced Log", nullptr, &state.show_example_log);
+                    ImGui::MenuItem("Process Monitor", nullptr, &state.show_example_process_monitor);
+                    ImGui::MenuItem("Settings Panel", nullptr, &state.show_example_settings);
+                    ImGui::MenuItem("Timeline", nullptr, &state.show_example_timeline);
+                    ImGui::EndMenu();
+                }
+                ImGui::EndMenuBar();
+            }
 
-            section_confirm_button(state);
-            section_curve_editor(state);
-            section_diff_viewer(state);
-            section_drag_drop(state);
-            section_hex_viewer(state);
-            section_inline_edit(state);
-            section_key_binding(state);
-            section_log_viewer(state);
-            section_menu_bar_builder(state);
-            section_modal(state);
-            section_notification_center(state);
-            section_range_slider(state);
-            section_reorder_list(state);
-            section_search_bar(state);
-            section_settings_panel(state);
-            section_spinner(state);
-            section_splitter(state);
-            section_table(state);
-            section_tag_input(state);
-            section_timeline(state);
-            section_toast(state);
-            section_toolbar(state);
-            section_tree_view(state);
-            section_undo_stack(state);
+            // imgui_util widgets section, matching ImGui's top-level CollapsingHeader style.
+            if (ImGui::CollapsingHeader("imgui_util")) {
+                section_confirm_button(state);
+                section_drag_drop(state);
+                section_inline_edit(state);
+                section_key_binding(state);
+                section_menu_bar_builder(state);
+                section_modal(state);
+                section_notification_center(state);
+                section_range_slider(state);
+                section_reorder_list(state);
+                section_search_bar(state);
+                section_spinner(state);
+                section_splitter(state);
+                section_tag_input(state);
+                section_toast(state);
+                section_toolbar(state);
+                section_tree_view(state);
+                section_undo_stack(state);
+            }
         }
+
+        // Example windows (separate from the demo window, toggled by checkboxes above).
+        if (state.show_example_curve_editor) show_example_curve_editor(state);
+        if (state.show_example_diff_viewer) show_example_diff_viewer(state);
+        if (state.show_example_hex_editor) show_example_hex_editor(state);
+        if (state.show_example_log) show_example_log(state);
+        if (state.show_example_process_monitor) show_example_process_monitor(state);
+        if (state.show_example_settings) show_example_settings(state);
+        if (state.show_example_timeline) show_example_timeline(state);
 
         if (state.show_theme_editor) state.themes.render_theme_editor(&state.show_theme_editor);
 

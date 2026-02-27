@@ -223,7 +223,7 @@ namespace imgui_util {
          * @param force        Sort even if specs are not dirty.
          */
         void sort_if_dirty(std::span<RowT> data, std::span<comparator_fn> comparators, const bool force = false) {
-            if (sort_specs_ != nullptr && (sort_specs_->SpecsDirty || force)) {
+            if (sort_specs_ && (sort_specs_->SpecsDirty || force)) {
                 for (int s = sort_specs_->SpecsCount - 1; s >= 0; --s) {
                     const auto &spec = sort_specs_->Specs[s];
                     const auto  col  = static_cast<std::size_t>(spec.ColumnIndex);
@@ -242,10 +242,10 @@ namespace imgui_util {
          * @brief Sort by a single comparator, respecting the current sort direction.
          * @param data  Mutable span of rows to sort in-place.
          * @param comp  Less-than comparator for the rows.
-         * @param force Force sorce
+         * @param force Force sort even if specs are not dirty.
          */
         void sort_if_dirty(std::span<RowT> data, comparator_fn comp, const bool force = false) {
-            if (sort_specs_ != nullptr && (sort_specs_->SpecsDirty || force)) {
+            if (sort_specs_ && (sort_specs_->SpecsDirty || force)) {
                 if (sort_specs_->SpecsCount > 0) {
                     const bool ascending = sort_specs_->Specs[0].SortDirection == ImGuiSortDirection_Ascending;
                     std::ranges::stable_sort(
@@ -253,6 +253,33 @@ namespace imgui_util {
                 }
                 sort_specs_->SpecsDirty = false;
             }
+        }
+
+        /**
+         * @brief Multi-column sort using key extractors: one callable per column returning a totally-ordered key.
+         *
+         * Example:
+         * @code
+         *   table.sort_if_dirty_by_key(data,
+         *       [](const Row& r) { return r.name; },
+         *       [](const Row& r) { return r.age; },
+         *       [](const Row& r) { return r.score; });
+         * @endcode
+         */
+        template<typename... KeyFns>
+            requires (sizeof...(KeyFns) == std::tuple_size_v<Cols>)
+                  && (std::invocable<KeyFns, const RowT &> && ...)
+                  && (std::totally_ordered<std::invoke_result_t<KeyFns, const RowT &>> && ...)
+        void sort_if_dirty_by_key(std::span<RowT> data, KeyFns &&...key_fns, const bool force = false) {
+            if (!sort_specs_ || (!sort_specs_->SpecsDirty && !force)) return;
+            auto keys = std::forward_as_tuple(std::forward<KeyFns>(key_fns)...);
+            for (int s = sort_specs_->SpecsCount - 1; s >= 0; --s) {
+                const auto &spec      = sort_specs_->Specs[s];
+                const bool  ascending = spec.SortDirection == ImGuiSortDirection_Ascending;
+                sort_by_column_key(data, keys, static_cast<std::size_t>(spec.ColumnIndex), ascending,
+                                   std::make_index_sequence<sizeof...(KeyFns)>{});
+            }
+            sort_specs_->SpecsDirty = false;
         }
 
         /// @brief Render a single row (no clipper, no selection).
@@ -339,17 +366,6 @@ namespace imgui_util {
          * @param data    Rows to render.
          * @param height  Table height in pixels (0 = auto).
          */
-        void render(std::span<const RowT> data, const float height = 0.0f) {
-            if (begin(height)) {
-                if (data.empty()) {
-                    render_empty_state();
-                } else {
-                    render_clipped(data);
-                }
-                end();
-            }
-        }
-
         template<std::ranges::sized_range R>
             requires std::convertible_to<std::ranges::range_reference_t<R>, const RowT &>
         void render(R &&data, const float height = 0.0f) {
@@ -371,6 +387,13 @@ namespace imgui_util {
             ImGui::TableSetColumnEnabled(col_index, visible);
         }
 
+        /// @brief Render a right-click context menu with checkboxes for toggling column visibility.
+        void render_column_visibility_menu() {
+            if (!ImGui::BeginPopupContextItem("##col_vis")) return;
+            render_column_visibility_items(std::make_index_sequence<std::tuple_size_v<Cols>>{});
+            ImGui::EndPopup();
+        }
+
         /// @brief Clear all selected rows.
         void clear_selection() const noexcept {
             if (cfg_.selection) cfg_.selection->clear();
@@ -378,7 +401,7 @@ namespace imgui_util {
 
         /// @brief Return true if the row with the given ID is currently selected.
         [[nodiscard]] bool is_selected(const int row_id) const noexcept {
-            return (cfg_.selection != nullptr) && cfg_.selection->contains(row_id);
+            return cfg_.selection && cfg_.selection->contains(row_id);
         }
 
         /// @brief Return the number of currently selected rows.
@@ -386,11 +409,21 @@ namespace imgui_util {
             return cfg_.selection ? cfg_.selection->size() : 0;
         }
 
+        /// @brief Return the number of columns.
+        [[nodiscard]] static constexpr int column_count() noexcept { return std::tuple_size_v<Cols>; }
+
+        /// @brief Return the number of rows passing the filter (only meaningful after render_clipped).
+        [[nodiscard]] std::size_t filtered_count() const noexcept
+            requires has_filter
+        {
+            return filtered_indices_.size();
+        }
+
         /// @brief Invoke fn(id) for each selected row ID.
-        template<typename Fn>
-        void for_each_selected(const Fn &fn) const noexcept {
+        template<std::invocable<int> Fn>
+        void for_each_selected(const Fn &fn) const {
             if (cfg_.selection)
-                for (int id: *cfg_.selection)
+                for (const int id : *cfg_.selection)
                     fn(id);
         }
 
@@ -401,13 +434,6 @@ namespace imgui_util {
         }
 
         /// @brief Select all rows in data.
-        void select_all(std::span<const RowT> data) {
-            if (!cfg_.selection) return;
-            for (int i = 0; i < static_cast<int>(data.size()); ++i)
-                cfg_.selection->insert(row_id_for(data[i], i));
-        }
-
-        /// @brief Select all rows in a generic sized range.
         template<std::ranges::sized_range R>
             requires std::convertible_to<std::ranges::range_reference_t<R>, const RowT &>
         void select_all(const R &data) {
@@ -518,7 +544,7 @@ namespace imgui_util {
             ImGui::TableNextRow();
             apply_row_highlight(data);
 
-            if (cfg_.selection != nullptr) {
+            if (cfg_.selection) {
                 ImGui::TableSetColumnIndex(0);
                 const bool was_selected = cfg_.selection->contains(row_id);
                 bool       new_selected = was_selected;
@@ -533,9 +559,23 @@ namespace imgui_util {
 
             render_columns(data, std::make_index_sequence<std::tuple_size_v<Cols>>{});
 
-            if (cfg_.selection == nullptr) {
+            if (!cfg_.selection) {
                 check_row_activate(data, index);
             }
+        }
+
+        template<typename KeyTuple, std::size_t... Is>
+        static void sort_by_column_key(std::span<RowT> data, KeyTuple &keys, const std::size_t col,
+                                       const bool ascending, std::index_sequence<Is...> /*seq*/) {
+            ((Is == col ? (std::ranges::stable_sort(data,
+                                                    [&](const RowT &a, const RowT &b) {
+                 const auto &key_fn = std::get<Is>(keys);
+                 return ascending ? std::less{}(key_fn(a), key_fn(b))
+                                  : std::greater{}(key_fn(a), key_fn(b));
+             }),
+                          true)
+                        : false)
+             || ...);
         }
 
         template<size_t... Is>
@@ -555,6 +595,18 @@ namespace imgui_util {
         template<size_t... Is>
         void render_columns(const RowT &data, std::index_sequence<Is...> /*seq*/) {
             ((ImGui::TableSetColumnIndex(static_cast<int>(Is)), std::get<Is>(cols_).fn(data)), ...);
+        }
+
+        template<std::size_t... Is>
+        void render_column_visibility_items(std::index_sequence<Is...> /*seq*/) {
+            (([this] {
+                const auto &col     = std::get<Is>(cols_);
+                bool        enabled = ImGui::TableGetColumnFlags(static_cast<int>(Is))
+                                   & ImGuiTableColumnFlags_IsEnabled;
+                if (ImGui::Checkbox(col.name.data(), &enabled))
+                    ImGui::TableSetColumnEnabled(static_cast<int>(Is), enabled);
+            }()),
+             ...);
         }
     };
 

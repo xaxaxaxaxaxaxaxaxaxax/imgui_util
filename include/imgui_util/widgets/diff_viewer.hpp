@@ -43,11 +43,10 @@ namespace imgui_util {
          * @param left_label   Header label for the left pane.
          * @param right_label  Header label for the right pane.
          */
-        void render(std::string_view str_id, const std::span<const diff_line> left,
+        void render(const char *str_id, const std::span<const diff_line> left,
                     const std::span<const diff_line> right, const std::string_view left_label = "Before",
                     const std::string_view right_label = "After") const {
-            const fmt_buf id_str{"{}", str_id};
-            const id      scope{id_str.c_str()};
+            const id scope{str_id};
 
             const ImVec2 avail = ImGui::GetContentRegionAvail();
             const float  half  = avail.x * 0.5f - 4.0f;

@@ -189,17 +189,17 @@ namespace imgui_util {
      * @param src  Source string view.
      * @return True if src fit entirely; false if truncated.
      */
-    template<size_t N>
+    template<std::size_t N>
     [[nodiscard]] constexpr bool copy_to_buffer(std::span<char, N> buf, const std::string_view src) noexcept {
         static_assert(N > 0, "Buffer must have at least one byte for null terminator");
-        const size_t len = std::min(src.size(), N - 1);
+        const std::size_t len = std::min(src.size(), N - 1);
         std::copy_n(src.begin(), len, buf.data());
         buf.data()[len] = '\0'; // len is always < N, safe by construction
         return src.size() < N;
     }
 
     /// @brief Overload accepting std::array directly.
-    template<size_t N>
+    template<std::size_t N>
     [[nodiscard]] constexpr bool copy_to_buffer(std::array<char, N> &buf, const std::string_view src) noexcept {
         return copy_to_buffer(std::span<char, N>{buf}, src);
     }

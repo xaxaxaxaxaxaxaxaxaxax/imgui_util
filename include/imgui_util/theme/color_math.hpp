@@ -56,9 +56,30 @@ namespace imgui_util::color {
                       std::clamp(a.channels[2] - d, 0.0f, 1.0f)}}};
         }
 
+        constexpr friend rgb_color operator+(const rgb_color a, const rgb_color b) noexcept {
+            return {{{std::clamp(a.channels[0] + b.channels[0], 0.0f, 1.0f),
+                      std::clamp(a.channels[1] + b.channels[1], 0.0f, 1.0f),
+                      std::clamp(a.channels[2] + b.channels[2], 0.0f, 1.0f)}}};
+        }
+
+        constexpr friend rgb_color operator-(const rgb_color a, const rgb_color b) noexcept {
+            return {{{std::clamp(a.channels[0] - b.channels[0], 0.0f, 1.0f),
+                      std::clamp(a.channels[1] - b.channels[1], 0.0f, 1.0f),
+                      std::clamp(a.channels[2] - b.channels[2], 0.0f, 1.0f)}}};
+        }
+
+        constexpr friend rgb_color operator*(const rgb_color a, const rgb_color b) noexcept {
+            return {{{std::clamp(a.channels[0] * b.channels[0], 0.0f, 1.0f),
+                      std::clamp(a.channels[1] * b.channels[1], 0.0f, 1.0f),
+                      std::clamp(a.channels[2] * b.channels[2], 0.0f, 1.0f)}}};
+        }
+
         constexpr rgb_color &operator+=(const float d) noexcept { return *this = *this + d; }
         constexpr rgb_color &operator-=(const float d) noexcept { return *this = *this - d; }
         constexpr rgb_color &operator*=(const float f) noexcept { return *this = *this * f; }
+        constexpr rgb_color &operator+=(const rgb_color o) noexcept { return *this = *this + o; }
+        constexpr rgb_color &operator-=(const rgb_color o) noexcept { return *this = *this - o; }
+        constexpr rgb_color &operator*=(const rgb_color o) noexcept { return *this = *this * o; }
     };
 
     /**
@@ -101,6 +122,10 @@ namespace imgui_util::color {
         return rgb(c + delta, a);
     }
 
+    [[nodiscard]] constexpr rgb_color to_rgb(const ImVec4 &c) noexcept {
+        return {{{std::clamp(c.x, 0.0f, 1.0f), std::clamp(c.y, 0.0f, 1.0f), std::clamp(c.z, 0.0f, 1.0f)}}};
+    }
+
     /**
      * @brief Add amount to each RGB channel of an ImVec4, clamping to [0,1] and preserving alpha.
      * @param color  Source color.
@@ -109,6 +134,15 @@ namespace imgui_util::color {
     [[nodiscard]] constexpr ImVec4 offset(const ImVec4 &color, const float amount) noexcept {
         return {std::clamp(color.x + amount, 0.0f, 1.0f), std::clamp(color.y + amount, 0.0f, 1.0f),
                 std::clamp(color.z + amount, 0.0f, 1.0f), color.w};
+    }
+
+    [[nodiscard]] constexpr ImVec4 scale(const ImVec4 &color, const float factor) noexcept {
+        return {std::clamp(color.x * factor, 0.0f, 1.0f), std::clamp(color.y * factor, 0.0f, 1.0f),
+                std::clamp(color.z * factor, 0.0f, 1.0f), color.w};
+    }
+
+    [[nodiscard]] constexpr ImVec4 with_alpha(const ImVec4 &color, const float alpha) noexcept {
+        return {color.x, color.y, color.z, alpha};
     }
 
     /// @brief Unpack a packed RGBA ImU32 into an ImVec4 with channels in [0, 1].
@@ -148,6 +182,16 @@ namespace imgui_util::color {
     /// @brief Perceptual luminance of an ImVec4 color (Rec. 601 luma).
     [[nodiscard]] constexpr float luminance(const ImVec4 &c) noexcept {
         return c.x * 0.299f + c.y * 0.587f + c.z * 0.114f;
+    }
+
+    [[nodiscard]] constexpr float luminance(const rgb_color &c) noexcept {
+        return c.channels[0] * 0.299f + c.channels[1] * 0.587f + c.channels[2] * 0.114f;
+    }
+
+    [[nodiscard]] constexpr rgb_color lerp(const rgb_color &a, const rgb_color &b, const float t) noexcept {
+        return {{{a.channels[0] + (b.channels[0] - a.channels[0]) * t,
+                  a.channels[1] + (b.channels[1] - a.channels[1]) * t,
+                  a.channels[2] + (b.channels[2] - a.channels[2]) * t}}};
     }
 
 } // namespace imgui_util::color

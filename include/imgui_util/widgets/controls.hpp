@@ -10,8 +10,10 @@
 /// @endcode
 #pragma once
 
+#include <algorithm>
 #include <concepts>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <ranges>
 #include <span>
 
@@ -81,6 +83,50 @@ namespace imgui_util {
         if (const window win{title, open, flags}) {
             std::forward<F>(render_fn)();
         }
+    }
+
+    [[nodiscard]] inline bool toggle_switch(const char *label, bool *v) noexcept {
+        ImGuiWindow *win = ImGui::GetCurrentWindow();
+        if (win->SkipItems) return false;
+
+        const auto   &style  = ImGui::GetStyle();
+        const float   height = ImGui::GetFrameHeight();
+        const float   width  = height * 1.7f;
+        const float   radius = height * 0.5f;
+        const ImVec2  pos    = ImGui::GetCursorScreenPos();
+        const ImGuiID id     = win->GetID(label);
+
+        const ImVec2 label_size = ImGui::CalcTextSize(label, nullptr, true);
+        const float  total_w    = width + (label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f);
+        const ImRect total_bb(pos, {pos.x + total_w, pos.y + height});
+
+        ImGui::ItemSize(total_bb, style.FramePadding.y);
+        if (!ImGui::ItemAdd(total_bb, id)) return false;
+
+        bool hovered = false;
+        bool held    = false;
+        if (ImGui::ButtonBehavior(total_bb, id, &hovered, &held)) {
+            *v = !*v;
+        }
+
+        auto *dl = ImGui::GetWindowDrawList();
+
+        const float t_anim = *v ? 1.0f : 0.0f;
+        const ImU32 bg_col = *v ? ImGui::GetColorU32(ImGuiCol_CheckMark) : ImGui::GetColorU32(ImGuiCol_FrameBg);
+
+        dl->AddRectFilled(pos, {pos.x + width, pos.y + height}, bg_col, radius);
+        if (hovered)
+            dl->AddRect(pos, {pos.x + width, pos.y + height}, ImGui::GetColorU32(ImGuiCol_BorderShadow), radius);
+
+        const float knob_x = pos.x + radius + t_anim * (width - height);
+        const float knob_y = pos.y + radius;
+        dl->AddCircleFilled({knob_x, knob_y}, radius - 2.0f, IM_COL32(255, 255, 255, 255));
+
+        if (label_size.x > 0.0f) {
+            ImGui::RenderText({pos.x + width + style.ItemInnerSpacing.x, pos.y + (height - label_size.y) * 0.5f}, label);
+        }
+
+        return held;
     }
 
     namespace detail {
@@ -155,6 +201,14 @@ namespace imgui_util {
     template<detail::combo_range R>
     [[nodiscard]] bool optional_column_combo(const char *label, int &idx, const R &items) noexcept {
         return detail::combo_impl(label, idx, items, "(none)", true);
+    }
+
+    [[nodiscard]] inline bool colored_progress_bar(const float fraction, const ImVec4 &bar_color,
+                                                      const ImVec2 size = {-1, 0},
+                                                      const char *overlay = nullptr) noexcept {
+        const style_color col(ImGuiCol_PlotHistogram, bar_color);
+        ImGui::ProgressBar(std::clamp(fraction, 0.0f, 1.0f), size, overlay);
+        return fraction >= 1.0f;
     }
 
 } // namespace imgui_util

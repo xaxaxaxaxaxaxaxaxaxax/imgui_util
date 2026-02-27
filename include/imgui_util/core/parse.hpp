@@ -43,7 +43,7 @@ namespace imgui_util::parse {
         T                 result = default_val;
         const auto *const end    = sv.data() + sv.size();
         auto [ptr, ec]           = std::from_chars(sv.data(), end, result);
-        if (ec != std::errc() || ptr != end) return default_val;
+        if (ec != std::errc() || ptr != end) return default_val; // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
         return result;
     }
 
@@ -58,7 +58,7 @@ namespace imgui_util::parse {
         T                 result{};
         const auto *const end = sv.data() + sv.size();
         auto [ptr, ec]        = std::from_chars(sv.data(), end, result);
-        if (ec == std::errc() && ptr == end) return result;
+        if (ec == std::errc() && ptr == end) return result; // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
         return std::nullopt;
     }
 
@@ -111,6 +111,23 @@ namespace imgui_util::parse {
 
     [[nodiscard]] constexpr std::optional<std::uint64_t> try_parse_u64(const std::string_view sv) noexcept {
         return try_parse<std::uint64_t>(sv);
+    }
+
+    /**
+     * @brief Parse a string as a hex integer, with optional "0x"/"0X" prefix.
+     * @tparam T Unsigned integer type.
+     * @param sv Input string (e.g. "FF", "0xFF", "0X1A2B").
+     * @return Parsed value, or std::nullopt on error.
+     */
+    template<std::unsigned_integral T>
+    [[nodiscard]] constexpr std::optional<T> try_parse_hex(std::string_view sv) noexcept {
+        if (sv.starts_with("0x") || sv.starts_with("0X")) sv = sv.substr(2);
+        if (sv.empty()) return std::nullopt;
+        T                 result{};
+        const auto *const end = sv.data() + sv.size();
+        auto [ptr, ec]        = std::from_chars(sv.data(), end, result, 16);
+        if (ec == std::errc() && ptr == end) return result; // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
+        return std::nullopt;
     }
 
     /// @brief Parse "true"/"false"/"1"/"0" into a bool, returning nullopt on unrecognized input.
@@ -209,33 +226,21 @@ namespace imgui_util::parse {
         if (!hex_digits.empty() && (hex_digits.size() == 6 || hex_digits.size() == 8)) {
             std::uint32_t packed = 0;
             if (auto [ptr, ec] = std::from_chars(hex_digits.data(), hex_digits.data() + hex_digits.size(), packed, 16);
-                ec == std::errc() && ptr == hex_digits.data() + hex_digits.size()) {
-                int r = 0;
-                int g = 0;
-                int b = 0;
-                int a = 0;
+                ec == std::errc() // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
+                && ptr == hex_digits.data() + hex_digits.size()) {
                 if (hex_digits.size() == 8) {
-                    // RRGGBBAA
-                    r = static_cast<int>((packed >> 24) & 0xFF);
-                    g = static_cast<int>((packed >> 16) & 0xFF);
-                    b = static_cast<int>((packed >> 8) & 0xFF);
-                    a = static_cast<int>((packed >> 0) & 0xFF);
-                } else {
-                    // RRGGBB
-                    r = static_cast<int>((packed >> 16) & 0xFF);
-                    g = static_cast<int>((packed >> 8) & 0xFF);
-                    b = static_cast<int>((packed >> 0) & 0xFF);
-                    a = 255;
+                    return IM_COL32((packed >> 24) & 0xFF, (packed >> 16) & 0xFF,
+                                   (packed >> 8) & 0xFF, packed & 0xFF);
                 }
-                return IM_COL32(r, g, b, a);
+                return IM_COL32((packed >> 16) & 0xFF, (packed >> 8) & 0xFF, packed & 0xFF, 255);
             }
         }
 
         std::array components = {
-            static_cast<int>(default_val >> IM_COL32_R_SHIFT & 0xFF), // R
-            static_cast<int>(default_val >> IM_COL32_G_SHIFT & 0xFF), // G
-            static_cast<int>(default_val >> IM_COL32_B_SHIFT & 0xFF), // B
-            static_cast<int>(default_val >> IM_COL32_A_SHIFT & 0xFF), // A
+            static_cast<int>((default_val >> IM_COL32_R_SHIFT) & 0xFF),
+            static_cast<int>((default_val >> IM_COL32_G_SHIFT) & 0xFF),
+            static_cast<int>((default_val >> IM_COL32_B_SHIFT) & 0xFF),
+            static_cast<int>((default_val >> IM_COL32_A_SHIFT) & 0xFF),
         };
         for_each_csv_token(sv, 4, [&](const size_t i, const std::string_view part) {
             components[i] = std::clamp(parse_int(part, components[i]), 0, 255);
