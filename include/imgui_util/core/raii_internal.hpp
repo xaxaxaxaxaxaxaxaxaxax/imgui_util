@@ -12,8 +12,6 @@
 
 namespace imgui_util {
 
-    // Saves and restores per-window font scale via SetWindowFontScale.
-    // Uses storage=float to remember the previous scale.
     struct font_scale_trait {
         static constexpr auto policy = end_policy::none;
         using storage                = float; // stores previous FontWindowScale

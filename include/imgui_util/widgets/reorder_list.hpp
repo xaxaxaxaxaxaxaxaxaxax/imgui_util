@@ -1,15 +1,18 @@
-// reorder_list.hpp - Drag-to-reorder list widget
-//
-// Usage:
-//   std::vector<std::string> items = {"A", "B", "C"};
-//   if (imgui_util::reorder_list("##list", items, [](const std::string& s) {
-//       ImGui::TextUnformatted(s.c_str());
-//   })) {
-//       // order changed
-//   }
-//
-// Renders each item with a drag handle grip icon. Full drag & drop reordering
-// with visual insertion indicator. Uses std::ranges::rotate for efficient moves.
+/// @file reorder_list.hpp
+/// @brief Drag-to-reorder list widget.
+///
+/// Renders each item with a drag handle grip icon. Full drag & drop reordering
+/// with visual insertion indicator. Uses std::ranges::rotate for efficient moves.
+///
+/// Usage:
+/// @code
+///   std::vector<std::string> items = {"A", "B", "C"};
+///   if (imgui_util::reorder_list("##list", items, [](const std::string& s) {
+///       ImGui::TextUnformatted(s.c_str());
+///   })) {
+///       // order changed
+///   }
+/// @endcode
 #pragma once
 
 #include <algorithm>
@@ -24,7 +27,6 @@ namespace imgui_util {
 
     namespace detail {
 
-        // Draw a three-line grip icon (drag handle) at the given position
         inline void draw_grip_icon(ImDrawList *dl, const ImVec2 pos, const float height, const ImU32 color) noexcept {
             const float cx = pos.x + 8.0f;
             const float cy = pos.y + height * 0.5f;
@@ -39,8 +41,16 @@ namespace imgui_util {
 
     } // namespace detail
 
-    // Drag-to-reorder list. Returns true if the order changed this frame.
-    // item_height <= 0 means auto-detect from first item content height.
+    /**
+     * @brief Drag-to-reorder list with grip handles and visual insertion indicator.
+     * @tparam T         Element type.
+     * @tparam RenderFn  Callable taking `const T&` to render each item.
+     * @param str_id       ImGui string ID.
+     * @param items        Vector of items (mutated in-place on reorder).
+     * @param render_item  Callback to render a single item.
+     * @param item_height  Fixed row height, or <= 0 for auto-detect from content.
+     * @return True if the order changed this frame.
+     */
     template<typename T, std::invocable<const T &> RenderFn>
     [[nodiscard]] bool reorder_list(const char *str_id, std::vector<T> &items, RenderFn render_item,
                                     const float item_height = 0.0f) {

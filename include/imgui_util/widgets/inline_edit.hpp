@@ -1,17 +1,20 @@
-// inline_edit.hpp - Click-to-edit text label widget
-//
-// Usage:
-//   static std::string name = "Untitled";
-//   if (imgui_util::inline_edit("##name", name)) {
-//       // user committed edit (pressed Enter)
-//   }
-//
-//   // With explicit width:
-//   if (imgui_util::inline_edit("##title", title, 200.0f)) { ... }
-//
-// Renders as TextUnformatted normally. Double-click enters edit mode (InputText).
-// Enter commits, Escape cancels. Returns true when editing commits.
-// All state is stored in ImGui state storage keyed by str_id.
+/// @file inline_edit.hpp
+/// @brief Click-to-edit text label widget.
+///
+/// Renders as TextUnformatted normally. Double-click enters edit mode (InputText).
+/// Enter commits, Escape cancels. Returns true when editing commits.
+/// All state is stored in ImGui state storage keyed by str_id.
+///
+/// Usage:
+/// @code
+///   static std::string name = "Untitled";
+///   if (imgui_util::inline_edit("##name", name)) {
+///       // user committed edit (pressed Enter)
+///   }
+///
+///   // With explicit width:
+///   if (imgui_util::inline_edit("##title", title, 200.0f)) { ... }
+/// @endcode
 #pragma once
 
 #include <algorithm>
@@ -24,7 +27,18 @@
 
 namespace imgui_util {
 
-    // Returns true when the user commits an edit (Enter key).
+    /**
+     * @brief Click-to-edit text label widget.
+     *
+     * Renders as plain text normally. Double-click enters edit mode (InputText).
+     * Enter commits the edit, Escape cancels. State is stored in ImGui state
+     * storage keyed by @p str_id.
+     *
+     * @param str_id  ImGui ID for state storage.
+     * @param text    String to display and edit in-place.
+     * @param width   Explicit widget width, or 0 for auto-sizing.
+     * @return True when the user commits an edit (presses Enter).
+     */
     [[nodiscard]] inline bool inline_edit(const char *str_id, std::string &text, const float width = 0.0f) noexcept {
         if (const auto *const win = ImGui::GetCurrentWindow(); win->SkipItems) return false;
 

@@ -1,20 +1,23 @@
-// notification_center.hpp - Persistent notification history panel with severity and actions
-//
-// Usage:
-//   imgui_util::notification_center::push("Build complete", "All 42 tests passed",
-//                                          imgui_util::severity::success);
-//   imgui_util::notification_center::push("Error", "Connection lost", imgui_util::severity::error,
-//                                          "Retry", [&]{ reconnect(); });
-//
-//   // Render the panel (typically in a side panel or popup):
-//   static bool open = true;
-//   imgui_util::notification_center::render_panel("##notifications", &open);
-//
-//   // Badge display:
-//   if (int n = imgui_util::notification_center::unread_count(); n > 0) { ... show badge ... }
-//
-// Stores notifications persistently (unlike ephemeral toasts). Uses severity.hpp enum
-// and fmt_buf for relative timestamp formatting.
+/// @file notification_center.hpp
+/// @brief Persistent notification history panel with severity and actions.
+///
+/// Stores notifications persistently (unlike ephemeral toasts). Uses severity.hpp enum
+/// and fmt_buf for relative timestamp formatting.
+///
+/// Usage:
+/// @code
+///   imgui_util::notification_center::push("Build complete", "All 42 tests passed",
+///                                          imgui_util::severity::success);
+///   imgui_util::notification_center::push("Error", "Connection lost", imgui_util::severity::error,
+///                                          "Retry", [&]{ reconnect(); });
+///
+///   // Render the panel (typically in a side panel or popup):
+///   static bool open = true;
+///   imgui_util::notification_center::render_panel("##notifications", &open);
+///
+///   // Badge display:
+///   if (int n = imgui_util::notification_center::unread_count(); n > 0) { ... show badge ... }
+/// @endcode
 #pragma once
 
 #include <algorithm>
@@ -34,6 +37,7 @@
 
 namespace imgui_util::notification_center {
 
+    /// @brief A single persistent notification entry.
     struct notification {
         std::string                           title;
         std::string                           detail;
@@ -55,6 +59,7 @@ namespace imgui_util::notification_center {
             return s;
         }
 
+        /// @brief Return a short text icon for the given severity (e.g. "[i]", "[!]").
         [[nodiscard]] inline const char *severity_icon(const severity sev) noexcept {
             switch (sev) {
                 case severity::info:
@@ -83,6 +88,7 @@ namespace imgui_util::notification_center {
             return theme::info_color();
         }
 
+        /// @brief Format a time_point as a human-readable relative duration (e.g. "5m ago").
         [[nodiscard]] inline fmt_buf<32> relative_time(const std::chrono::steady_clock::time_point then) {
             const auto now  = std::chrono::steady_clock::now();
             const auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - then).count();
@@ -111,8 +117,8 @@ namespace imgui_util::notification_center {
             }
         }
 
-        // Returns true if entries was mutated (caller must break out of clipper loop).
-        inline bool render_notification_row(notification &e, int row, std::size_t idx,
+        /// @brief Render a single notification row. Returns true if @p entries was mutated (dismiss).
+        inline bool render_notification_row(notification &e, int row, const std::size_t idx,
                                             std::vector<notification> &entries) {
             const id entry_id{row};
 
@@ -171,11 +177,20 @@ namespace imgui_util::notification_center {
 
     } // namespace detail
 
+    /// @brief Return the number of unread notifications.
     [[nodiscard]] inline int unread_count() noexcept {
         const auto &entries = detail::get_state().entries;
         return static_cast<int>(std::ranges::count_if(entries, [](const auto &e) { return !e.read; }));
     }
 
+    /**
+     * @brief Push a persistent notification into the center.
+     * @param title        Notification heading.
+     * @param detail_text  Body text shown below the title.
+     * @param sev          Severity level (controls icon and color).
+     * @param action_label Optional button label (empty to omit).
+     * @param action       Callback invoked when the action button is clicked.
+     */
     inline void push(std::string title, std::string detail_text, const severity sev = severity::info,
                      std::string action_label = {}, std::move_only_function<void()> action = {}) {
         detail::get_state().entries.push_back({
@@ -189,6 +204,11 @@ namespace imgui_util::notification_center {
         });
     }
 
+    /**
+     * @brief Render the notification panel (toolbar + scrollable list, newest first).
+     * @param panel_id ImGui window ID.
+     * @param open     Optional pointer to a bool controlling window visibility.
+     */
     inline void render_panel(const char *panel_id, bool *open = nullptr) {
         auto &entries = detail::get_state().entries;
 
@@ -205,9 +225,8 @@ namespace imgui_util::notification_center {
                 while (clipper.Step()) {
                     for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row) {
                         const auto idx = static_cast<std::size_t>(count - 1 - row);
-                        auto      &e   = entries[idx];
 
-                        if (detail::render_notification_row(e, row, idx, entries))
+                        if (auto &e = entries[idx]; detail::render_notification_row(e, row, idx, entries))
                             break; // iterator invalidated by dismiss
                     }
                 }
@@ -215,17 +234,20 @@ namespace imgui_util::notification_center {
         }
     }
 
+    /// @brief Mark every notification as read.
     inline void mark_all_read() noexcept {
         for (auto &e: detail::get_state().entries)
             e.read = true;
     }
 
+    /// @brief Remove a notification by index.
     inline void dismiss(const std::size_t index) {
         if (auto &entries = detail::get_state().entries; index < entries.size()) {
             entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(index));
         }
     }
 
+    /// @brief Remove all notifications.
     inline void clear_all() noexcept {
         detail::get_state().entries.clear();
     }

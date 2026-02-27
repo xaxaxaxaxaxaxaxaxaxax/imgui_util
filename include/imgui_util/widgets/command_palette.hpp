@@ -1,15 +1,18 @@
-// command_palette.hpp - Fuzzy-search command popup (like VS Code Ctrl+P)
-//
-// Usage:
-//   static imgui_util::command_palette palette;
-//   palette.add("Open File", [&]{ open_dialog(); });
-//   palette.add("Save", [&]{ save(); });
-//   if (ImGui::IsKeyPressed(ImGuiKey_P) && ImGui::GetIO().KeyCtrl)
-//       palette.open();
-//   palette.render();
-//
-// Enter/click invokes the selected command and closes the palette.
-// Escape closes without invoking.
+/// @file command_palette.hpp
+/// @brief Fuzzy-search command popup (like VS Code Ctrl+P).
+///
+/// Enter/click invokes the selected command and closes the palette.
+/// Escape closes without invoking.
+///
+/// Usage:
+/// @code
+///   static imgui_util::command_palette palette;
+///   palette.add("Open File", [&]{ open_dialog(); });
+///   palette.add("Save", [&]{ save(); });
+///   if (ImGui::IsKeyPressed(ImGuiKey_P) && ImGui::GetIO().KeyCtrl)
+///       palette.open();
+///   palette.render();
+/// @endcode
 #pragma once
 
 #include <algorithm>
@@ -26,14 +29,22 @@
 
 namespace imgui_util {
 
+    /// @brief Fuzzy-search command popup (similar to VS Code Ctrl+P).
     class command_palette {
     public:
+        /**
+         * @brief Register a named command.
+         * @param name      Display name shown in the results list.
+         * @param callback  Action invoked when the command is selected.
+         */
         void add(std::string name, std::move_only_function<void()> callback) {
             commands_.push_back({.name = std::move(name), .callback = std::move(callback)});
         }
 
+        /// @brief Remove all registered commands.
         void clear() noexcept { commands_.clear(); }
 
+        /// @brief Open the palette popup (resets filter and selection).
         void open() noexcept {
             should_open_ = true;
             filter_.fill('\0');
@@ -41,6 +52,7 @@ namespace imgui_util {
             selected_ = 0;
         }
 
+        /// @brief Render the command palette. Call once per frame.
         void render() {
             if (should_open_) {
                 ImGui::OpenPopup("##cmd_palette");

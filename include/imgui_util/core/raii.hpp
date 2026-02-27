@@ -1,13 +1,16 @@
-// raii.hpp - RAII scoped wrappers for all ImGui Begin/End and Push/Pop pairs
-//
-// Usage:
-//   if (imgui_util::window w{"Settings", &open}) { ImGui::Text("..."); }
-//   if (imgui_util::tab_bar tb{"Tabs"}) { ... }
-//   { imgui_util::style_var sv{ImGuiStyleVar_Alpha, 0.5f}; ... }
-//   { imgui_util::id scope{"my_id"}; ... }
-//
-// End/Pop is called automatically in the destructor, even on early return.
-// Scopes that track a bool (window, tab_bar, etc.) convert to bool for if-blocks.
+/// @file raii.hpp
+/// @brief RAII scoped wrappers for all ImGui Begin/End and Push/Pop pairs.
+///
+/// End/Pop is called automatically in the destructor, even on early return.
+/// Scopes that track a bool (window, tab_bar, etc.) convert to bool for if-blocks.
+///
+/// Usage:
+/// @code
+///   if (imgui_util::window w{"Settings", &open}) { ImGui::Text("..."); }
+///   if (imgui_util::tab_bar tb{"Tabs"}) { ... }
+///   { imgui_util::style_var sv{ImGuiStyleVar_Alpha, 0.5f}; ... }
+///   { imgui_util::id scope{"my_id"}; ... }
+/// @endcode
 #pragma once
 
 #include <concepts>
@@ -20,14 +23,20 @@
 
 namespace imgui_util {
 
-    // Determines when the end/pop function is called:
-    //  always:      end() unconditionally (e.g. Window, Group)
-    //  conditional: end() only if begin() returned true (e.g. TabBar, Menu)
-    //  none:        always pop, no bool tracking (e.g. PushStyleVar, PushID)
+    /**
+     * @brief Determines when the end/pop function is called.
+     *
+     * - always:      end() unconditionally (e.g. Window, Group).
+     * - conditional: end() only if begin() returned true (e.g. TabBar, Menu).
+     * - none:        always pop, no bool tracking (e.g. PushStyleVar, PushID).
+     */
     enum class end_policy { always, conditional, none };
 
-    // Core RAII wrapper. Trait provides: policy, storage type, begin(), end().
-    // [[nodiscard]] so you can't forget to name the variable (which would destroy immediately).
+    /**
+     * @brief Generic RAII wrapper that calls Trait::begin() on construction and
+     *        Trait::end() on destruction according to the trait's end_policy.
+     * @tparam Trait A type providing static begin(), end(), policy, and storage.
+     */
     template<typename Trait>
     class [[nodiscard]] raii_scope {
         static constexpr end_policy policy    = Trait::policy;              // how/when to call end()
@@ -40,7 +49,6 @@ namespace imgui_util {
         [[no_unique_address]] Trait::storage storage_{}; // extra data passed to end(); monostate when unused
 
     public:
-        // Perfect forwarding constructor - dispatches to appropriate begin() overload
         template<typename... Args>
             requires requires { Trait::begin(std::declval<Args>()...); }
         explicit raii_scope(Args &&...args) noexcept(noexcept(Trait::begin(std::declval<Args>()...))) {
@@ -81,20 +89,17 @@ namespace imgui_util {
             }
         }
 
-        // Non-copyable, non-movable - prevents double-cleanup bugs
         raii_scope(const raii_scope &)            = delete;
         raii_scope &operator=(const raii_scope &) = delete;
         raii_scope(raii_scope &&)                 = delete;
         raii_scope &operator=(raii_scope &&)      = delete;
 
-        // Contextual bool conversion - only enabled when state is tracked
         [[nodiscard]] explicit operator bool() const noexcept
             requires has_state
         {
             return state_;
         }
 
-        // Named accessor — generic across window/tab/menu contexts
         [[nodiscard]] bool is_active() const noexcept
             requires has_state
         {
@@ -102,8 +107,12 @@ namespace imgui_util {
         }
     };
 
-    // Helper trait for trivial begin/end pairs that don't need custom signatures.
-    // Usage: using group_trait = simple_trait<end_policy::always, &ImGui::BeginGroup, &ImGui::EndGroup>;
+    /**
+     * @brief Trait helper for ImGui pairs with no extra storage.
+     * @tparam P        The end_policy governing when EndFn is called.
+     * @tparam BeginFn  Pointer to the ImGui Begin/Push function.
+     * @tparam EndFn    Pointer to the ImGui End/Pop function.
+     */
     template<end_policy P, auto BeginFn, auto EndFn>
     struct simple_trait {
         static constexpr end_policy policy = P;
@@ -116,10 +125,12 @@ namespace imgui_util {
         static void end() noexcept(noexcept(EndFn())) { EndFn(); }
     };
 
-    // Generic multi-push RAII wrapper. Tracks count, pops all in destructor.
-    // PushFn: callable that pushes one entry (takes IdxType + variant alternative)
-    // PopFn:  callable that pops N entries (takes int count)
-    // Entry:  struct with .idx and .val (variant) fields
+    /**
+     * @brief Generic multi-push RAII wrapper. Pushes N entries on construction, pops all in destructor.
+     * @tparam Entry  Struct with .idx and .val (variant) fields.
+     * @tparam PushFn Callable that pushes one entry (takes idx + variant alternative).
+     * @tparam PopFn  Callable that pops N entries (takes int count).
+     */
     template<typename Entry, auto PushFn, auto PopFn>
     class [[nodiscard]] multi_push {
         int count_ = 0;
@@ -153,11 +164,9 @@ namespace imgui_util {
         multi_push &operator=(multi_push &&)      = delete;
     };
 
-    // Always end (unconditional)
     using group_trait   = simple_trait<end_policy::always, &ImGui::BeginGroup, &ImGui::EndGroup>;
     using tooltip_trait = simple_trait<end_policy::always, &ImGui::BeginTooltip, &ImGui::EndTooltip>;
 
-    // Conditional end (only if begin() returned true)
     struct tab_bar_trait {
         static constexpr auto policy = end_policy::conditional;
         using storage                = std::monostate;
@@ -169,10 +178,8 @@ namespace imgui_util {
     using menu_trait     = simple_trait<end_policy::conditional, &ImGui::BeginMenu, &ImGui::EndMenu>;
     using list_box_trait = simple_trait<end_policy::conditional, &ImGui::BeginListBox, &ImGui::EndListBox>;
 
-    // Push/pop style (none)
     using item_width_trait = simple_trait<end_policy::none, &ImGui::PushItemWidth, &ImGui::PopItemWidth>;
 
-    // Complex traits with specific signatures
     struct window_trait {
         static constexpr auto policy = end_policy::always;
         using storage                = std::monostate;
@@ -246,7 +253,6 @@ namespace imgui_util {
         static void end() noexcept { ImGui::EndPopup(); }
     };
 
-    // Collapsed popup-context traits: all share the same signature/end, differ only in begin function.
     template<auto BeginFn>
     struct popup_context_trait {
         static constexpr auto policy = end_policy::conditional;
@@ -351,7 +357,6 @@ namespace imgui_util {
         static void end() noexcept { ImGui::EndDragDropSource(); }
     };
 
-    // Multi-push entry types
     struct style_var_entry {
         ImGuiStyleVar               idx;
         std::variant<float, ImVec2> val;
@@ -365,23 +370,18 @@ namespace imgui_util {
         style_color_entry(const ImGuiCol i, ImU32 c) noexcept : idx{i}, val{c} {}
     };
 
-    // Helper lambdas for multi_push template instantiation
     constexpr auto push_style_var_fn   = [](ImGuiStyleVar idx, const auto &v) { ImGui::PushStyleVar(idx, v); };
     constexpr auto pop_style_var_fn    = [](const int count) { ImGui::PopStyleVar(count); };
     constexpr auto push_style_color_fn = [](ImGuiCol idx, const auto &v) { ImGui::PushStyleColor(idx, v); };
     constexpr auto pop_style_color_fn  = [](const int count) { ImGui::PopStyleColor(count); };
 
-    // Push multiple style vars/colors in one shot; pops all in destructor.
-    //   imgui_util::style_vars sv{{ImGuiStyleVar_Alpha, 0.5f}, {ImGuiStyleVar_WindowPadding, ImVec2{8,8}}};
-    //   imgui_util::style_colors sc{{ImGuiCol_Text, ImVec4{1,1,1,1}}, {ImGuiCol_Button, IM_COL32(255,0,0,255)}};
-    using style_vars   = multi_push<style_var_entry, push_style_var_fn, pop_style_var_fn>;
+    /// @brief Push multiple style vars in one shot; pops all in destructor.
+    using style_vars = multi_push<style_var_entry, push_style_var_fn, pop_style_var_fn>;
+    /// @brief Push multiple style colors in one shot; pops all in destructor.
     using style_colors = multi_push<style_color_entry, push_style_color_fn, pop_style_color_fn>;
 
-    // Public type aliases -- these are what you actually use.
-    // "always" types: End() is always called.
     using window               = raii_scope<window_trait>;
     using child                = raii_scope<child_trait>;
-    // "conditional" types: End() only if Begin() returned true.
     using tab_bar              = raii_scope<tab_bar_trait>;
     using tab_item             = raii_scope<tab_item_trait>;
     using combo                = raii_scope<combo_trait>;
@@ -414,9 +414,12 @@ namespace imgui_util {
     using drag_drop_source     = raii_scope<drag_drop_source_trait>;
     using drag_drop_target     = raii_scope<drag_drop_target_trait>;
 
-    // RAII wrapper for ImGui::BeginMultiSelect / EndMultiSelect.
-    // Both begin and end return ImGuiMultiSelectIO*, so this needs a dedicated class
-    // rather than raii_scope (which doesn't expose end()'s return value).
+    /**
+     * @brief RAII wrapper for ImGui::BeginMultiSelect / EndMultiSelect.
+     *
+     * Uses a dedicated class because both begin and end return ImGuiMultiSelectIO*,
+     * which raii_scope cannot expose.
+     */
     class [[nodiscard]] multi_select {
         ImGuiMultiSelectIO *begin_io_;
         bool                ended_ = false;
@@ -435,10 +438,15 @@ namespace imgui_util {
         multi_select(multi_select &&)                 = delete;
         multi_select &operator=(multi_select &&)      = delete;
 
+        /// @brief Get the IO pointer returned by BeginMultiSelect().
         [[nodiscard]] ImGuiMultiSelectIO *begin_io() const noexcept { return begin_io_; }
 
-        // Call to end the scope early and retrieve EndMultiSelect's IO*.
-        // After this call, the destructor becomes a no-op.
+        /**
+         * @brief End the scope early and retrieve EndMultiSelect's IO*.
+         *
+         * After this call the destructor becomes a no-op.
+         * @return The IO pointer from EndMultiSelect, or nullptr if already ended.
+         */
         ImGuiMultiSelectIO *end() noexcept {
             if (ended_) return nullptr;
             ended_ = true;

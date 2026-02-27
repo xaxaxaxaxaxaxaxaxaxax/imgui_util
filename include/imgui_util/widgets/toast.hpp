@@ -1,18 +1,21 @@
-// toast.hpp - Toast notification system with stacking and fade-out
-//
-// Usage:
-//   imgui_util::toast::show("Saved successfully");
-//   imgui_util::toast::show("Connection lost", imgui_util::severity::error);
-//   imgui_util::toast::show("Low memory", imgui_util::severity::warning, 5.0f);
-//
-//   // With action button:
-//   imgui_util::toast::show("File deleted", imgui_util::severity::info, 5.0f,
-//                           "Undo", [&]{ undo_delete(); });
-//
-//   // Call once per frame (typically at end of frame, after other UI):
-//   imgui_util::toast::render();
-//
-// Toasts stack from the bottom-right corner and fade out in the last 0.5s.
+/// @file toast.hpp
+/// @brief Toast notification system with stacking and fade-out.
+///
+/// Usage:
+/// @code
+///   imgui_util::toast::show("Saved successfully");
+///   imgui_util::toast::show("Connection lost", imgui_util::severity::error);
+///   imgui_util::toast::show("Low memory", imgui_util::severity::warning, 5.0f);
+///
+///   // With action button:
+///   imgui_util::toast::show("File deleted", imgui_util::severity::info, 5.0f,
+///                           "Undo", [&]{ undo_delete(); });
+///
+///   // Call once per frame (typically at end of frame, after other UI):
+///   imgui_util::toast::render();
+/// @endcode
+///
+/// Toasts stack from the bottom-right corner and fade out in the last 0.5s.
 #pragma once
 
 #include <functional>
@@ -30,6 +33,7 @@
 
 namespace imgui_util::toast {
 
+    /// @brief Screen corner where toasts are anchored.
     enum class position { bottom_right, top_right, bottom_left, top_left };
 
     namespace detail {
@@ -72,14 +76,24 @@ namespace imgui_util::toast {
 
     } // namespace detail
 
+    /// @brief Set the screen corner for toast stacking.
     inline void set_position(const position pos) noexcept {
         detail::state().anchor = pos;
     }
 
+    /// @brief Limit the number of simultaneously visible toasts.
     inline void set_max_visible(const int max) noexcept {
         detail::state().max_visible = max;
     }
 
+    /**
+     * @brief Push a new toast notification.
+     * @param message          Text displayed in the toast.
+     * @param sev              Severity level (controls accent color).
+     * @param duration_sec     Seconds before the toast auto-dismisses.
+     * @param action_label     Optional button label (empty to omit).
+     * @param action_callback  Callback invoked when the action button is clicked.
+     */
     inline void show(const std::string_view message, const severity sev = severity::info,
                      const float duration_sec = 3.0f, const std::string_view action_label = {},
                      std::move_only_function<void()> action_callback = {}) {
@@ -101,6 +115,7 @@ namespace imgui_util::toast {
         });
     }
 
+    /// @brief Draw all active toasts. Call once per frame, typically at end of frame after other UI.
     inline void render() {
         auto &[entries, anchor, max_visible] = detail::state();
         if (entries.empty()) return;
@@ -183,7 +198,7 @@ namespace imgui_util::toast {
         std::erase_if(entries, [now](const detail::entry &e) { return now - e.start_time >= e.duration; });
     }
 
-    // Clear all active toasts
+    /// @brief Dismiss all active toasts immediately.
     inline void clear() noexcept {
         detail::state().entries.clear();
     }

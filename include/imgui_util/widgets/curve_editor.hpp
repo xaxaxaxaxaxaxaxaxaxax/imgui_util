@@ -1,15 +1,18 @@
-// curve_editor.hpp - Keyframe curve editor with cubic hermite interpolation
-//
-// Usage:
-//   static imgui_util::curve_editor editor{{-1, 200}};
-//   static std::vector<imgui_util::keyframe> keys = {{0.f, 0.f}, {0.5f, 1.f}, {1.f, 0.f}};
-//   if (editor.render("##curve", keys)) { /* keys were modified */ }
-//
-//   // Evaluate the curve at a given time:
-//   float val = imgui_util::curve_editor::evaluate(keys, 0.25f);
-//
-// Features: draggable keyframes, tangent handles, double-click to add, Delete to remove,
-// mouse wheel zoom, snap grid, and cubic hermite interpolation.
+/// @file curve_editor.hpp
+/// @brief Keyframe curve editor with cubic hermite interpolation.
+///
+/// Features: draggable keyframes, tangent handles, double-click to add, Delete to remove,
+/// mouse wheel zoom, snap grid, and cubic hermite interpolation.
+///
+/// Usage:
+/// @code
+///   static imgui_util::curve_editor editor{{-1, 200}};
+///   static std::vector<imgui_util::keyframe> keys = {{0.f, 0.f}, {0.5f, 1.f}, {1.f, 0.f}};
+///   if (editor.render("##curve", keys)) { /* keys were modified */ }
+///
+///   // Evaluate the curve at a given time:
+///   float val = imgui_util::curve_editor::evaluate(keys, 0.25f);
+/// @endcode
 #pragma once
 
 #include <algorithm>
@@ -27,8 +30,11 @@ namespace imgui_util {
 
     namespace detail {
 
-        // RAII wrapper for ImDrawList::PushClipRect / PopClipRect (distinct from
-        // ImGui::PushClipRect which is wrapped by imgui_util::clip_rect).
+        /**
+         * @brief RAII wrapper for ImDrawList::PushClipRect / PopClipRect.
+         *
+         * Distinct from ImGui::PushClipRect which is wrapped by imgui_util::clip_rect.
+         */
         class [[nodiscard]] draw_list_clip_rect {
             ImDrawList *dl_;
 
@@ -49,17 +55,34 @@ namespace imgui_util {
 
     } // namespace detail
 
+    /// @brief A single keyframe with time, value, and tangent slopes for cubic hermite interpolation.
     struct keyframe {
-        float time;
-        float value;
-        float tangent_in  = 0.0f;
-        float tangent_out = 0.0f;
+        float time;               ///< Time position along the curve.
+        float value;              ///< Value at this keyframe.
+        float tangent_in  = 0.0f; ///< Incoming tangent slope.
+        float tangent_out = 0.0f; ///< Outgoing tangent slope.
     };
 
+    /**
+     * @brief Keyframe curve editor with cubic hermite interpolation.
+     *
+     * Features: draggable keyframes, tangent handles, double-click to add,
+     * Delete key to remove, snap grid, and configurable appearance.
+     */
     class curve_editor {
     public:
         explicit curve_editor(const ImVec2 size = {-1, 200}) noexcept : size_(size) {}
 
+        /**
+         * @brief Render the curve editor and handle interaction.
+         * @param id    ImGui ID string.
+         * @param keys  Keyframes to display and edit (sorted by time internally).
+         * @param t_min Left edge of the visible time range.
+         * @param t_max Right edge of the visible time range.
+         * @param v_min Bottom edge of the visible value range.
+         * @param v_max Top edge of the visible value range.
+         * @return True if any keyframe was added, removed, or modified this frame.
+         */
         bool render(const char *id, std::vector<keyframe> &keys, const float t_min = 0.f, const float t_max = 1.f,
                     const float v_min = 0.f, const float v_max = 1.f) {
             bool modified = false;
@@ -87,7 +110,12 @@ namespace imgui_util {
             return modified;
         }
 
-        // Evaluate the curve at time t using cubic hermite interpolation
+        /**
+         * @brief Evaluate the curve at time @p t using cubic hermite interpolation.
+         * @param keys Sorted keyframes defining the curve.
+         * @param t    Time value to evaluate at (clamped to first/last keyframe).
+         * @return Interpolated value at time @p t.
+         */
         [[nodiscard]] static float evaluate(const std::span<const keyframe> keys, const float t) noexcept {
             if (keys.empty()) return 0.0f;
             if (keys.size() == 1) return keys[0].value;
@@ -128,6 +156,12 @@ namespace imgui_util {
             return h00 * k0.value + h10 * m0 + h01 * k1.value + h11 * m1;
         }
 
+        /**
+         * @brief Configure grid display. Chainable.
+         * @param show   Whether to draw grid lines.
+         * @param t_step Horizontal grid spacing (time axis).
+         * @param v_step Vertical grid spacing (value axis).
+         */
         [[nodiscard]] curve_editor &set_grid(const bool show, const float t_step = 0.1f,
                                              const float v_step = 0.1f) noexcept {
             show_grid_   = show;
@@ -136,12 +170,18 @@ namespace imgui_util {
             return *this;
         }
 
+        /**
+         * @brief Enable snap-to-grid for dragged keyframes. Chainable.
+         * @param t_snap Time-axis snap interval (0 to disable).
+         * @param v_snap Value-axis snap interval (0 to disable).
+         */
         [[nodiscard]] curve_editor &set_snap(const float t_snap = 0.0f, const float v_snap = 0.0f) noexcept {
             snap_t_ = t_snap;
             snap_v_ = v_snap;
             return *this;
         }
 
+        /// @brief Set the curve line color. Chainable.
         [[nodiscard]] curve_editor &set_color(const ImU32 color) noexcept {
             curve_color_ = color;
             return *this;
@@ -162,10 +202,17 @@ namespace imgui_util {
         drag_part dragging_part_ = drag_part::none;
 
         struct render_context {
-            ImDrawList *dl;
-            ImVec2      canvas_pos, canvas_end, canvas_size;
-            float       t_min, t_max, v_min, v_max, t_range, v_range;
-            bool        canvas_hovered;
+            ImDrawList *dl{};
+            ImVec2      canvas_pos;
+            ImVec2      canvas_end;
+            ImVec2      canvas_size;
+            float       t_min{};
+            float       t_max{};
+            float       v_min{};
+            float       v_max{};
+            float       t_range{};
+            float       v_range{};
+            bool        canvas_hovered{};
             ImVec2      mouse;
 
             [[nodiscard]] ImVec2 to_screen(const float t, const float v) const noexcept {
@@ -203,8 +250,18 @@ namespace imgui_util {
             dl->AddRect(canvas_pos, canvas_end, IM_COL32(80, 80, 80, 255));
 
             return {
-                dl,    canvas_pos, canvas_end,    canvas_size,   t_min,          t_max,
-                v_min, v_max,      t_max - t_min, v_max - v_min, canvas_hovered, ImGui::GetIO().MousePos,
+                .dl             = dl,
+                .canvas_pos     = canvas_pos,
+                .canvas_end     = canvas_end,
+                .canvas_size    = canvas_size,
+                .t_min          = t_min,
+                .t_max          = t_max,
+                .v_min          = v_min,
+                .v_max          = v_max,
+                .t_range        = t_max - t_min,
+                .v_range        = v_max - v_min,
+                .canvas_hovered = canvas_hovered,
+                .mouse          = ImGui::GetIO().MousePos,
             };
         }
 
@@ -262,21 +319,20 @@ namespace imgui_util {
         }
 
         void render_keyframes(const render_context &ctx, std::vector<keyframe> &keys, bool &modified) {
-            constexpr float point_radius   = 5.0f;
-            constexpr float handle_radius  = 3.0f;
-            constexpr float tangent_len_px = 40.0f;
-
             for (int ki = 0; std::cmp_less(ki, keys.size()); ++ki) {
+                constexpr float point_radius                 = 5.0f;
                 auto &[time, value, tangent_in, tangent_out] = keys[static_cast<std::size_t>(ki)];
                 const ImVec2 pos                             = ctx.to_screen(time, value);
                 const bool   is_selected                     = ki == selected_key_;
 
                 // Draw tangent handles for selected key
                 if (is_selected) {
+                    constexpr float tangent_len_px = 40.0f;
+                    constexpr float handle_radius  = 3.0f;
                     // Tangent in handle
-                    const ImVec2 tan_in{
+                    const ImVec2    tan_in{
                         pos.x - tangent_len_px,
-                        pos.y + (tangent_in * tangent_len_px),
+                        pos.y + tangent_in * tangent_len_px,
                     };
                     ctx.dl->AddLine(pos, tan_in, IM_COL32(100, 180, 255, 180), 1.0f);
                     ctx.dl->AddCircleFilled(tan_in, handle_radius, IM_COL32(100, 180, 255, 220));
@@ -284,7 +340,7 @@ namespace imgui_util {
                     // Tangent out handle
                     const ImVec2 tan_out{
                         pos.x + tangent_len_px,
-                        pos.y - (tangent_out * tangent_len_px),
+                        pos.y - tangent_out * tangent_len_px,
                     };
                     ctx.dl->AddLine(pos, tan_out, IM_COL32(100, 180, 255, 180), 1.0f);
                     ctx.dl->AddCircleFilled(tan_out, handle_radius, IM_COL32(100, 180, 255, 220));
@@ -358,8 +414,7 @@ namespace imgui_util {
             for (int ki = 0; std::cmp_less(ki, keys.size()); ++ki) {
                 const ImVec2 pos =
                     ctx.to_screen(keys[static_cast<std::size_t>(ki)].time, keys[static_cast<std::size_t>(ki)].value);
-                const float dist = std::hypot(ctx.mouse.x - pos.x, ctx.mouse.y - pos.y);
-                if (dist < closest_dist) {
+                if (const float dist = std::hypot(ctx.mouse.x - pos.x, ctx.mouse.y - pos.y); dist < closest_dist) {
                     closest_dist = dist;
                     closest      = ki;
                 }
@@ -376,10 +431,9 @@ namespace imgui_util {
         void handle_add_keyframe(const render_context &ctx, std::vector<keyframe> &keys, bool &modified) {
             if (!ctx.canvas_hovered || !ImGui::IsMouseDoubleClicked(0)) return;
 
-            constexpr float point_radius = 5.0f;
-
             bool on_point = false;
             for (const auto &key: keys) {
+                constexpr float point_radius = 5.0f;
                 if (const ImVec2 pos = ctx.to_screen(key.time, key.value);
                     std::hypot(ctx.mouse.x - pos.x, ctx.mouse.y - pos.y) < point_radius * 2.0f) {
                     on_point = true;
@@ -390,7 +444,7 @@ namespace imgui_util {
                 auto [t, v] = ctx.to_value(ctx.mouse);
                 t           = std::clamp(t, ctx.t_min, ctx.t_max);
                 v           = std::clamp(v, ctx.v_min, ctx.v_max);
-                keys.push_back({t, v, 0.0f, 0.0f});
+                keys.push_back({.time = t, .value = v, .tangent_in = 0.0f, .tangent_out = 0.0f});
                 selected_key_ = static_cast<int>(keys.size()) - 1;
                 modified      = true;
             }

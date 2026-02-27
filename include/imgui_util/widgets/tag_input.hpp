@@ -1,16 +1,19 @@
-// tag_input.hpp - Tag/chip input widget with pill rendering and inline editing
-//
-// Usage:
-//   static std::vector<std::string> tags = {"C++", "ImGui"};
-//   if (imgui_util::tag_input("Tags", tags)) {
-//       // tags changed (added or removed)
-//   }
-//
-//   // With max tag limit:
-//   if (imgui_util::tag_input("Labels", tags, 5)) { ... }
-//
-// Renders each tag as a colored pill with an X button. An InputText at the end
-// allows adding new tags on Enter. Uses ImDrawList for pill rendering.
+/// @file tag_input.hpp
+/// @brief Tag/chip input widget with pill rendering and inline editing.
+///
+/// Usage:
+/// @code
+///   static std::vector<std::string> tags = {"C++", "ImGui"};
+///   if (imgui_util::tag_input("Tags", tags)) {
+///       // tags changed (added or removed)
+///   }
+///
+///   // With max tag limit:
+///   if (imgui_util::tag_input("Labels", tags, 5)) { ... }
+/// @endcode
+///
+/// Renders each tag as a colored pill with an X button. An InputText at the end
+/// allows adding new tags on Enter. Uses ImDrawList for pill rendering.
 #pragma once
 
 #include <array>
@@ -27,6 +30,16 @@
 
 namespace imgui_util {
 
+    /**
+     * @brief Tag/chip input widget with pill rendering and inline editing.
+     *
+     * Renders each tag as a colored pill with an X button for removal.
+     * An InputText at the end allows adding new tags on Enter.
+     * @param label    Widget label (used as ImGui ID scope).
+     * @param tags     Vector of tag strings (in/out).
+     * @param max_tags Maximum number of tags allowed (0 = unlimited).
+     * @return True if the tag list changed this frame (added or removed).
+     */
     [[nodiscard]] inline bool tag_input(const char *label, std::vector<std::string> &tags, const int max_tags = 0) {
         if (const auto *const win = ImGui::GetCurrentWindow(); win->SkipItems) return false;
 
@@ -47,7 +60,6 @@ namespace imgui_util {
 
         bool changed = false;
 
-        // Layout: wrap pills across lines
         const auto origin   = ImGui::GetCursorScreenPos();
         float      cursor_x = 0.0f;
         float      cursor_y = 0.0f;
@@ -59,7 +71,6 @@ namespace imgui_util {
             const auto  text_size  = ImGui::CalcTextSize(tag.c_str());
             const float pill_width = text_size.x + x_btn_width + pill_pad_x * 3.0f;
 
-            // Wrap to next line if needed
             if (cursor_x + pill_width > wrap_width && cursor_x > 0.0f) {
                 cursor_x = 0.0f;
                 cursor_y += line_height + style.ItemSpacing.y;
@@ -68,14 +79,11 @@ namespace imgui_util {
             const ImVec2 pill_min{origin.x + cursor_x, origin.y + cursor_y + 1.0f};
             const ImVec2 pill_max{pill_min.x + pill_width, pill_min.y + pill_height};
 
-            // Pill background
             dl->AddRectFilled(pill_min, pill_max, ImGui::GetColorU32(ImGuiCol_FrameBg), pill_rounding);
 
-            // Tag text
             const float text_y = pill_min.y + (pill_height - text_size.y) * 0.5f;
             dl->AddText({pill_min.x + pill_pad_x, text_y}, ImGui::GetColorU32(ImGuiCol_Text), tag.c_str());
 
-            // X button region
             const float  x_start = pill_max.x - x_btn_width - pill_pad_x;
             const ImVec2 x_min{x_start, pill_min.y};
             const ImVec2 x_max{pill_max.x, pill_max.y};
@@ -103,11 +111,9 @@ namespace imgui_util {
         }
 
         // Input text for new tags
-        const bool at_limit = max_tags > 0 && std::cmp_greater_equal(tags.size(), max_tags);
-        if (!at_limit) {
+        if (const bool at_limit = max_tags > 0 && std::cmp_greater_equal(tags.size(), max_tags); !at_limit) {
             // Wrap input to next line if not enough space
-            constexpr float input_min_w = 80.0f;
-            if (cursor_x + input_min_w > wrap_width && cursor_x > 0.0f) {
+            if (constexpr float input_min_w = 80.0f; cursor_x + input_min_w > wrap_width && cursor_x > 0.0f) {
                 cursor_x = 0.0f;
                 cursor_y += line_height + style.ItemSpacing.y;
             }

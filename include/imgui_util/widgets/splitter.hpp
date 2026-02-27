@@ -1,16 +1,19 @@
-// splitter.hpp - Resizable split panels
-//
-// Usage:
-//   static float ratio = 0.5f;
-//   imgui_util::splitter("##split", imgui_util::direction::horizontal, ratio);
-//
-//   // Use ratio to size child panels:
-//   ImVec2 avail = ImGui::GetContentRegionAvail();
-//   imgui_util::child left{"left", {avail.x * ratio, 0}};
-//   // ... left panel content ...
-//   // Then right panel at (1 - ratio)
-//
-// Returns true if the ratio changed. Renders an invisible drag handle between panels.
+/// @file splitter.hpp
+/// @brief Resizable split panels.
+///
+/// Returns true if the ratio changed. Renders an invisible drag handle between panels.
+///
+/// Usage:
+/// @code
+///   static float ratio = 0.5f;
+///   imgui_util::splitter("##split", imgui_util::direction::horizontal, ratio);
+///
+///   // Use ratio to size child panels:
+///   ImVec2 avail = ImGui::GetContentRegionAvail();
+///   imgui_util::child left{"left", {avail.x * ratio, 0}};
+///   // ... left panel content ...
+///   // Then right panel at (1 - ratio)
+/// @endcode
 #pragma once
 
 #include <algorithm>
@@ -24,10 +27,18 @@
 
 namespace imgui_util {
 
-    // split_direction is an alias for the shared direction enum
     using split_direction = direction;
 
-    // Returns true if the ratio changed. ratio is 0.0-1.0 representing the first panel's share.
+    /**
+     * @brief Render a draggable splitter handle and update the split ratio.
+     * @param id         ImGui ID for the invisible drag button.
+     * @param dir        Split direction (horizontal or vertical).
+     * @param ratio      Current split ratio, updated on drag.
+     * @param thickness  Thickness of the drag handle in pixels.
+     * @param min_ratio  Minimum allowed ratio.
+     * @param max_ratio  Maximum allowed ratio.
+     * @return True if the ratio changed this frame.
+     */
     [[nodiscard]] inline bool splitter(const char *id, const split_direction dir, float &ratio, float thickness = 8.0f,
                                        const float min_ratio = 0.1f, const float max_ratio = 0.9f) noexcept {
         assert(min_ratio < max_ratio && "min_ratio must be less than max_ratio");
@@ -42,7 +53,6 @@ namespace imgui_util {
         const float total       = is_h ? content_max.x - content_min.x : content_max.y - content_min.y;
         const auto  avail       = ImGui::GetContentRegionAvail();
 
-        // Render the invisible button at the current cursor position (no SetCursorPos).
         ImGui::InvisibleButton(id, is_h ? ImVec2(thickness, avail.y) : ImVec2(avail.x, thickness));
 
         const bool hovered_or_active = ImGui::IsItemHovered() || ImGui::IsItemActive();
@@ -50,7 +60,6 @@ namespace imgui_util {
             ImGui::SetMouseCursor(is_h ? ImGuiMouseCursor_ResizeEW : ImGuiMouseCursor_ResizeNS);
         }
 
-        // Visual feedback: thin colored line on the handle
         {
             const auto  rmin = ImGui::GetItemRectMin();
             const auto  rmax = ImGui::GetItemRectMax();
@@ -79,8 +88,16 @@ namespace imgui_util {
         return changed;
     }
 
-    // Convenience wrapper: renders two child regions separated by a drag handle.
-    // left() and right() are called inside the respective child regions.
+    /**
+     * @brief Render two child panels separated by a draggable splitter.
+     * @param id         ImGui ID for the splitter handle.
+     * @param dir        Split direction (horizontal or vertical).
+     * @param ratio      Current split ratio, updated on drag.
+     * @param left       Callable rendering the first (left/top) panel content.
+     * @param right      Callable rendering the second (right/bottom) panel content.
+     * @param min_ratio  Minimum allowed ratio.
+     * @param max_ratio  Maximum allowed ratio.
+     */
     template<std::invocable Left, std::invocable Right>
     void split_panel(const char *id, const direction dir, float &ratio, Left &&left, Right &&right,
                      const float min_ratio = 0.1f, const float max_ratio = 0.9f) noexcept {
@@ -90,7 +107,6 @@ namespace imgui_util {
         const float first_size  = is_h ? avail.x * ratio : avail.y * ratio;
         const float second_size = is_h ? avail.x * (1.0f - ratio) : avail.y * (1.0f - ratio);
 
-        // First child region
         {
             const ImVec2 first_child_size = is_h ? ImVec2(first_size, avail.y) : ImVec2(avail.x, first_size);
             if (const child first{"##split_first", first_child_size, ImGuiChildFlags_None}) {
@@ -100,12 +116,10 @@ namespace imgui_util {
 
         if (is_h) ImGui::SameLine();
 
-        // Drag handle
         std::ignore = splitter(id, dir, ratio, 8.0f, min_ratio, max_ratio);
 
         if (is_h) ImGui::SameLine();
 
-        // Second child region
         {
             const ImVec2 second_child_size = is_h ? ImVec2(second_size, avail.y) : ImVec2(avail.x, second_size);
             if (const child second{"##split_second", second_child_size, ImGuiChildFlags_None}) {

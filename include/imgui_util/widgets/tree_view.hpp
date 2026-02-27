@@ -1,14 +1,17 @@
-// tree_view.hpp - Reusable tree view widget for hierarchical data
-//
-// Usage:
-//   imgui_util::tree_view<MyNode> tv{"Scene"};
-//   tv.set_children([](const MyNode& n) -> std::span<const MyNode> { return n.children; })
-//     .set_label([](const MyNode& n) { return n.name.c_str(); })
-//     .set_on_select([&](const MyNode& n) { selected = &n; })
-//     .render(root_nodes);
-//
-// Template on node type. Requires children accessor and label accessor.
-// Optional: on_select callback, on_context_menu callback, is_leaf predicate.
+/// @file tree_view.hpp
+/// @brief Reusable tree view widget for hierarchical data.
+///
+/// Usage:
+/// @code
+///   imgui_util::tree_view<MyNode> tv{"Scene"};
+///   tv.set_children([](const MyNode& n) -> std::span<const MyNode> { return n.children; })
+///     .set_label([](const MyNode& n) { return n.name.c_str(); })
+///     .set_on_select([&](const MyNode& n) { selected = &n; })
+///     .render(root_nodes);
+/// @endcode
+///
+/// Template on node type. Requires children accessor and label accessor.
+/// Optional: on_select callback, on_context_menu callback, is_leaf predicate.
 #pragma once
 
 #include <functional>
@@ -21,6 +24,14 @@
 
 namespace imgui_util {
 
+    /**
+     * @brief Reusable tree view widget for hierarchical data.
+     *
+     * Configure with builder-style setters for children, label, selection, and
+     * context menu callbacks, then call render() each frame with the root nodes.
+     * @tparam NodeT Node type. Must be stable in memory across frames for selection
+     *               tracking (see selected_ pointer).
+     */
     template<typename NodeT>
     class tree_view {
     public:
@@ -30,29 +41,36 @@ namespace imgui_util {
         using context_menu_fn = std::move_only_function<void(const NodeT &)>;
         using leaf_fn         = std::move_only_function<bool(const NodeT &)>;
 
+        /// @brief Construct a tree view with the given ImGui ID scope.
         explicit tree_view(const char *id) noexcept : id_(id) {}
 
+        /// @brief Set the callback that returns child nodes for a given node.
         tree_view &set_children(children_fn fn) noexcept {
             children_fn_ = std::move(fn);
             return *this;
         }
+        /// @brief Set the callback that returns the display label for a node.
         tree_view &set_label(label_fn fn) noexcept {
             label_fn_ = std::move(fn);
             return *this;
         }
+        /// @brief Set the callback invoked when a node is selected.
         tree_view &set_on_select(select_fn fn) noexcept {
             select_fn_ = std::move(fn);
             return *this;
         }
+        /// @brief Set the callback invoked to render a right-click context menu for a node.
         tree_view &set_on_context_menu(context_menu_fn fn) noexcept {
             context_fn_ = std::move(fn);
             return *this;
         }
+        /// @brief Set a predicate that overrides the default leaf detection (empty children).
         tree_view &set_is_leaf(leaf_fn fn) noexcept {
             leaf_fn_ = std::move(fn);
             return *this;
         }
 
+        /// @brief Render the tree, starting from the given root nodes.
         template<std::ranges::input_range R>
             requires std::convertible_to<std::ranges::range_reference_t<R>, const NodeT &>
         void render(const R &roots) {

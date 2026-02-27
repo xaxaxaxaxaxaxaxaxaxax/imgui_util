@@ -1,18 +1,21 @@
-// key_binding.hpp - Key binding capture widget for hotkey configuration
-//
-// Usage:
-//   static imgui_util::key_combo combo{ImGuiKey_S, ImGuiMod_Ctrl};
-//   if (imgui_util::key_binding_editor("Save", &combo)) {
-//       // combo changed
-//   }
-//
-//   // Display the combo as text:
-//   auto text = imgui_util::to_string(combo);
-//   ImGui::TextUnformatted(text.c_str());
-//
-// Click the button to enter capture mode. Press any key+modifier combination
-// to bind it. Press Escape to cancel. The widget stores capture state in
-// ImGui's state storage.
+/// @file key_binding.hpp
+/// @brief Key binding capture widget for hotkey configuration.
+///
+/// Click the button to enter capture mode. Press any key+modifier combination
+/// to bind it. Press Escape to cancel. The widget stores capture state in
+/// ImGui's state storage.
+///
+/// Usage:
+/// @code
+///   static imgui_util::key_combo combo{ImGuiKey_S, ImGuiMod_Ctrl};
+///   if (imgui_util::key_binding_editor("Save", &combo)) {
+///       // combo changed
+///   }
+///
+///   // Display the combo as text:
+///   auto text = imgui_util::to_string(combo);
+///   ImGui::TextUnformatted(text.c_str());
+/// @endcode
 #pragma once
 
 #include <imgui.h>
@@ -23,12 +26,13 @@
 
 namespace imgui_util {
 
+    /// @brief A key plus modifier combination for hotkey bindings.
     struct key_combo {
-        ImGuiKey      key  = ImGuiKey_None;
-        ImGuiKeyChord mods = ImGuiMod_None;
+        ImGuiKey      key  = ImGuiKey_None;  ///< Primary key (ImGuiKey_None = unbound).
+        ImGuiKeyChord mods = ImGuiMod_None;  ///< Modifier flags (Ctrl, Shift, Alt, Super).
     };
 
-    // Format a key_combo as human-readable text (e.g. "Ctrl+Shift+K")
+    /// @brief Format a key_combo as a human-readable string (e.g. "Ctrl+Shift+S").
     [[nodiscard]] inline fmt_buf<128> to_string(const key_combo &combo) noexcept {
         if (combo.key == ImGuiKey_None && combo.mods == ImGuiMod_None) {
             return fmt_buf<128>{"None"};
@@ -49,14 +53,12 @@ namespace imgui_util {
 
     namespace detail {
 
-        // Check whether a key is a modifier (Ctrl/Shift/Alt/Super)
         [[nodiscard]] constexpr bool is_modifier_key(const ImGuiKey key) noexcept {
             return key == ImGuiKey_LeftCtrl || key == ImGuiKey_RightCtrl || key == ImGuiKey_LeftShift
                 || key == ImGuiKey_RightShift || key == ImGuiKey_LeftAlt || key == ImGuiKey_RightAlt
                 || key == ImGuiKey_LeftSuper || key == ImGuiKey_RightSuper;
         }
 
-        // Scan for the currently held modifier flags
         [[nodiscard]] inline ImGuiKeyChord current_modifiers() noexcept {
             const auto   &io   = ImGui::GetIO();
             ImGuiKeyChord mods = ImGuiMod_None;
@@ -69,7 +71,15 @@ namespace imgui_util {
 
     } // namespace detail
 
-    // Key binding editor widget. Returns true when the binding changes.
+    /**
+     * @brief Key binding capture widget.
+     *
+     * Displays the current binding as a button. Clicking enters capture mode;
+     * pressing any key+modifier combination binds it. Escape cancels.
+     * @param label Widget label (also used as ImGui ID).
+     * @param combo Key combination to edit (in/out).
+     * @return True if the binding changed this frame.
+     */
     [[nodiscard]] inline bool key_binding_editor(const char *label, key_combo *combo) noexcept {
         ImGuiWindow *win = ImGui::GetCurrentWindow();
         if (win->SkipItems) return false;

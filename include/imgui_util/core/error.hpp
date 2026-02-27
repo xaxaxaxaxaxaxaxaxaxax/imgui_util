@@ -1,11 +1,14 @@
-// error.hpp - UI error types with std::expected integration
-//
-// Usage:
-//   auto result = imgui_util::validate_path(p);
-//   if (!result) log(result.error().message().sv());
-//
-//   imgui_util::ui_expected<int> parse_config(std::string_view s);
-//   return imgui_util::make_ui_error(ui_error_code::file_open_failed, "not found");
+/// @file error.hpp
+/// @brief UI error types with std::expected integration.
+///
+/// Usage:
+/// @code
+///   auto result = imgui_util::validate_path(p);
+///   if (!result) log(result.error().message().sv());
+///
+///   imgui_util::ui_expected<int> parse_config(std::string_view s);
+///   return imgui_util::make_ui_error(ui_error_code::file_open_failed, "not found");
+/// @endcode
 #pragma once
 
 #include <cstdint>
@@ -21,6 +24,7 @@
 
 namespace imgui_util {
 
+    /// @brief Error codes for UI operations (path validation, file I/O).
     enum class ui_error_code : std::uint8_t {
         path_empty,
         path_too_long,
@@ -31,6 +35,7 @@ namespace imgui_util {
         file_malformed
     };
 
+    /// @brief Convert a ui_error_code to a human-readable string.
     [[nodiscard]] constexpr std::string_view to_string(const ui_error_code code) noexcept {
         using enum ui_error_code;
         switch (code) {
@@ -52,6 +57,7 @@ namespace imgui_util {
         return "Unknown UI error";
     }
 
+    /// @brief UI error carrying an error code and optional detail string.
     struct ui_error {
         ui_error_code code;
         std::string   detail;
@@ -59,6 +65,7 @@ namespace imgui_util {
         explicit constexpr ui_error(const ui_error_code c) noexcept : code{c} {}
         explicit constexpr ui_error(const ui_error_code c, std::string d) : code{c}, detail{std::move(d)} {}
 
+        /// @brief Format the error as "code_name" or "code_name: detail".
         [[nodiscard]] constexpr fmt_buf<256> message() const {
             const auto base = to_string(code);
             if (detail.empty()) return fmt_buf<256>("{}", base);
@@ -78,24 +85,37 @@ namespace imgui_util {
         return os << to_string(code);
     }
 
-    // Type aliases for std::expected
+    /// @brief Alias for std::expected<T, ui_error>.
     template<typename T>
     using ui_expected      = std::expected<T, ui_error>;
+    /// @brief Alias for std::expected<void, ui_error>.
     using ui_expected_void = std::expected<void, ui_error>;
 
-    // Convenience factory for creating unexpected errors
+    /// @brief Create an unexpected ui_error from a code alone.
     [[nodiscard]] constexpr std::unexpected<ui_error> make_ui_error(const ui_error_code code) {
         return std::unexpected{ui_error{code}};
     }
 
-    // Not constexpr: ui_error two-arg ctor takes std::string by value (heap alloc at runtime).
+    /**
+     * @brief Create an unexpected ui_error with a detail message.
+     * @param code   The error code.
+     * @param detail Additional context (not constexpr due to heap allocation).
+     */
     [[nodiscard]] inline std::unexpected<ui_error> make_ui_error(const ui_error_code code, std::string detail) {
         return std::unexpected{ui_error{code, std::move(detail)}};
     }
 
-    // Path validation
+    /// @brief Maximum allowed filesystem path length for validate_path().
     constexpr size_t max_path_length = 4096;
 
+    /**
+     * @brief Validate and canonicalize a filesystem path.
+     *
+     * Rejects empty paths, paths exceeding max_path_length, and paths with
+     * embedded null bytes. Returns a canonical path on success.
+     * @param p The path to validate.
+     * @return The canonical path, or a ui_error on failure.
+     */
     [[nodiscard]] inline ui_expected<std::filesystem::path> validate_path(const std::filesystem::path &p) noexcept {
         if (p.empty()) return make_ui_error(ui_error_code::path_empty);
         if (p.native().size() > max_path_length) return make_ui_error(ui_error_code::path_too_long);

@@ -1,16 +1,19 @@
-// confirm_button.hpp - Click-to-arm, click-again-to-confirm button for destructive actions
-//
-// Usage:
-//   if (imgui_util::confirm_button("Delete", "##del_item")) {
-//       // user confirmed deletion
-//   }
-//
-//   // With custom timeout and armed color:
-//   if (imgui_util::confirm_button("Reset All", "##reset", 5.0f, {1.0f, 0.2f, 0.2f, 1.0f})) { ... }
-//
-// First click arms the button (turns red, shows "Click again to confirm").
-// Second click within timeout returns true. Timeout expiration resets to normal.
-// All state is stored in ImGui state storage keyed by str_id.
+/// @file confirm_button.hpp
+/// @brief Click-to-arm, click-again-to-confirm button for destructive actions.
+///
+/// First click arms the button (turns red, shows "Click again to confirm").
+/// Second click within timeout returns true. Timeout expiration resets to normal.
+/// All state is stored in ImGui state storage keyed by str_id.
+///
+/// Usage:
+/// @code
+///   if (imgui_util::confirm_button("Delete", "##del_item")) {
+///       // user confirmed deletion
+///   }
+///
+///   // With custom timeout and armed color:
+///   if (imgui_util::confirm_button("Reset All", "##reset", 5.0f, {1.0f, 0.2f, 0.2f, 1.0f})) { ... }
+/// @endcode
 #pragma once
 
 #include <imgui.h>
@@ -22,7 +25,19 @@
 
 namespace imgui_util {
 
-    // Returns true when the user confirms (second click within timeout).
+    /**
+     * @brief Two-click confirmation button for destructive actions.
+     *
+     * First click arms the button (changes color, shows "Confirm ...").
+     * Second click within the timeout returns true. The button resets
+     * to its normal state when the timeout expires.
+     *
+     * @param label        Visible button text.
+     * @param str_id       ImGui ID used for state storage.
+     * @param timeout_sec  Seconds the button stays armed before resetting.
+     * @param armed_color  Button color while armed.
+     * @return True on the confirming (second) click.
+     */
     [[nodiscard]] inline bool confirm_button(const char *label, const char *str_id, const float timeout_sec = 3.0f,
                                              const ImVec4 &armed_color = colors::error) noexcept {
         if (const ImGuiWindow *const win = ImGui::GetCurrentWindow(); win->SkipItems) return false;

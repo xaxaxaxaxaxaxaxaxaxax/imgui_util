@@ -480,12 +480,12 @@ namespace imgui_util::theme {
                                 parse::parse_float(value, current_theme_.*theme_float_fields[idx].ptr);
                             break;
                         case field_kind::rgb_field:
-                            parse::parse_float_rgb(
-                                value, std::span<float, 3>{(current_theme_.*theme_rgb_fields[idx].ptr).channels});
+                            parse::parse_float_rgb(value,
+                                                   std::span{(current_theme_.*theme_rgb_fields[idx].ptr).channels});
                             break;
                         case field_kind::opt_rgb_field: {
                             rgb_color c{};
-                            parse::parse_float_rgb(value, std::span<float, 3>{c.channels});
+                            parse::parse_float_rgb(value, std::span{c.channels});
                             current_theme_.*theme_opt_rgb_fields[idx].ptr = c;
                             break;
                         }
@@ -538,7 +538,7 @@ namespace imgui_util::theme {
 
         // Detect light/dark mode from current WindowBg luminance
         const ImVec4 &win_bg = editing_theme_.colors.at(ImGuiCol_WindowBg);
-        const float   lum    = (win_bg.x * 0.299f) + (win_bg.y * 0.587f) + (win_bg.z * 0.114f);
+        const float   lum    = win_bg.x * 0.299f + win_bg.y * 0.587f + win_bg.z * 0.114f;
         const auto    dir    = lum > 0.5f ? theme_mode::light : theme_mode::dark;
 
         // ImGui builtin style presets (set all colors directly)
@@ -840,8 +840,7 @@ namespace imgui_util::theme {
 
         // Check alpha values on all ImGui colors
         for (int i = 0; i < ImGuiCol_COUNT; i++) {
-            const float a = cfg.colors.at(i).w;
-            if (a < 0.0f || a > 1.0f) {
+            if (const float a = cfg.colors.at(i).w; a < 0.0f || a > 1.0f) {
                 errors.push_back(std::format("{}: alpha {:.3f} out of [0,1] range", ImGui::GetStyleColorName(i), a));
             }
         }

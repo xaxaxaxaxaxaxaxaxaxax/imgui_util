@@ -1,15 +1,18 @@
-// table_builder.hpp - compile-time composable table builder with sorting and selection
-//
-// Usage:
-//   auto table = imgui_util::table_builder<MyRow>()
-//       .set_id("##items")
-//       .set_flags(ImGuiTableFlags_Sortable)
-//       .add_column("Name", 200.0f, [](const MyRow& r){ ImGui::Text("%s", r.name); })
-//       .add_column("Value", imgui_util::column_stretch, [](const MyRow& r){ ImGui::Text("%d", r.val); });
-//   table.render(rows);
-//
-// Each add_column() returns a new builder type (columns stored in a tuple).
-// Supports optional row filtering, multi-column sorting, and shift/ctrl selection.
+/// @file table_builder.hpp
+/// @brief Compile-time composable table builder with sorting and selection.
+///
+/// Each add_column() returns a new builder type (columns stored in a tuple).
+/// Supports optional row filtering, multi-column sorting, and shift/ctrl selection.
+///
+/// Usage:
+/// @code
+///   auto table = imgui_util::table_builder<MyRow>()
+///       .set_id("##items")
+///       .set_flags(ImGuiTableFlags_Sortable)
+///       .add_column("Name", 200.0f, [](const MyRow& r){ ImGui::Text("%s", r.name); })
+///       .add_column("Value", imgui_util::column_stretch, [](const MyRow& r){ ImGui::Text("%d", r.val); });
+///   table.render(rows);
+/// @endcode
 #pragma once
 
 #include <algorithm>
@@ -28,9 +31,9 @@
 
 namespace imgui_util {
 
-    inline constexpr float column_stretch = 0.0f; // pass as width to get a stretch column
+    inline constexpr float column_stretch = 0.0f; ///< @brief Pass as width to get a stretch column.
 
-    // Row highlight callback type: returns a color for custom row background, or nullopt for default
+    /// @brief Row highlight callback type: returns a color for custom row background, or nullopt for default.
     template<typename RowT>
     using row_highlight_fn = std::move_only_function<std::optional<ImU32>(const RowT &)>;
 
@@ -41,23 +44,29 @@ namespace imgui_util {
             std::string_view      name;
             float                 width{}; // 0.0f = stretch, >0 = fixed pixel width
             ImGuiTableColumnFlags col_flags{};
-            Fn                    fn; // void(const RowT&) renderer for this column
+            Fn                    fn;
         };
 
     } // namespace detail
 
-    // Fn must be callable with (const RowT&) and return void
     template<typename Fn, typename RowT>
     concept column_renderer =
         std::invocable<Fn, const RowT &> && std::is_void_v<std::invoke_result_t<Fn, const RowT &>>;
 
-    // Fn must be a predicate on const RowT&
     template<typename Fn, typename RowT>
     concept row_predicate = std::predicate<Fn, const RowT &>;
 
-    // RowT = your data row type, Cols = tuple of table_column<Fn> (built by add_column)
-    // FilterFn = optional filter predicate type (std::monostate = no filter)
-    // RowIdFn = optional row-id function type (std::monostate = use index)
+    /**
+     * @brief Compile-time composable table builder with sorting, filtering, and selection.
+     *
+     * Columns are accumulated in a tuple via add_column(), producing a new builder type each time.
+     * Supports optional row filtering, multi-column sorting, and shift/ctrl multi-select.
+     *
+     * @tparam RowT      Row data type.
+     * @tparam Cols      Tuple of table_column descriptors (grows with each add_column call).
+     * @tparam FilterFn  Row predicate for filtering, or std::monostate if none.
+     * @tparam RowIdFn   Function mapping a row to a unique int ID, or std::monostate to use index.
+     */
     template<typename RowT, typename Cols = std::tuple<>, typename FilterFn = std::monostate,
              typename RowIdFn = std::monostate>
     class table_builder {
@@ -71,22 +80,34 @@ namespace imgui_util {
         using row_highlight_fn_t = row_highlight_fn<RowT>;
         table_builder()          = default;
 
-        // All setters use && to enforce move-chain style (builder pattern)
+        /// @brief Set the ImGui table string ID.
         table_builder set_id(const std::string_view id) && {
             id_ = id;
             return std::move(*this);
         }
+        /// @brief Set ImGuiTableFlags for the table.
         table_builder set_flags(const ImGuiTableFlags flags) && {
             flags_ = flags;
             return std::move(*this);
         }
+        /**
+         * @brief Freeze columns/rows so they remain visible when scrolling.
+         * @param cols  Number of columns to freeze from the left.
+         * @param rows  Number of rows to freeze from the top.
+         */
         table_builder set_scroll_freeze(const int cols, const int rows) && {
             freeze_cols_ = cols;
             freeze_rows_ = rows;
             return std::move(*this);
         }
 
-        // Returns a NEW builder type with the column appended to the tuple
+        /**
+         * @brief Append a column to the builder (returns a new builder type with the column added).
+         * @param name       Column header label.
+         * @param width      Pixel width (>0 = fixed, 0 = stretch via column_stretch).
+         * @param fn         Callable invoked per-row to render the cell.
+         * @param col_flags  Optional ImGuiTableColumnFlags.
+         */
         template<typename Fn>
             requires column_renderer<Fn, RowT>
         [[nodiscard]] auto add_column(std::string_view name, float width, Fn &&fn,
@@ -106,7 +127,7 @@ namespace imgui_util {
                                                                       std::move(row_highlight_fn_)};
         }
 
-        // Row ID function: maps row -> unique int for selection tracking
+        /// @brief Set a function that maps each row to a unique int for selection tracking.
         template<std::invocable<const RowT &> Fn>
             requires std::convertible_to<std::invoke_result_t<Fn, const RowT &>, int>
         [[nodiscard]] auto set_row_id(Fn &&fn) && {
@@ -122,12 +143,13 @@ namespace imgui_util {
                                                                          std::move(row_highlight_fn_)};
         }
 
-        // Pointer to external selection set; enables shift/ctrl multi-select
+        /// @brief Point to an external selection set; enables shift/ctrl multi-select.
         table_builder set_selection(std::unordered_set<int> *sel) && {
             selection_ = sel;
             return std::move(*this);
         }
 
+        /// @brief Set a row filter predicate (rows where fn returns false are hidden).
         template<typename Fn>
             requires row_predicate<Fn, RowT>
         [[nodiscard]] auto set_filter(Fn &&fn) && {
@@ -145,28 +167,32 @@ namespace imgui_util {
             return result;
         }
 
-        // Optional per-row background highlight; return std::nullopt for default
+        /// @brief Set a per-row highlight callback for custom row background colors.
         table_builder set_row_highlight(row_highlight_fn_t fn) && {
             row_highlight_fn_ = std::move(fn);
             return std::move(*this);
         }
 
-        // Mark filtered indices as stale (call when source data changes)
+        /// @brief Mark filtered indices as stale (call when source data changes).
         void invalidate_filter() const { filter_dirty_ = true; }
 
-        // Custom empty-state renderer (replaces default "No data" message)
+        /// @brief Set a callback to render when the table has no data.
         table_builder set_empty_state(std::move_only_function<void()> fn) && {
             empty_state_fn_ = std::move(fn);
             return std::move(*this);
         }
 
-        // Callback invoked on double-click of a row
+        /// @brief Set a callback invoked when a row is double-clicked.
         table_builder set_row_activate(std::move_only_function<void(const RowT &)> fn) && {
             row_activate_fn_ = std::move(fn);
             return std::move(*this);
         }
 
-        // Call begin() before render_clipped(); returns false if table is clipped away
+        /**
+         * @brief Open the table. Call before render_clipped().
+         * @param height  Table height in pixels (0 = auto).
+         * @return false if the table is clipped away and should be skipped.
+         */
         [[nodiscard]] bool begin(const float height = 0.0f) {
             constexpr int ncols = std::tuple_size_v<Cols>;
             if (!ImGui::BeginTable(id_.data(), ncols, flags_, ImVec2(0, height))) {
@@ -179,9 +205,15 @@ namespace imgui_util {
             return true;
         }
 
+        /// @brief Return the current sort specs (valid after begin()).
         [[nodiscard]] ImGuiTableSortSpecs *get_sort_specs() const { return sort_specs_; }
 
-        // Sort data by a single key extractor (uses first sort spec only)
+        /**
+         * @brief Sort data by a single key extractor (uses the first sort spec only).
+         * @param data    Mutable span of rows to sort in-place.
+         * @param key_fn  Callable returning a totally-ordered key for each row.
+         * @param force   Sort even if specs are not dirty.
+         */
         template<typename KeyFn>
             requires std::invocable<KeyFn, const RowT &>
             && std::totally_ordered<std::invoke_result_t<KeyFn, const RowT &>>
@@ -198,12 +230,17 @@ namespace imgui_util {
             }
         }
 
-        using comparator_fn =
-            std::move_only_function<bool(const RowT &, const RowT &)>; // less-than comparator per column
+        /// @brief Less-than comparator per column for multi-column sorting.
+        using comparator_fn = std::move_only_function<bool(const RowT &, const RowT &)>;
 
-        // Multi-column sort: one comparator per column index, stable_sort in reverse spec order
+        /**
+         * @brief Multi-column sort: one comparator per column index, stable_sort in reverse spec order.
+         * @param data         Mutable span of rows to sort in-place.
+         * @param comparators  Span of comparators, one per column index.
+         * @param force        Sort even if specs are not dirty.
+         */
         void sort_if_dirty(std::span<RowT> data, std::span<comparator_fn> comparators, const bool force = false) {
-            if ((sort_specs_ != nullptr) && (sort_specs_->SpecsDirty || force)) {
+            if (sort_specs_ != nullptr && (sort_specs_->SpecsDirty || force)) {
                 for (int s = sort_specs_->SpecsCount - 1; s >= 0; --s) {
                     const auto &spec = sort_specs_->Specs[s];
                     const auto  col  = static_cast<std::size_t>(spec.ColumnIndex);
@@ -218,12 +255,13 @@ namespace imgui_util {
             }
         }
 
+        /// @brief Render a single row (no clipper, no selection).
         void render_single_row(const RowT &data) {
             ImGui::TableNextRow();
             render_columns(data, std::make_index_sequence<std::tuple_size_v<Cols>>{});
         }
 
-        // Render rows using ImGuiListClipper for virtualized scrolling
+        /// @brief Render rows with ImGuiListClipper for virtual scrolling.
         void render_clipped(std::span<const RowT> data) {
             if constexpr (has_filter) {
                 rebuild_filter_span(data);
@@ -291,7 +329,11 @@ namespace imgui_util {
             }
         }
 
-        // Convenience: begin + render_clipped + end in one call
+        /**
+         * @brief Convenience: begin + render_clipped + end in one call.
+         * @param data    Rows to render.
+         * @param height  Table height in pixels (0 = auto).
+         */
         void render(std::span<const RowT> data, const float height = 0.0f) {
             if (begin(height)) {
                 if (data.empty()) {
@@ -316,8 +358,10 @@ namespace imgui_util {
             }
         }
 
+        /// @brief End the table (call after render_clipped).
         static void end() { ImGui::EndTable(); }
 
+        /// @brief Show or hide a column by index.
         static void set_column_visible(const int col_index, const bool visible) {
             ImGui::TableSetColumnEnabled(col_index, visible);
         }
@@ -342,19 +386,19 @@ namespace imgui_util {
         ImGuiTableFlags          flags_       = ImGuiTableFlags_None;
         int                      freeze_cols_ = 0; // TableSetupScrollFreeze columns
         int                      freeze_rows_ = 0; // TableSetupScrollFreeze rows
-        Cols                     cols_{};          // tuple of table_column<Fn>
+        Cols                     cols_{};
         ImGuiTableSortSpecs     *sort_specs_ = nullptr;
         std::unordered_set<int> *selection_  = nullptr; // external selection state
 
-        [[no_unique_address]] FilterFn filter_{};    // optional row visibility predicate
-        [[no_unique_address]] RowIdFn  row_id_fn_{}; // optional: maps row -> unique id
+        [[no_unique_address]] FilterFn filter_{};
+        [[no_unique_address]] RowIdFn  row_id_fn_{};
 
         int                                         last_clicked_row_ = -1; // for shift-select range
-        mutable std::vector<int>                    filtered_indices_;      // cached filtered row indices
-        mutable bool                                filter_dirty_ = true;   // rebuild filtered_indices_ when true
-        row_highlight_fn_t                          row_highlight_fn_;      // optional per-row highlight
-        std::move_only_function<void()>             empty_state_fn_;        // custom empty-state renderer
-        std::move_only_function<void(const RowT &)> row_activate_fn_;       // double-click/Enter callback
+        mutable std::vector<int>                    filtered_indices_;
+        mutable bool                                filter_dirty_ = true;
+        row_highlight_fn_t                          row_highlight_fn_;
+        std::move_only_function<void()>             empty_state_fn_;
+        std::move_only_function<void(const RowT &)> row_activate_fn_;
 
         void render_empty_state() {
             ImGui::TableNextRow();
@@ -365,7 +409,6 @@ namespace imgui_util {
                 ImGui::TextDisabled("No data");
         }
 
-        // Compute row id: uses row_id_fn_ if available, otherwise falls back to index
         int row_id_for(const RowT &row, const int index) const {
             if constexpr (has_row_id)
                 return static_cast<int>(row_id_fn_(row));
@@ -373,7 +416,6 @@ namespace imgui_util {
                 return index;
         }
 
-        // Clipper helper: runs ImGuiListClipper and calls per_row(visible_index) for each visible row
         template<typename PerRow>
         static void clip_and_render(const int count, PerRow per_row) {
             ImGuiListClipper clipper;
@@ -385,7 +427,6 @@ namespace imgui_util {
             }
         }
 
-        // Rebuild filtered indices from a span
         void rebuild_filter_span(std::span<const RowT> data) const {
             if (!filter_dirty_) return;
             filtered_indices_.clear();
@@ -396,7 +437,6 @@ namespace imgui_util {
             filter_dirty_ = false;
         }
 
-        // Rebuild filtered indices from a sized range
         template<std::ranges::sized_range R>
         void rebuild_filter_range(R &&data) const { // NOLINT(cppcoreguidelines-missing-std-forward)
             if (!filter_dirty_) return;
@@ -475,8 +515,8 @@ namespace imgui_util {
                 auto           flags = col.col_flags;
                 constexpr auto mask  = ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_WidthStretch;
                 if (!(flags & mask)) {
-                    flags |= (col.width == column_stretch) ? ImGuiTableColumnFlags_WidthStretch
-                                                           : ImGuiTableColumnFlags_WidthFixed;
+                    flags |= col.width == column_stretch ? ImGuiTableColumnFlags_WidthStretch
+                                                         : ImGuiTableColumnFlags_WidthFixed;
                 }
                 ImGui::TableSetupColumn(col.name.data(), flags, col.width);
             }(std::get<Is>(cols_))),

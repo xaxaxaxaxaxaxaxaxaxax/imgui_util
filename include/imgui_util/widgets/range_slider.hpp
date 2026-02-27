@@ -1,21 +1,24 @@
-// range_slider.hpp - Dual-handle range slider for min/max selection
-//
-// Usage:
-//   static float lo = 20.0f, hi = 80.0f;
-//   if (imgui_util::range_slider("Range", &lo, &hi, 0.0f, 100.0f)) {
-//       // lo or hi changed
-//   }
-//
-//   // With int values:
-//   static int min_val = 10, max_val = 90;
-//   if (imgui_util::range_slider("Int Range", &min_val, &max_val, 0, 100)) { ... }
-//
-//   // With format string (std::format syntax):
-//   imgui_util::range_slider("Freq", &lo, &hi, 20.0f, 20000.0f, "{:.0f} Hz");
-//
-// Renders a background track, a colored fill between the two handles, and two
-// draggable handles. Uses ImDrawList for custom rendering and ButtonBehavior
-// for interaction.
+/// @file range_slider.hpp
+/// @brief Dual-handle range slider for min/max selection.
+///
+/// Renders a background track, a colored fill between the two handles, and two
+/// draggable handles. Uses ImDrawList for custom rendering and ButtonBehavior
+/// for interaction.
+///
+/// Usage:
+/// @code
+///   static float lo = 20.0f, hi = 80.0f;
+///   if (imgui_util::range_slider("Range", &lo, &hi, 0.0f, 100.0f)) {
+///       // lo or hi changed
+///   }
+///
+///   // With int values:
+///   static int min_val = 10, max_val = 90;
+///   if (imgui_util::range_slider("Int Range", &min_val, &max_val, 0, 100)) { ... }
+///
+///   // With format string (std::format syntax):
+///   imgui_util::range_slider("Freq", &lo, &hi, 20.0f, 20000.0f, "{:.0f} Hz");
+/// @endcode
 #pragma once
 
 #include <algorithm>
@@ -31,14 +34,14 @@ namespace imgui_util {
 
     namespace detail {
 
-        // Map value to 0..1 normalized position on the slider
+        /// @brief Normalize a value to [0, 1] within [range_min, range_max].
         template<typename T>
         [[nodiscard]] constexpr float range_normalize(T val, T range_min, T range_max) noexcept {
             if (range_max <= range_min) return 0.0f;
             return static_cast<float>(val - range_min) / static_cast<float>(range_max - range_min);
         }
 
-        // Map 0..1 normalized position back to value
+        /// @brief Convert a normalized [0, 1] value back to the original range. Rounds for integral types.
         template<typename T>
         [[nodiscard]] constexpr T range_denormalize(float t, T range_min, T range_max) noexcept {
             if constexpr (std::integral<T>) {
@@ -48,7 +51,7 @@ namespace imgui_util {
             }
         }
 
-        // Format value for overlay text
+        /// @brief Format a range value using a user-supplied or default format string.
         template<typename T>
         [[nodiscard]] fmt_buf<> range_format_value(T val, const std::string_view fmt_str) {
             if (!fmt_str.empty()) return fmt_buf<>(std::runtime_format(fmt_str), val);
@@ -58,8 +61,25 @@ namespace imgui_util {
                 return fmt_buf<>("{:.3f}", val);
         }
 
-        // Shared handle drag logic for range slider handles.
-        // Returns true if value changed. Updates t and px in-place.
+        /**
+         * @brief Shared handle drag logic for range slider handles.
+         *
+         * Returns true if the value changed. Updates @p t and @p px in-place.
+         *
+         * @param handle_id ImGui ID for ButtonBehavior.
+         * @param grab_bb   Bounding rectangle for the grab handle.
+         * @param val       Pointer to the value being dragged.
+         * @param range_min Minimum of the slider range.
+         * @param range_max Maximum of the slider range.
+         * @param clamp_lo  Lower normalized clamp bound (prevents crossing the other handle).
+         * @param clamp_hi  Upper normalized clamp bound.
+         * @param pos_x     Screen X of the slider left edge.
+         * @param grab_radius  Half-width of the grab handle in pixels.
+         * @param usable    Usable pixel width between the two grab radii.
+         * @param t         Normalized position (updated on drag).
+         * @param px        Pixel position (updated on drag).
+         * @return True if the value was modified.
+         */
         template<typename T>
         [[nodiscard]] bool handle_drag(const ImGuiID handle_id, const ImRect &grab_bb, T *val, T range_min, T range_max,
                                        const float clamp_lo, const float clamp_hi, const float pos_x,
@@ -83,7 +103,21 @@ namespace imgui_util {
 
     } // namespace detail
 
-    // Dual-handle range slider. Returns true when either value changes.
+    /**
+     * @brief Dual-handle range slider for selecting a [min, max] sub-range.
+     *
+     * Renders a background track, a colored fill between the two handles, and two
+     * draggable grab circles. Supports integral and floating-point types.
+     *
+     * @tparam T           Arithmetic type (int, float, double, ...).
+     * @param  label       Widget label (also used as ImGui ID).
+     * @param  v_min       Pointer to the low value (clamped to [range_min, *v_max]).
+     * @param  v_max       Pointer to the high value (clamped to [*v_min, range_max]).
+     * @param  range_min   Minimum of the selectable range.
+     * @param  range_max   Maximum of the selectable range.
+     * @param  format      Optional std::format string for the overlay text (e.g. "{:.0f} Hz").
+     * @return True if either value was modified this frame.
+     */
     template<typename T>
         requires std::integral<T> || std::floating_point<T>
     [[nodiscard]] bool range_slider(const char *label, T *v_min, T *v_max, T range_min, T range_max,

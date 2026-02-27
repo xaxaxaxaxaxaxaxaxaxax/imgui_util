@@ -1,14 +1,17 @@
-// hex_viewer.hpp - Memory/hex byte viewer with address gutter, ASCII column, and editing
-//
-// Usage:
-//   static imgui_util::hex_viewer hex{16};
-//   hex.add_highlight(0x10, 8, IM_COL32(255, 200, 50, 80));
-//   hex.render("##hex", data_span);
-//
-//   // Editable mode:
-//   if (hex.render_editable("##hex_edit", mutable_span, 0x1000)) { /* data changed */ }
-//
-// Uses ImGui::ListClipper for large data sets. Configurable bytes per row (8, 16, 32).
+/// @file hex_viewer.hpp
+/// @brief Memory/hex byte viewer with address gutter, ASCII column, and editing.
+///
+/// Uses ImGui::ListClipper for large data sets. Configurable bytes per row (8, 16, 32).
+///
+/// Usage:
+/// @code
+///   static imgui_util::hex_viewer hex{16};
+///   hex.add_highlight(0x10, 8, IM_COL32(255, 200, 50, 80));
+///   hex.render("##hex", data_span);
+///
+///   // Editable mode:
+///   if (hex.render_editable("##hex_edit", mutable_span, 0x1000)) { /* data changed */ }
+/// @endcode
 #pragma once
 
 #include <algorithm>
@@ -28,21 +31,42 @@
 
 namespace imgui_util {
 
+    /// @brief A colored byte range to highlight in the hex viewer.
     struct highlight_range {
-        std::size_t offset;
-        std::size_t length;
-        ImU32       color;
+        std::size_t offset; ///< Byte offset into the data.
+        std::size_t length; ///< Number of bytes to highlight.
+        ImU32       color;  ///< Background highlight color.
     };
 
+    /**
+     * @brief Memory/hex byte viewer with address gutter, ASCII column, and optional editing.
+     *
+     * Uses ImGuiListClipper for efficient rendering of large data sets.
+     * Configurable bytes per row (8, 16, 32). Supports colored highlight ranges,
+     * click-to-select, double-click-to-edit, and scroll-to-offset.
+     */
     class hex_viewer {
     public:
         explicit hex_viewer(const std::size_t bytes_per_row = 16) noexcept : bytes_per_row_(bytes_per_row) {}
 
+        /**
+         * @brief Render a read-only hex view.
+         * @param id           ImGui child window ID.
+         * @param data         Byte data to display.
+         * @param base_address Address shown in the gutter for the first byte.
+         */
         void render(const std::string_view id, const std::span<const std::byte> data,
                     const std::size_t base_address = 0) {
             render_impl(id, data.data(), data.size(), base_address, false, nullptr);
         }
 
+        /**
+         * @brief Render an editable hex view. Double-click a byte to edit it.
+         * @param id           ImGui child window ID.
+         * @param data         Mutable byte data to display and edit.
+         * @param base_address Address shown in the gutter for the first byte.
+         * @return True if any byte was modified this frame.
+         */
         [[nodiscard]] bool render_editable(const std::string_view id, const std::span<std::byte> data,
                                            const std::size_t base_address = 0) {
             modified_ = false;
@@ -50,23 +74,28 @@ namespace imgui_util {
             return modified_;
         }
 
+        /// @brief Add a colored highlight range to the viewer (chainable).
         hex_viewer &add_highlight(const std::size_t offset, const std::size_t length, const ImU32 color) {
             highlights_.push_back({.offset = offset, .length = length, .color = color});
             return *this;
         }
 
+        /// @brief Remove all highlight ranges (chainable).
         hex_viewer &clear_highlights() noexcept {
             highlights_.clear();
             return *this;
         }
 
+        /// @brief Set the number of bytes displayed per row (chainable).
         hex_viewer &set_bytes_per_row(const std::size_t n) noexcept {
             bytes_per_row_ = n;
             return *this;
         }
 
+        /// @brief Return the byte offset of the currently selected byte, if any.
         [[nodiscard]] std::optional<std::size_t> selected_offset() const noexcept { return selected_; }
 
+        /// @brief Scroll the view so that @p offset is visible on the next frame.
         void scroll_to(const std::size_t offset) noexcept { scroll_target_ = offset; }
 
     private:
@@ -88,8 +117,8 @@ namespace imgui_util {
             // Pre-calculate column widths using monospace character size
             const float char_w    = ImGui::CalcTextSize("F").x;
             const float space_w   = ImGui::CalcTextSize(" ").x;
-            const float addr_w    = (char_w * 12.0f) + space_w; // "0x" + 8 hex digits + ": "
-            const float byte_w    = (char_w * 2.0f) + space_w;  // each byte: 2 hex chars + 1 space
+            const float addr_w    = char_w * 12.0f + space_w; // "0x" + 8 hex digits + ": "
+            const float byte_w    = char_w * 2.0f + space_w;  // each byte: 2 hex chars + 1 space
             const float group_gap = space_w * 2.0f;             // extra gap every 8 bytes
 
             const fmt_buf<32> child_id("{}", id);

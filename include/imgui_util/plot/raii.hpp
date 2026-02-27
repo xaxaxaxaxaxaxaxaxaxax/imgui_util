@@ -1,12 +1,15 @@
-// raii.hpp - RAII scoped wrappers for ImPlot Begin/End and Push/Pop pairs
-//
-// Usage:
-//   if (imgui_util::implot::plot p{"My Plot"}) { ImPlot::PlotLine("sin", xs, ys, n); }
-//   { imgui_util::implot::colormap cm{ImPlotColormap_Viridis}; ... }
-//   { imgui_util::implot::plot_style_var sv{ImPlotStyleVar_LineWeight, 2.0f}; ... }
-//
-// End/Pop is called automatically in the destructor.
-// Mirrors core/raii.hpp conventions for ImPlot instead of ImGui.
+/// @file raii.hpp
+/// @brief RAII scoped wrappers for ImPlot Begin/End and Push/Pop pairs.
+///
+/// End/Pop is called automatically in the destructor.
+/// Mirrors core/raii.hpp conventions for ImPlot instead of ImGui.
+///
+/// Usage:
+/// @code
+///   if (imgui_util::implot::plot p{"My Plot"}) { ImPlot::PlotLine("sin", xs, ys, n); }
+///   { imgui_util::implot::colormap cm{ImPlotColormap_Viridis}; ... }
+///   { imgui_util::implot::plot_style_var sv{ImPlotStyleVar_LineWeight, 2.0f}; ... }
+/// @endcode
 #pragma once
 #include <implot.h>
 #include <variant>
@@ -15,8 +18,9 @@
 
 namespace imgui_util::implot {
 
-    // Each *_trait struct adapts an ImPlot scope for use with raii_scope<T> from core/raii.hpp.
-    // policy::conditional = end() only if begin() returned true; policy::none = always end().
+    /// @brief Each *_trait struct adapts an ImPlot scope for use with raii_scope<T> from core/raii.hpp.
+    ///
+    /// policy::conditional = end() only if begin() returned true; policy::none = always end().
 
     struct plot_trait {
         static constexpr auto policy = end_policy::conditional;
@@ -64,7 +68,7 @@ namespace imgui_util::implot {
         static void end() noexcept { ImPlot::EndSubplots(); }
     };
 
-    // Manual traits — default parameters prevent clean NTTP function pointer resolution
+    /// @brief Manual traits -- default parameters prevent clean NTTP function pointer resolution.
     struct aligned_plots_trait {
         static constexpr auto policy = end_policy::conditional;
         using storage                = std::monostate;
@@ -90,7 +94,6 @@ namespace imgui_util::implot {
         static void end() noexcept { ImPlot::PopPlotClipRect(); }
     };
 
-    // Drag-and-drop target traits
     using drag_drop_target_plot_trait =
         simple_trait<end_policy::conditional, &ImPlot::BeginDragDropTargetPlot, &ImPlot::EndDragDropTarget>;
     using drag_drop_target_axis_trait =
@@ -98,7 +101,7 @@ namespace imgui_util::implot {
     using drag_drop_target_legend_trait =
         simple_trait<end_policy::conditional, &ImPlot::BeginDragDropTargetLegend, &ImPlot::EndDragDropTarget>;
 
-    // Drag-and-drop source traits — default parameters prevent clean NTTP function pointer resolution
+    /// @brief Drag-and-drop source traits -- default parameters prevent clean NTTP function pointer resolution.
     struct drag_drop_source_plot_trait {
         static constexpr auto policy = end_policy::conditional;
         using storage                = std::monostate;
@@ -126,24 +129,24 @@ namespace imgui_util::implot {
         static void end() noexcept { ImPlot::EndDragDropSource(); }
     };
 
-    // Multi-push entry types
+    /// @brief Entry for batched style-variable pushes via multi_push.
     struct plot_style_var_entry {
         ImPlotStyleVar                   idx{};
         std::variant<float, ImVec2, int> val;
     };
 
+    /// @brief Entry for batched style-color pushes via multi_push.
     struct plot_style_color_entry {
         ImPlotCol idx{};
         ImVec4    val;
     };
 
-    // Helper lambdas for multi_push template instantiation
     constexpr auto push_plot_style_var_fn   = [](ImPlotStyleVar idx, const auto &v) { ImPlot::PushStyleVar(idx, v); };
     constexpr auto pop_plot_style_var_fn    = [](const int count) { ImPlot::PopStyleVar(count); };
     constexpr auto push_plot_style_color_fn = [](ImPlotCol idx, const auto &v) { ImPlot::PushStyleColor(idx, v); };
     constexpr auto pop_plot_style_color_fn  = [](const int count) { ImPlot::PopStyleColor(count); };
 
-    // Type aliases for direct use: if (implot::plot p{"Title"}) { ... }
+    /// @brief Type aliases for direct use: `if (implot::plot p{"Title"}) { ... }`
     using plot                    = raii_scope<plot_trait>;
     using colormap                = raii_scope<colormap_trait>;
     using plot_style_color        = raii_scope<plot_style_color_trait>;
@@ -159,11 +162,10 @@ namespace imgui_util::implot {
     using drag_drop_source_axis   = raii_scope<drag_drop_source_axis_trait>;
     using drag_drop_source_item   = raii_scope<drag_drop_source_item_trait>;
 
-    // Push multiple plot style vars/colors in one shot; pops all in destructor.
     using plot_style_vars   = multi_push<plot_style_var_entry, push_plot_style_var_fn, pop_plot_style_var_fn>;
     using plot_style_colors = multi_push<plot_style_color_entry, push_plot_style_color_fn, pop_plot_style_color_fn>;
 
-    // RAII wrapper for ImPlot context lifetime
+    /// @brief RAII owner for the ImPlot context (creates on construction, destroys on destruction).
     class [[nodiscard]] context {
     public:
         context() noexcept { ImPlot::CreateContext(); }

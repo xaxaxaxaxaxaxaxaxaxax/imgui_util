@@ -1,18 +1,21 @@
-// timeline.hpp - Horizontal timeline with tracks and draggable events
-//
-// Usage:
-//   static imgui_util::timeline tl(200.0f);
-//   std::vector<imgui_util::timeline_event> events = {
-//       {0.0f, 5.0f, "Intro", IM_COL32(100, 150, 255, 255), 0},
-//       {3.0f, 8.0f, "Audio", IM_COL32(255, 100, 100, 255), 1},
-//   };
-//   static float playhead = 0.0f;
-//   if (tl.render("##timeline", events, playhead, 0.0f, 20.0f)) {
-//       // events or playhead changed
-//   }
-//
-// Supports dragging events (move, resize from edges), playhead dragging,
-// and snap-to-grid.
+/// @file timeline.hpp
+/// @brief Horizontal timeline with tracks and draggable events.
+///
+/// Usage:
+/// @code
+///   static imgui_util::timeline tl(200.0f);
+///   std::vector<imgui_util::timeline_event> events = {
+///       {0.0f, 5.0f, "Intro", IM_COL32(100, 150, 255, 255), 0},
+///       {3.0f, 8.0f, "Audio", IM_COL32(255, 100, 100, 255), 1},
+///   };
+///   static float playhead = 0.0f;
+///   if (tl.render("##timeline", events, playhead, 0.0f, 20.0f)) {
+///       // events or playhead changed
+///   }
+/// @endcode
+///
+/// Supports dragging events (move, resize from edges), playhead dragging,
+/// and snap-to-grid.
 #pragma once
 
 #include <algorithm>
@@ -29,19 +32,34 @@
 
 namespace imgui_util {
 
+    /// @brief A single event on the timeline, occupying a time range within a track.
     struct timeline_event {
-        float            start = 0.0f;
-        float            end   = 0.0f;
-        std::string_view label;
-        ImU32            color = IM_COL32(100, 150, 255, 255);
-        int              track = 0;
+        float            start = 0.0f;                         ///< Start time (inclusive).
+        float            end   = 0.0f;                         ///< End time (inclusive).
+        std::string_view label;                                ///< Label drawn inside the event rectangle.
+        ImU32            color = IM_COL32(100, 150, 255, 255); ///< Fill color.
+        int              track = 0;                            ///< Track index (0-based).
     };
 
+    /**
+     * @brief Horizontal timeline with tracks and draggable events.
+     *
+     * Supports dragging events (move, resize from edges), playhead dragging,
+     * snap-to-grid, and per-track labels.
+     */
     class timeline {
     public:
         explicit timeline(const float height = 150.0f) noexcept : height_(height) {}
 
-        // Returns true if any event or the playhead was modified.
+        /**
+         * @brief Render the timeline and handle interaction.
+         * @param str_id        ImGui ID string.
+         * @param events        Span of events to draw (may be modified by dragging).
+         * @param playhead      Current playhead position (may be modified by dragging).
+         * @param visible_start Left edge of the visible time range.
+         * @param visible_end   Right edge of the visible time range.
+         * @return True if any event or the playhead was modified this frame.
+         */
         [[nodiscard]] bool render(const std::string_view str_id, const std::span<timeline_event> events,
                                   float &playhead, const float visible_start, const float visible_end) noexcept {
             if (visible_end <= visible_start) return false;
@@ -79,16 +97,19 @@ namespace imgui_util {
             return changed;
         }
 
+        /// @brief Enable snap-to-grid at the given interval (0 to disable). Chainable.
         [[nodiscard]] timeline &set_snap(const float interval = 0.0f) noexcept {
             snap_ = interval;
             return *this;
         }
 
+        /// @brief Set the height of each track row in pixels. Chainable.
         [[nodiscard]] timeline &set_track_height(const float h) noexcept {
             track_height_ = h;
             return *this;
         }
 
+        /// @brief Assign labels to tracks (indexed by track number). Chainable.
         [[nodiscard]] timeline &set_track_labels(const std::span<const std::string_view> labels) {
             track_labels_.assign(labels.begin(), labels.end());
             return *this;
@@ -104,13 +125,15 @@ namespace imgui_util {
         float drag_offset_                                          = 0.0f;
 
         struct render_context {
-            ImDrawList *dl;
+            ImDrawList *dl{};
             ImVec2      canvas_pos;
-            float       canvas_w, height;
-            float       visible_start, visible_end, time_range;
-            bool        canvas_hovered;
+            float       canvas_w{}, height{};
+            float       visible_start{};
+            float       visible_end{};
+            float       time_range{};
+            bool        canvas_hovered{};
             ImVec2      mouse;
-            float       snap;
+            float       snap{};
 
             [[nodiscard]] float time_to_x(const float t) const noexcept {
                 return canvas_pos.x + (t - visible_start) / time_range * canvas_w;
@@ -133,7 +156,7 @@ namespace imgui_util {
 
         static constexpr float ruler_h = 20.0f;
 
-        void render_ruler(const render_context &ctx) const noexcept {
+        static void render_ruler(const render_context &ctx) noexcept {
             ctx.dl->AddRectFilled(ctx.canvas_pos, {ctx.canvas_pos.x + ctx.canvas_w, ctx.canvas_pos.y + ruler_h},
                                   IM_COL32(45, 45, 45, 255));
 
@@ -185,12 +208,12 @@ namespace imgui_util {
                                 IM_COL32(60, 60, 60, 255));
             }
 
-            return {tracks_top, actual_track_h};
+            return {.tracks_top = tracks_top, .actual_track_h = actual_track_h};
         }
 
         void render_events(const render_context &ctx, const std::span<timeline_event> events, const float tracks_top,
-                           const float actual_track_h, bool &changed) noexcept {
-            for (int i = 0; i < static_cast<int>(events.size()); ++i) {
+                           const float actual_track_h, bool & /*changed*/) noexcept {
+            for (int i = 0; std::cmp_less(i, events.size()); ++i) {
                 constexpr float event_padding           = 2.0f;
                 auto &[start, end, label, color, track] = events[static_cast<std::size_t>(i)];
 

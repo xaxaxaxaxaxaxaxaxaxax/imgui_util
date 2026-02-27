@@ -1,20 +1,23 @@
-// toolbar.hpp - Toolbar builder with buttons, toggles, and separators
-//
-// Usage:
-//   imgui_util::toolbar()
-//       .button("New", [&]{ new_file(); }, "Create new file")
-//       .button("Open", [&]{ open_file(); })
-//       .separator()
-//       .toggle("Grid", &show_grid, "Toggle grid overlay")
-//       .render();
-//
-//   // Vertical toolbar:
-//   imgui_util::toolbar(imgui_util::direction::vertical)
-//       .button("A", [&]{ action_a(); })
-//       .button("B", [&]{ action_b(); })
-//       .render();
-//
-// Renders a row (or column) of buttons with optional tooltips and toggle state.
+/// @file toolbar.hpp
+/// @brief Toolbar builder with buttons, toggles, and separators.
+///
+/// Usage:
+/// @code
+///   imgui_util::toolbar()
+///       .button("New", [&]{ new_file(); }, "Create new file")
+///       .button("Open", [&]{ open_file(); })
+///       .separator()
+///       .toggle("Grid", &show_grid, "Toggle grid overlay")
+///       .render();
+///
+///   // Vertical toolbar:
+///   imgui_util::toolbar(imgui_util::direction::vertical)
+///       .button("A", [&]{ action_a(); })
+///       .button("B", [&]{ action_b(); })
+///       .render();
+/// @endcode
+///
+/// Renders a row (or column) of buttons with optional tooltips and toggle state.
 #pragma once
 
 #include <cstddef>
@@ -28,16 +31,22 @@
 
 namespace imgui_util {
 
+    /// @brief Fluent toolbar builder with buttons, toggles, separators, and labels.
     class toolbar {
     public:
-        // toolbar_direction is an alias for the shared direction enum for backward compat
         using toolbar_direction          = direction;
-        // Also expose as nested for callers that used toolbar::direction
         static constexpr auto horizontal = direction::horizontal;
         static constexpr auto vertical   = direction::vertical;
 
         explicit toolbar(const direction dir = direction::horizontal) noexcept : dir_(dir) { entries_.reserve(8); }
 
+        /**
+         * @brief Add a text button.
+         * @param label    Button label (also used as ImGui ID).
+         * @param action   Callback invoked on click.
+         * @param tooltip  Optional hover tooltip.
+         * @param enabled  Whether the button is interactive.
+         */
         [[nodiscard]] toolbar &button(const char *label, std::move_only_function<void()> action,
                                       const char *tooltip = nullptr, const bool enabled = true) {
             entries_.push_back({.type    = entry_type::button,
@@ -48,6 +57,15 @@ namespace imgui_util {
             return *this;
         }
 
+        /**
+         * @brief Add an image button.
+         * @param str_id   ImGui string ID.
+         * @param texture  Texture to display.
+         * @param size     Button size in pixels.
+         * @param action   Callback invoked on click.
+         * @param tooltip  Optional hover tooltip.
+         * @param enabled  Whether the button is interactive.
+         */
         [[nodiscard]] toolbar &icon_button(const char *str_id, const ImTextureID texture, const ImVec2 &size,
                                            std::move_only_function<void()> action, const char *tooltip = nullptr,
                                            const bool enabled = true) {
@@ -60,21 +78,30 @@ namespace imgui_util {
             return *this;
         }
 
-        [[nodiscard]] toolbar &toggle(const char *label, bool *value, const char *tooltip = nullptr) {
+        /**
+         * @brief Add a toggle button bound to a bool.
+         * @param label    Button label.
+         * @param value    Pointer to the bool to toggle on click.
+         * @param tooltip  Optional hover tooltip.
+         */
+        [[nodiscard]] toolbar &toggle(const char *label, bool *value, const char *tooltip = nullptr) { // NOLINT(*-non-const-parameter)
             entries_.push_back({.type = entry_type::toggle, .label = label, .tooltip = tooltip, .value = value});
             return *this;
         }
 
+        /// @brief Add a visual separator between toolbar items.
         [[nodiscard]] toolbar &separator() {
             entries_.push_back({.type = entry_type::separator});
             return *this;
         }
 
+        /// @brief Add a non-interactive text label.
         [[nodiscard]] toolbar &label(const char *text) {
             entries_.push_back({.type = entry_type::label, .label = text});
             return *this;
         }
 
+        /// @brief Render all toolbar entries. Call once per frame.
         void render() {
             for (std::size_t i = 0; i < entries_.size(); ++i) {
                 auto &[type, lbl, action, tip, icon, value, enabled] = entries_[i]; // NOLINT(misc-const-correctness)

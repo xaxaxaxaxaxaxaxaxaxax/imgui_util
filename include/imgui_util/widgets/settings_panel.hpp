@@ -1,20 +1,23 @@
-// settings_panel.hpp - Tree-navigated settings panel
-//
-// Usage:
-//   static imgui_util::settings_panel panel;
-//   panel.section("General", [] {
-//       ImGui::Text("General settings...");
-//   })
-//   .section("Appearance", [] {
-//       ImGui::ColorEdit3("Accent", &color.x);
-//   })
-//   .section("Fonts", "Appearance", [] {
-//       ImGui::Text("Font settings under Appearance...");
-//   });
-//   panel.render("##settings", &open);
-//
-// Left pane shows a navigable tree of sections. Right pane renders the
-// selected section's content. Remembers selection across frames.
+/// @file settings_panel.hpp
+/// @brief Tree-navigated settings panel.
+///
+/// Left pane shows a navigable tree of sections. Right pane renders the
+/// selected section's content. Remembers selection across frames.
+///
+/// Usage:
+/// @code
+///   static imgui_util::settings_panel panel;
+///   panel.section("General", [] {
+///       ImGui::Text("General settings...");
+///   })
+///   .section("Appearance", [] {
+///       ImGui::ColorEdit3("Accent", &color.x);
+///   })
+///   .section("Fonts", "Appearance", [] {
+///       ImGui::Text("Font settings under Appearance...");
+///   });
+///   panel.render("##settings", &open);
+/// @endcode
 #pragma once
 
 #include <algorithm>
@@ -28,14 +31,32 @@
 
 namespace imgui_util {
 
+    /**
+     * @brief Tree-navigated settings panel with a left-side section tree and right-side content area.
+     *
+     * Add sections with section(), optionally nested under a parent, then call render() each frame.
+     */
     class settings_panel {
     public:
+        /**
+         * @brief Add a top-level section.
+         * @param name      Section display name (must be unique).
+         * @param render_fn Callback that renders the section content.
+         * @return Reference to this panel for chaining.
+         */
         [[nodiscard]] settings_panel &section(const std::string_view          name,
                                               std::move_only_function<void()> render_fn) noexcept {
             sections_.push_back({.name = std::string(name), .parent = {}, .render_fn = std::move(render_fn)});
             return *this;
         }
 
+        /**
+         * @brief Add a section nested under an existing parent.
+         * @param name      Section display name (must be unique).
+         * @param parent    Name of the parent section.
+         * @param render_fn Callback that renders the section content.
+         * @return Reference to this panel for chaining.
+         */
         [[nodiscard]] settings_panel &section(const std::string_view name, const std::string_view parent,
                                               std::move_only_function<void()> render_fn) noexcept {
             sections_.push_back(
@@ -43,12 +64,16 @@ namespace imgui_util {
             return *this;
         }
 
+        /**
+         * @brief Render the settings panel (tree navigation + content area).
+         * @param str_id ImGui ID string for the panel scope.
+         * @param open   Optional open state pointer (currently unused, reserved for modal usage).
+         */
         void render(const std::string_view str_id, [[maybe_unused]] const bool *open = nullptr) noexcept {
             const id scope{str_id.data()};
 
             if (sections_.empty()) return;
 
-            // Auto-select first section if nothing selected
             if (selected_.empty()) {
                 selected_ = sections_[0].name;
             }
@@ -58,7 +83,6 @@ namespace imgui_util {
             const auto      left_w     = avail.x * left_ratio;
             const auto      right_w    = avail.x - left_w - 8.0f; // 8px gap
 
-            // Left pane: tree navigation
             {
                 const child left_child{"##settings_nav", ImVec2(left_w, 0), ImGuiChildFlags_Borders};
                 render_tree();
@@ -66,7 +90,6 @@ namespace imgui_util {
 
             ImGui::SameLine();
 
-            // Right pane: section content
             {
                 const child right_child{"##settings_content", ImVec2(right_w, 0), ImGuiChildFlags_Borders};
                 const auto  it = std::ranges::find_if(
@@ -90,7 +113,6 @@ namespace imgui_util {
         std::vector<section_entry> sections_;
         std::string                selected_;
 
-        // Render the tree, recursing through parent/child hierarchy
         void render_tree() noexcept {
             for (const auto &sec: sections_) {
                 if (sec.parent.empty()) {

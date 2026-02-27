@@ -1,14 +1,17 @@
-// spinner.hpp - Spinning arc indicator and overlay variant
-//
-// Usage:
-//   imgui_util::spinner("loading");                             // default size/color
-//   imgui_util::spinner("sync", 12.0f, 3.0f, colors::teal);    // custom size/color
-//
-//   // Full-area overlay with spinner and optional message:
-//   imgui_util::spinner_overlay("Loading data...");
-//
-// Uses ImDrawList PathArcTo + PathStroke for arc rendering.
-// Spins continuously using ImGui's time.
+/// @file spinner.hpp
+/// @brief Spinning arc indicator and overlay variant.
+///
+/// Uses ImDrawList PathArcTo + PathStroke for arc rendering.
+/// Spins continuously using ImGui's time.
+///
+/// Usage:
+/// @code
+///   imgui_util::spinner("loading");                             // default size/color
+///   imgui_util::spinner("sync", 12.0f, 3.0f, colors::teal);    // custom size/color
+///
+///   // Full-area overlay with spinner and optional message:
+///   imgui_util::spinner_overlay("Loading data...");
+/// @endcode
 #pragma once
 
 #include <cmath>
@@ -54,8 +57,15 @@ namespace imgui_util {
 
     } // namespace detail
 
-    // Spinning arc indicator. Renders at the current cursor position.
-    // Pass color {0,0,0,0} (default) to use the theme's ButtonActive color.
+    /**
+     * @brief Spinning arc indicator rendered at the current cursor position.
+     *
+     * Pass color {0,0,0,0} (default) to use the theme's ButtonActive color.
+     * @param label     ImGui ID label.
+     * @param radius    Radius of the arc in pixels.
+     * @param thickness Stroke thickness in pixels.
+     * @param color     Arc color ({0,0,0,0} = theme default).
+     */
     inline void spinner(const char *label, const float radius = 8.0f, const float thickness = 2.0f,
                         const ImVec4 &color = {}) noexcept {
         const auto [dl, center, col] = detail::spinner_begin(label, radius, color);
@@ -68,8 +78,13 @@ namespace imgui_util {
         dl->PathStroke(col, 0, thickness);
     }
 
-    // Spinner overlay: fills the available content region with a dimmed background
-    // and centers a spinner with an optional label below it.
+    /**
+     * @brief Spinner overlay that fills the available content region with a dimmed background
+     *        and centers a spinner with an optional label below it.
+     * @param label          Optional text shown below the spinner.
+     * @param spinner_radius Spinner radius in pixels.
+     * @param color          Spinner color.
+     */
     inline void spinner_overlay(const std::string_view label = {}, const float spinner_radius = 24.0f,
                                 const ImVec4 &color = colors::accent) noexcept {
         const ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -77,17 +92,14 @@ namespace imgui_util {
 
         auto *dl = ImGui::GetWindowDrawList();
 
-        // Dim background
         dl->AddRectFilled(pos, {pos.x + avail.x, pos.y + avail.y}, IM_COL32(0, 0, 0, 100));
 
-        // Center spinner
         const float cx = pos.x + avail.x * 0.5f;
         const float cy = pos.y + avail.y * 0.5f - spinner_radius;
 
         ImGui::SetCursorScreenPos({cx - spinner_radius, cy - spinner_radius});
         spinner("##overlay_spinner", spinner_radius, 4.0f, color);
 
-        // Optional label
         if (!label.empty()) {
             const ImVec2 text_size = ImGui::CalcTextSize(label.data(), label.data() + label.size());
             ImGui::SetCursorScreenPos({cx - text_size.x * 0.5f, cy + spinner_radius + 8.0f});
@@ -95,8 +107,16 @@ namespace imgui_util {
         }
     }
 
-    // Determinate progress arc. progress is 0.0..1.0.
-    // Renders a background circle and a filled arc proportional to progress.
+    /**
+     * @brief Determinate progress arc (0.0 to 1.0).
+     *
+     * Renders a background circle and a filled arc proportional to progress.
+     * @param label     ImGui ID label.
+     * @param progress  Progress value, clamped to [0.0, 1.0].
+     * @param radius    Radius of the arc in pixels.
+     * @param thickness Stroke thickness in pixels.
+     * @param color     Arc color ({0,0,0,0} = theme default).
+     */
     inline void spinner_progress(const char *label, const float progress, const float radius = 8.0f,
                                  const float thickness = 2.0f, const ImVec4 &color = {}) noexcept {
         const auto [dl, center, col] = detail::spinner_begin(label, radius, color);
@@ -104,12 +124,10 @@ namespace imgui_util {
         const ImVec4 resolved = ImGui::ColorConvertU32ToFloat4(col);
         const ImU32  bg_col = ImGui::ColorConvertFloat4ToU32({resolved.x, resolved.y, resolved.z, resolved.w * 0.25f});
 
-        // Background arc (full circle, dimmed)
         dl->PathClear();
         dl->PathArcTo(center, radius, 0.0f, detail::spinner_pi * 2.0f, detail::spinner_segments);
         dl->PathStroke(bg_col, 0, thickness);
 
-        // Progress arc
         const float clamped   = std::clamp(progress, 0.0f, 1.0f);
         const float end_angle = -detail::spinner_pi * 0.5f + clamped * (detail::spinner_pi * 2.0f);
         dl->PathClear();

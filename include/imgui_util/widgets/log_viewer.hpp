@@ -1,13 +1,16 @@
-// log_viewer.hpp - scrolling log panel with level filtering, search, and clipboard export
-//
-// Usage:
-//   static imgui_util::log_viewer log;
-//   bool had_err = log.render([](auto cb) {
-//       for (auto& msg : pending) cb(log_viewer::level::info, msg);
-//   }, "##LogSearch", "LogEntries");
-//
-// Each instance owns its entry ring buffer and text storage.
-// Call render() every frame (or drain() when panel is hidden) to consume entries.
+/// @file log_viewer.hpp
+/// @brief Scrolling log panel with level filtering, search, and clipboard export.
+///
+/// Each instance owns its entry ring buffer and text storage.
+/// Call render() every frame (or drain() when panel is hidden) to consume entries.
+///
+/// Usage:
+/// @code
+///   static imgui_util::log_viewer log;
+///   bool had_err = log.render([](auto cb) {
+///       for (auto& msg : pending) cb(log_viewer::level::info, msg);
+///   }, "##LogSearch", "LogEntries");
+/// @endcode
 #pragma once
 
 #include <algorithm>
@@ -32,29 +35,40 @@
 
 namespace imgui_util {
 
-    // Forward-declare level enum for the drain_fn concept
+    /// @brief Severity level for log entries.
     enum class log_level { info, warning, error };
 
-    // Concept for the drain callback: invocable with a callback that accepts (log_level, string_view)
+    /// @brief Concept for the drain callback: invocable with a sink that accepts (log_level, string_view).
     template<typename F>
     concept drain_fn = std::invocable<F, std::move_only_function<void(log_level, std::string_view)>>;
 
-    // Reusable log viewer widget. Each instance holds its own entry buffer, filter state, and
-    // search buffer, so multiple panels can coexist independently.
-    // Text is stored in a contiguous buffer with offset-based indexing for cache locality.
-    // Entry metadata lives in a separate ring buffer.
+    /**
+     * @brief Scrolling log panel with level filtering, search, and clipboard export.
+     *
+     * Each instance holds its own entry buffer, filter state, and search buffer,
+     * so multiple panels can coexist independently. Text is stored in a contiguous
+     * buffer with offset-based indexing for cache locality; entry metadata lives
+     * in a separate ring buffer.
+     */
     class log_viewer {
     public:
-        using level = log_level; // severity for filtering and coloring
+        using level = log_level;
 
-        // Construct with pre-allocated ring buffer at given capacity.
         explicit log_viewer(const std::size_t max_entries = 100'000) :
             max_entries_(max_entries), entries_(max_entries) {
             text_buf_.reserve(initial_text_capacity);
         }
 
-        // Call each frame to drain pending entries and render the log panel.
-        // drain: void(auto cb) where cb is void(level, string_view). Returns true if errors were drained.
+        /**
+         * @brief Drain pending entries and render the log panel. Call once per frame.
+         *
+         * @tparam DrainFn  Callable matching drain_fn concept.
+         * @param  drain     Callback that receives a sink: `void(auto cb)` where cb is
+         *                   `void(level, string_view)`.
+         * @param  search_id ImGui ID for the search bar widget.
+         * @param  child_id  ImGui ID for the scrollable child region.
+         * @return True if any error-level entries were drained this frame.
+         */
         template<drain_fn DrainFn>
         [[nodiscard]] bool render(DrainFn &&drain, const char *search_id, const char *child_id) {
             const bool had_error = drain_entries(std::forward<DrainFn>(drain));
@@ -85,15 +99,14 @@ namespace imgui_util {
             return had_error;
         }
 
-        // Drain entries without rendering. Call when panel is hidden so source doesn't back up.
+        /// @brief Drain entries without rendering. Call when the panel is hidden so the source doesn't back up.
         template<drain_fn DrainFn>
         [[nodiscard]] bool drain(DrainFn &&drain_fn) {
             return drain_entries(std::forward<DrainFn>(drain_fn));
         }
 
-        // Export all visible (filtered) entries as a newline-delimited string
+        /// @brief Export the currently filtered log entries as a newline-separated string.
         [[nodiscard]] std::string export_text() const {
-            // Pre-calculate total size to avoid repeated reallocations
             std::size_t total_size = 0;
             for (const std::size_t idx: filtered_) {
                 const auto &entry = entry_at(idx);
@@ -113,14 +126,20 @@ namespace imgui_util {
             return result;
         }
 
-        // Thread-safe-ish push: append a log entry to the pending queue.
-        // Entries are drained into the ring buffer at the start of the next render() call.
-        // Safe for single-writer single-reader; does not use a mutex.
-        void push(const level lvl, const std::string_view message) { pending_.push_back({lvl, std::string(message)}); }
+        /**
+         * @brief Append a log entry to the pending queue.
+         *
+         * Entries are drained into the ring buffer at the start of the next render() call.
+         * Safe for single-writer single-reader; does not use a mutex.
+         */
+        void push(const level lvl, const std::string_view message) {
+            pending_.push_back({.lvl = lvl, .text = std::string(message)});
+        }
 
+        /// @brief Toggle display of per-entry timestamps in the log output.
         void set_show_timestamps(const bool v) noexcept { show_timestamps_ = v; }
 
-        // Clear all entries and reset text buffer
+        /// @brief Clear all entries, text storage, and filter state.
         void clear() noexcept {
             count_            = 0;
             head_             = 0;
@@ -151,17 +170,14 @@ namespace imgui_util {
 
         static constexpr std::size_t initial_text_capacity = 1u << 20; // 1 MiB
 
-        // Ring buffer access for entry metadata.
         [[nodiscard]] const log_entry &entry_at(const std::size_t logical_index) const noexcept {
             return entries_[(head_ + logical_index) % max_entries_];
         }
 
-        // Resolve an entry's text as a string_view into the contiguous text buffer.
         [[nodiscard]] std::string_view entry_text(const log_entry &entry) const noexcept {
             return {text_buf_.data() + entry.text_offset - text_base_offset_, entry.text_length};
         }
 
-        // Render the toolbar: level filter checkboxes, search bar, auto-scroll, clear/export/next-error buttons
         void render_toolbar(const char *search_id) {
             constexpr std::array level_indices = {
                 static_cast<int>(level::info),
@@ -169,10 +185,10 @@ namespace imgui_util {
                 static_cast<int>(level::error),
             };
 
-            const std::array     level_flags  = {&show_info_, &show_warn_, &show_error_};
-            constexpr std::array level_labels = {"Info", "Warn", "Error"};
+            const std::array level_flags = {&show_info_, &show_warn_, &show_error_};
 
             for (int li = 0; li < 3; ++li) {
+                constexpr std::array level_labels = {"Info", "Warn", "Error"};
                 if (li > 0) ImGui::SameLine();
                 const fmt_buf<32> lbl("{} ({})", level_labels[li], level_counts_[level_indices[li]]);
                 ImGui::Checkbox(lbl.c_str(), level_flags[li]);
@@ -195,7 +211,6 @@ namespace imgui_util {
             }
         }
 
-        // Detect filter criteria changes and rebuild/extend the filtered index vector
         void update_filter() {
             const std::uint8_t current_level_mask =
                 (show_info_ ? 1u : 0u) | (show_warn_ ? 2u : 0u) | (show_error_ ? 4u : 0u);
@@ -214,15 +229,14 @@ namespace imgui_util {
             }
         }
 
-        // Render a single row in the clipped list
         void render_row(const int row) const {
             const auto       &entry  = entry_at(filtered_[static_cast<std::size_t>(row)]);
             const auto        text   = entry_text(entry);
             const char *const prefix = level_prefix(entry.lvl);
 
-            const id                   id_scope{row};
-            std::optional<style_color> color_scope;
+            const id id_scope{row};
             if (entry.lvl != level::info) {
+                std::optional<style_color> color_scope;
                 color_scope.emplace(ImGuiCol_Text, entry.lvl == level::warning ? colors::warning : colors::error);
             }
             if (show_timestamps_) {
@@ -245,7 +259,6 @@ namespace imgui_util {
             }
         }
 
-        // Find and scroll to the next error entry, wrapping around
         void scroll_to_next_error() {
             const std::size_t start = scroll_to_error_last_ + 1;
             for (std::size_t fi = start; fi < filtered_.size(); ++fi) {
@@ -265,7 +278,6 @@ namespace imgui_util {
             }
         }
 
-        // Full rebuild of filtered index vector
         void rebuild_filter(const std::string_view query) {
             filtered_.clear();
             for (std::size_t i = 0; i < count_; ++i) {
@@ -275,7 +287,6 @@ namespace imgui_util {
             }
         }
 
-        // Check whether a logical entry index passes the current filter
         [[nodiscard]] bool passes_filter(const std::size_t logical_index, const std::string_view query) const noexcept {
             const auto &entry = entry_at(logical_index);
             switch (entry.lvl) {
@@ -310,7 +321,6 @@ namespace imgui_util {
             return len;
         }
 
-        // Append message text to the contiguous buffer and return the offset.
         [[nodiscard]] std::uint32_t append_text(const std::string_view msg) {
             const auto offset = static_cast<std::uint32_t>(text_tail_);
             text_buf_.resize(text_tail_ - text_base_offset_ + msg.size());
@@ -332,11 +342,8 @@ namespace imgui_util {
             text_buf_.resize(live_size);
         }
 
-        // Simplified single-path ring buffer: always write at (head_ + count_) % capacity.
-        // If full, advance head and reclaim dead text; otherwise increment count.
         static constexpr std::size_t max_message_length = 4096;
 
-        // Write a single message into the ring buffer. Shared by drain_entries and push() drain path.
         bool append_entry(const level lvl, const std::string_view msg,
                           const std::chrono::steady_clock::time_point now) {
             const auto capped =
@@ -399,7 +406,6 @@ namespace imgui_util {
             return had_error;
         }
 
-        // Ring buffer for entry metadata
         const std::size_t      max_entries_;
         std::vector<log_entry> entries_;   // pre-allocated ring of max_entries_
         std::size_t            head_  = 0; // oldest entry index in ring
@@ -427,7 +433,6 @@ namespace imgui_util {
         std::array<char, 256> last_query_{};
         std::uint8_t          last_level_mask_ = 0xFF;
 
-        // Scroll-to-error state
         std::optional<std::size_t> scroll_to_filtered_;       // filtered row to scroll to
         std::size_t                scroll_to_error_last_ = 0; // last error position for wrap-around
 

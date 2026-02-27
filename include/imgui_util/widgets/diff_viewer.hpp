@@ -1,16 +1,18 @@
-// diff_viewer.hpp - Side-by-side diff viewer with synchronized scrolling
-//
-// Usage:
-//   static imgui_util::diff_viewer dv;
-//   std::vector<imgui_util::diff_line> left = { {imgui_util::diff_kind::removed, "old line"} };
-//   std::vector<imgui_util::diff_line> right = { {imgui_util::diff_kind::added, "new line"} };
-//   dv.render("##diff", left, right);
-//
-// Color-coded backgrounds for added/removed/changed lines. Line numbers in gutter.
-// Uses ListClipper for efficient rendering of large diffs.
+/// @file diff_viewer.hpp
+/// @brief Side-by-side diff viewer with synchronized scrolling.
+///
+/// Color-coded backgrounds for added/removed/changed lines. Line numbers in gutter.
+/// Uses ListClipper for efficient rendering of large diffs.
+///
+/// Usage:
+/// @code
+///   static imgui_util::diff_viewer dv;
+///   std::vector<imgui_util::diff_line> left = { {imgui_util::diff_kind::removed, "old line"} };
+///   std::vector<imgui_util::diff_line> right = { {imgui_util::diff_kind::added, "new line"} };
+///   dv.render("##diff", left, right);
+/// @endcode
 #pragma once
 
-#include <algorithm>
 #include <cstdint>
 #include <imgui.h>
 #include <span>
@@ -21,23 +23,34 @@
 
 namespace imgui_util {
 
+    /// @brief Classification of a diff line.
     enum class diff_kind : std::uint8_t { same, added, removed, changed };
 
+    /// @brief A single line in a diff, tagged with its kind.
     struct diff_line {
         diff_kind        kind;
         std::string_view text;
     };
 
+    /// @brief Side-by-side diff viewer with synchronized scrolling and line numbers.
     class diff_viewer {
     public:
+        /**
+         * @brief Render the diff viewer.
+         * @param str_id       ImGui string ID.
+         * @param left         Lines for the left pane.
+         * @param right        Lines for the right pane.
+         * @param left_label   Header label for the left pane.
+         * @param right_label  Header label for the right pane.
+         */
         void render(std::string_view str_id, const std::span<const diff_line> left,
                     const std::span<const diff_line> right, const std::string_view left_label = "Before",
                     const std::string_view right_label = "After") const {
-            const fmt_buf<64> id_str{"{}", str_id};
-            const id          scope{id_str.c_str()};
+            const fmt_buf id_str{"{}", str_id};
+            const id      scope{id_str.c_str()};
 
             const ImVec2 avail = ImGui::GetContentRegionAvail();
-            const float  half  = (avail.x * 0.5f) - 4.0f;
+            const float  half  = avail.x * 0.5f - 4.0f;
 
             // Header labels
             {
@@ -80,6 +93,7 @@ namespace imgui_util {
             storage->SetFloat(scroll_key, scroll_sync);
         }
 
+        /// @brief Toggle line number gutter visibility.
         [[nodiscard]] diff_viewer &set_line_numbers(const bool show) noexcept {
             show_line_numbers_ = show;
             return *this;

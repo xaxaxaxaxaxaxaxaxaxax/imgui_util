@@ -1,21 +1,24 @@
-// undo_stack.hpp - Generic undo/redo stack with visual history panel
-//
-// Usage:
-//   struct my_state { int x; float y; };
-//   static imgui_util::undo_stack<my_state> undo{my_state{0, 1.0f}};
-//
-//   // After user action:
-//   undo.push("Changed X", my_state{42, 1.0f});
-//
-//   // Each frame:
-//   if (undo.handle_shortcuts()) { apply(undo.current()); }
-//
-//   // History panel:
-//   static bool history_open = true;
-//   undo.render_history_panel("##history", &history_open);
-//
-// Template on any std::copyable State type. Supports configurable max depth,
-// named entries, Ctrl+Z/Y shortcuts, and clickable history panel.
+/// @file undo_stack.hpp
+/// @brief Generic undo/redo stack with visual history panel.
+///
+/// Usage:
+/// @code
+///   struct my_state { int x; float y; };
+///   static imgui_util::undo_stack<my_state> undo{my_state{0, 1.0f}};
+///
+///   // After user action:
+///   undo.push("Changed X", my_state{42, 1.0f});
+///
+///   // Each frame:
+///   if (undo.handle_shortcuts()) { apply(undo.current()); }
+///
+///   // History panel:
+///   static bool history_open = true;
+///   undo.render_history_panel("##history", &history_open);
+/// @endcode
+///
+/// Template on any std::copyable State type. Supports configurable max depth,
+/// named entries, Ctrl+Z/Y shortcuts, and clickable history panel.
 #pragma once
 
 #include <concepts>
@@ -32,13 +35,28 @@
 
 namespace imgui_util {
 
+    /**
+     * @brief Generic undo/redo stack with visual history panel.
+     * @tparam State Any std::copyable type representing a snapshot of application state.
+     */
     template<std::copyable State>
     class undo_stack {
     public:
+        /**
+         * @brief Construct an undo stack with an initial state.
+         * @param initial    The starting state (becomes the first history entry).
+         * @param max_depth  Maximum number of entries retained (default 100). Oldest entries
+         *                   are discarded when exceeded.
+         */
         explicit undo_stack(State initial, const std::size_t max_depth = 100) noexcept : max_depth_(max_depth) {
             stack_.push_back({.description = "Initial", .state = std::move(initial)});
         }
 
+        /**
+         * @brief Push a new state snapshot, discarding any redo history.
+         * @param description  Human-readable label shown in the history panel.
+         * @param snapshot     The state to record.
+         */
         void push(const std::string_view description, State snapshot) noexcept {
             stack_.resize(current_index_ + 1);
             stack_.push_back({.description = std::string(description), .state = std::move(snapshot)});
@@ -46,23 +64,27 @@ namespace imgui_util {
             enforce_max_depth();
         }
 
+        /// @brief Step back one entry. Returns true if the position changed.
         [[nodiscard]] bool undo() noexcept {
             if (!can_undo()) return false;
             --current_index_;
             return true;
         }
 
+        /// @brief Step forward one entry. Returns true if the position changed.
         [[nodiscard]] bool redo() noexcept {
             if (!can_redo()) return false;
             ++current_index_;
             return true;
         }
 
+        /// @brief Access the state at the current position.
         [[nodiscard]] const State &current() const noexcept { return stack_[current_index_].state; }
         [[nodiscard]] bool         can_undo() const noexcept { return current_index_ > 0; }
         [[nodiscard]] bool         can_redo() const noexcept { return current_index_ + 1 < stack_.size(); }
         [[nodiscard]] std::size_t  depth() const noexcept { return stack_.size(); }
 
+        /// @brief Handle Ctrl+Z / Ctrl+Y. Returns true if state changed.
         [[nodiscard]] bool handle_shortcuts() noexcept {
             const bool ctrl = ImGui::GetIO().KeyCtrl;
             if (ctrl && ImGui::IsKeyPressed(ImGuiKey_Z, false)) return undo();
@@ -70,6 +92,11 @@ namespace imgui_util {
             return false;
         }
 
+        /**
+         * @brief Render a clickable history panel with undo/redo toolbar.
+         * @param panel_id  ImGui window ID for the panel.
+         * @param open      Optional visibility flag (pass nullptr to always show).
+         */
         void render_history_panel(const char *panel_id, bool *open = nullptr) noexcept {
             if (const window win{panel_id, open}) {
                 render_toolbar();
@@ -78,6 +105,7 @@ namespace imgui_util {
             }
         }
 
+        /// @brief Reset the stack with a new initial state, discarding all history.
         void clear(State initial) noexcept {
             stack_.clear();
             stack_.push_back({.description = "Initial", .state = std::move(initial)});
