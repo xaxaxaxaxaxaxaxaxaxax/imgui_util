@@ -49,6 +49,16 @@ namespace imgui_util {
 
     } // namespace detail
 
+    /// @brief Non-template configuration state shared across table_builder type morphs.
+    struct table_config {
+        std::string_view         id;
+        ImGuiTableFlags          flags            = ImGuiTableFlags_None;
+        int                      freeze_cols      = 0;
+        int                      freeze_rows      = 0;
+        std::unordered_set<int> *selection        = nullptr;
+        int                      last_clicked_row = -1;
+    };
+
     template<typename Fn, typename RowT>
     concept column_renderer =
         std::invocable<Fn, const RowT &> && std::is_void_v<std::invoke_result_t<Fn, const RowT &>>;
@@ -82,12 +92,12 @@ namespace imgui_util {
 
         /// @brief Set the ImGui table string ID.
         table_builder set_id(const std::string_view id) && {
-            id_ = id;
+            cfg_.id = id;
             return std::move(*this);
         }
         /// @brief Set ImGuiTableFlags for the table.
         table_builder set_flags(const ImGuiTableFlags flags) && {
-            flags_ = flags;
+            cfg_.flags = flags;
             return std::move(*this);
         }
         /**
@@ -96,8 +106,8 @@ namespace imgui_util {
          * @param rows  Number of rows to freeze from the top.
          */
         table_builder set_scroll_freeze(const int cols, const int rows) && {
-            freeze_cols_ = cols;
-            freeze_rows_ = rows;
+            cfg_.freeze_cols = cols;
+            cfg_.freeze_rows = rows;
             return std::move(*this);
         }
 
@@ -115,37 +125,21 @@ namespace imgui_util {
             auto col         = detail::table_column<std::decay_t<Fn>>{name, width, col_flags, std::forward<Fn>(fn)};
             auto new_cols    = std::tuple_cat(std::move(cols_), std::make_tuple(std::move(col)));
             using new_cols_t = decltype(new_cols);
-            return table_builder<RowT, new_cols_t, FilterFn, RowIdFn>{id_,
-                                                                      flags_,
-                                                                      freeze_cols_,
-                                                                      freeze_rows_,
-                                                                      std::move(new_cols),
-                                                                      std::move(filter_),
-                                                                      selection_,
-                                                                      std::move(row_id_fn_),
-                                                                      last_clicked_row_,
-                                                                      std::move(row_highlight_fn_)};
+            return table_builder<RowT, new_cols_t, FilterFn, RowIdFn>{
+                cfg_, std::move(new_cols), std::move(filter_), std::move(row_id_fn_), std::move(row_highlight_fn_)};
         }
 
         /// @brief Set a function that maps each row to a unique int for selection tracking.
         template<std::invocable<const RowT &> Fn>
             requires std::convertible_to<std::invoke_result_t<Fn, const RowT &>, int>
         [[nodiscard]] auto set_row_id(Fn &&fn) && {
-            return table_builder<RowT, Cols, FilterFn, std::decay_t<Fn>>{id_,
-                                                                         flags_,
-                                                                         freeze_cols_,
-                                                                         freeze_rows_,
-                                                                         std::move(cols_),
-                                                                         std::move(filter_),
-                                                                         selection_,
-                                                                         std::forward<Fn>(fn),
-                                                                         last_clicked_row_,
-                                                                         std::move(row_highlight_fn_)};
+            return table_builder<RowT, Cols, FilterFn, std::decay_t<Fn>>{
+                cfg_, std::move(cols_), std::move(filter_), std::forward<Fn>(fn), std::move(row_highlight_fn_)};
         }
 
         /// @brief Point to an external selection set; enables shift/ctrl multi-select.
         table_builder set_selection(std::unordered_set<int> *sel) && {
-            selection_ = sel;
+            cfg_.selection = sel;
             return std::move(*this);
         }
 
@@ -153,16 +147,8 @@ namespace imgui_util {
         template<typename Fn>
             requires row_predicate<Fn, RowT>
         [[nodiscard]] auto set_filter(Fn &&fn) && {
-            auto result          = table_builder<RowT, Cols, std::decay_t<Fn>, RowIdFn>{id_,
-                                                                                        flags_,
-                                                                                        freeze_cols_,
-                                                                                        freeze_rows_,
-                                                                                        std::move(cols_),
-                                                                                        std::forward<Fn>(fn),
-                                                                                        selection_,
-                                                                                        std::move(row_id_fn_),
-                                                                                        last_clicked_row_,
-                                                                                        std::move(row_highlight_fn_)};
+            auto result = table_builder<RowT, Cols, std::decay_t<Fn>, RowIdFn>{
+                cfg_, std::move(cols_), std::forward<Fn>(fn), std::move(row_id_fn_), std::move(row_highlight_fn_)};
             result.filter_dirty_ = true;
             return result;
         }
@@ -195,10 +181,10 @@ namespace imgui_util {
          */
         [[nodiscard]] bool begin(const float height = 0.0f) {
             constexpr int ncols = std::tuple_size_v<Cols>;
-            if (!ImGui::BeginTable(id_.data(), ncols, flags_, ImVec2(0, height))) {
+            if (!ImGui::BeginTable(cfg_.id.data(), ncols, cfg_.flags, ImVec2(0, height))) {
                 return false;
             }
-            ImGui::TableSetupScrollFreeze(freeze_cols_, freeze_rows_);
+            ImGui::TableSetupScrollFreeze(cfg_.freeze_cols, cfg_.freeze_rows);
             setup_columns(std::make_index_sequence<ncols>{});
             ImGui::TableHeadersRow();
             sort_specs_ = ImGui::TableGetSortSpecs();
@@ -368,32 +354,21 @@ namespace imgui_util {
 
     private:
         template<typename NewCols>
-        table_builder(const std::string_view id, const ImGuiTableFlags flags, const int fc, const int fr,
-                      NewCols &&cols, FilterFn filter, std::unordered_set<int> *sel, RowIdFn row_id,
-                      const int last_clicked, row_highlight_fn<RowT> highlight = {}) :
-            id_(id),
-            flags_(flags),
-            freeze_cols_(fc),
-            freeze_rows_(fr),
+        table_builder(table_config cfg, NewCols &&cols, FilterFn filter, RowIdFn row_id,
+                      row_highlight_fn<RowT> highlight = {}) :
+            cfg_(cfg),
             cols_(std::forward<NewCols>(cols)),
-            selection_(sel),
             filter_(std::move(filter)),
             row_id_fn_(std::move(row_id)),
-            last_clicked_row_(last_clicked),
             row_highlight_fn_(std::move(highlight)) {}
 
-        std::string_view         id_;
-        ImGuiTableFlags          flags_       = ImGuiTableFlags_None;
-        int                      freeze_cols_ = 0; // TableSetupScrollFreeze columns
-        int                      freeze_rows_ = 0; // TableSetupScrollFreeze rows
-        Cols                     cols_{};
-        ImGuiTableSortSpecs     *sort_specs_ = nullptr;
-        std::unordered_set<int> *selection_  = nullptr; // external selection state
+        table_config         cfg_;
+        Cols                 cols_{};
+        ImGuiTableSortSpecs *sort_specs_ = nullptr;
 
         [[no_unique_address]] FilterFn filter_{};
         [[no_unique_address]] RowIdFn  row_id_fn_{};
 
-        int                                         last_clicked_row_ = -1; // for shift-select range
         mutable std::vector<int>                    filtered_indices_;
         mutable bool                                filter_dirty_ = true;
         row_highlight_fn_t                          row_highlight_fn_;
@@ -471,40 +446,44 @@ namespace imgui_util {
             }
         }
 
+        void handle_selection_click(const int rid, const bool is_selected) {
+            if (const auto &io = ImGui::GetIO(); io.KeyShift && cfg_.last_clicked_row >= 0) {
+                const int lo = std::min(cfg_.last_clicked_row, rid);
+                const int hi = std::max(cfg_.last_clicked_row, rid);
+                for (int r = lo; r <= hi; ++r)
+                    cfg_.selection->insert(r);
+            } else if (io.KeyCtrl) {
+                if (is_selected)
+                    cfg_.selection->insert(rid);
+                else
+                    cfg_.selection->erase(rid);
+            } else {
+                cfg_.selection->clear();
+                cfg_.selection->insert(rid);
+            }
+            cfg_.last_clicked_row = rid;
+        }
+
         void render_row_with_selection(const RowT &data, const int rid) {
             ImGui::TableNextRow();
             apply_row_highlight(data);
 
-            if (selection_ != nullptr) {
+            if (cfg_.selection != nullptr) {
                 ImGui::TableSetColumnIndex(0);
-                const bool was_selected = selection_->contains(rid);
+                const bool was_selected = cfg_.selection->contains(rid);
                 bool       is_selected  = was_selected;
                 ImGui::Selectable("##sel", &is_selected,
                                   ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap);
                 check_row_activate(data);
                 if (is_selected != was_selected) {
-                    if (const auto &io = ImGui::GetIO(); io.KeyShift && last_clicked_row_ >= 0) {
-                        const int lo = std::min(last_clicked_row_, rid);
-                        const int hi = std::max(last_clicked_row_, rid);
-                        for (int r = lo; r <= hi; ++r)
-                            selection_->insert(r);
-                    } else if (io.KeyCtrl) {
-                        if (is_selected)
-                            selection_->insert(rid);
-                        else
-                            selection_->erase(rid);
-                    } else {
-                        selection_->clear();
-                        selection_->insert(rid);
-                    }
-                    last_clicked_row_ = rid;
+                    handle_selection_click(rid, is_selected);
                 }
                 ImGui::SameLine();
             }
 
             render_columns(data, std::make_index_sequence<std::tuple_size_v<Cols>>{});
 
-            if (selection_ == nullptr) {
+            if (cfg_.selection == nullptr) {
                 check_row_activate(data);
             }
         }

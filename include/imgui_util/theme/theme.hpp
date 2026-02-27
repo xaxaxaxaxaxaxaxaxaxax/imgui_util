@@ -294,9 +294,9 @@ namespace imgui_util::theme {
         const ImVec4 text_default   = is_light ? ImVec4(0.10f, 0.10f, 0.12f, 1.0f) : ImVec4(0.95f, 0.95f, 0.97f, 1.0f);
         const float  text_dim_scale = is_light ? 1.40f : 0.65f;
         const ImVec4 text_primary   = !text_c ? text_default : rgb(*text_c);
-        const ImVec4 text_secondary = !text_c
-            ? (is_light ? ImVec4{0.45f, 0.45f, 0.50f, 1.0f} : ImVec4{0.60f, 0.60f, 0.65f, 1.0f})
-            : scale(*text_c, text_dim_scale);
+        const ImVec4 text_secondary_fallback =
+            is_light ? ImVec4{0.45f, 0.45f, 0.50f, 1.0f} : ImVec4{0.60f, 0.60f, 0.65f, 1.0f};
+        const ImVec4 text_secondary = !text_c ? text_secondary_fallback : scale(*text_c, text_dim_scale);
 
         theme.colors.at(ImGuiCol_WindowBg)                  = bg_mid;
         theme.colors.at(ImGuiCol_ChildBg)                   = offset(bg_dark_c, d * 0.02f);
@@ -383,7 +383,7 @@ namespace imgui_util::theme {
         set_node(ImNodesCol_LinkSelected, preset.node_title_bar_selected);
         set_node(ImNodesCol_Pin, preset.node_pin);
         set_node(ImNodesCol_PinHovered, preset.node_pin_hovered);
-        set_node(ImNodesCol_BoxSelector, preset.node_title_bar_selected & 0x00FFFFFF | 40u << 24);
+        set_node(ImNodesCol_BoxSelector, (preset.node_title_bar_selected & 0x00FFFFFF) | 40u << 24);
 
         // Grid - derive line colors from background
         set_node(ImNodesCol_GridBackground, preset.node_grid_bg);
@@ -394,7 +394,7 @@ namespace imgui_util::theme {
         set_node(ImNodesCol_MiniMapBackground, offset_u32_rgb(preset.node_grid_bg, -4, 220));
         set_node(ImNodesCol_MiniMapNodeBackground, preset.node_title_bar);
         set_node(ImNodesCol_MiniMapNodeOutline, IM_COL32(40, 40, 48, 255));
-        set_node(ImNodesCol_MiniMapLink, preset.node_link & 0x00FFFFFFu | 180u << 24);
+        set_node(ImNodesCol_MiniMapLink, (preset.node_link & 0x00FFFFFFu) | 180u << 24);
 
         return theme;
     }

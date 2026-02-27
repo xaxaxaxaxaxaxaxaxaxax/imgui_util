@@ -39,6 +39,66 @@ namespace imgui_util {
             }
         }
 
+        template<typename T, typename RenderFn>
+        void render_item_auto_height(const T &item, RenderFn &render_item, const float grip_w, const float avail_w,
+                                     const ImU32 grip_color) {
+            const ImVec2 cursor_before = ImGui::GetCursorPos();
+            {
+                const group grp{};
+                ImGui::SetCursorPosX(cursor_before.x + grip_w);
+                render_item(item);
+            }
+            const float row_h = ImGui::GetItemRectSize().y;
+
+            const ImVec2 item_min = ImGui::GetItemRectMin();
+            auto *const  dl       = ImGui::GetWindowDrawList();
+            draw_grip_icon(dl, item_min, row_h, grip_color);
+
+            ImGui::SetCursorPos(cursor_before);
+            ImGui::InvisibleButton("##drag_handle", {avail_w, row_h});
+        }
+
+        template<typename T, typename RenderFn>
+        void render_item_fixed_height(const T &item, RenderFn &render_item, const float grip_w, const float avail_w,
+                                      const float row_h, const ImU32 grip_color) {
+            const ImVec2 cursor_before = ImGui::GetCursorPos();
+            ImGui::InvisibleButton("##drag_handle", {avail_w, row_h});
+            const ImVec2 item_min = ImGui::GetItemRectMin();
+
+            auto *const dl = ImGui::GetWindowDrawList();
+            draw_grip_icon(dl, item_min, row_h, grip_color);
+
+            ImGui::SetCursorPos({cursor_before.x + grip_w, cursor_before.y});
+            render_item(item);
+            ImGui::SetCursorPos({cursor_before.x, cursor_before.y + row_h});
+        }
+
+        template<typename T>
+        bool apply_reorder(std::vector<T> &items, const int from, int to, const int count) {
+            if (from == to || from < 0 || from >= count) return false;
+            if (from < to) --to;
+            if (to == from || to < 0 || to > count - 1) return false;
+
+            if (from < to) {
+                std::ranges::rotate(items.begin() + from, items.begin() + from + 1, items.begin() + to + 1);
+            } else {
+                std::ranges::rotate(items.begin() + to, items.begin() + from, items.begin() + from + 1);
+            }
+            return true;
+        }
+
+        inline void draw_insertion_indicator(const ImU32 insert_color, bool &above) {
+            const ImVec2 rect_min = ImGui::GetItemRectMin();
+            const ImVec2 rect_max = ImGui::GetItemRectMax();
+            const float  mouse_y  = ImGui::GetMousePos().y;
+            const float  mid_y    = (rect_min.y + rect_max.y) * 0.5f;
+            above                 = mouse_y < mid_y;
+            const float line_y    = above ? rect_min.y : rect_max.y;
+
+            auto *const dl = ImGui::GetWindowDrawList();
+            dl->AddLine({rect_min.x, line_y}, {rect_max.x, line_y}, insert_color, 2.0f);
+        }
+
     } // namespace detail
 
     /**
@@ -74,44 +134,15 @@ namespace imgui_util {
             constexpr float grip_w = 20.0f;
             const id        id_scope{i};
 
-            // Determine item height: if not specified, measure from content
-            if (float row_h = item_height; row_h <= 0.0f) {
-                // Use a group to measure content height on first pass
-                const ImVec2 cursor_before = ImGui::GetCursorPos();
-                {
-                    const group grp{};
-
-                    // Reserve grip area
-                    ImGui::SetCursorPosX(cursor_before.x + grip_w);
-                    render_item(items[static_cast<std::size_t>(i)]);
-                }
-                row_h = ImGui::GetItemRectSize().y;
-
-                // Now draw the grip icon over the reserved area
-                const ImVec2 item_min = ImGui::GetItemRectMin();
-                auto *const  dl       = ImGui::GetWindowDrawList();
-                detail::draw_grip_icon(dl, item_min, row_h, grip_color);
-
-                // Make the whole row a drag source / drop target
-                // Use an invisible button overlaid on the group for drag interaction
-                ImGui::SetCursorPos(cursor_before);
-                ImGui::InvisibleButton("##drag_handle", {avail_w, row_h});
+            if (item_height <= 0.0f) {
+                detail::render_item_auto_height(items[static_cast<std::size_t>(i)], render_item, grip_w, avail_w,
+                                                grip_color);
             } else {
-                // Fixed height path
-                const ImVec2 cursor_before = ImGui::GetCursorPos();
-                ImGui::InvisibleButton("##drag_handle", {avail_w, row_h});
-                const ImVec2 item_min = ImGui::GetItemRectMin();
-
-                auto *const dl = ImGui::GetWindowDrawList();
-                detail::draw_grip_icon(dl, item_min, row_h, grip_color);
-
-                // Render content offset by grip width
-                ImGui::SetCursorPos({cursor_before.x + grip_w, cursor_before.y});
-                render_item(items[static_cast<std::size_t>(i)]);
-                ImGui::SetCursorPos({cursor_before.x, cursor_before.y + row_h});
+                detail::render_item_fixed_height(items[static_cast<std::size_t>(i)], render_item, grip_w, avail_w,
+                                                 item_height, grip_color);
             }
 
-            // Drag source (uses type-safe helpers from drag_drop.hpp)
+            // Drag source
             if (const drag_drop_source src{ImGuiDragDropFlags_SourceNoPreviewTooltip}) {
                 drag_drop::set_payload("REORDER_ITEM", i);
                 storage->SetInt(src_key, i);
@@ -121,34 +152,12 @@ namespace imgui_util {
 
             // Drop target
             if (const drag_drop_target tgt{}) {
-                // Draw insertion indicator
-                const ImVec2 rect_min = ImGui::GetItemRectMin();
-                const ImVec2 rect_max = ImGui::GetItemRectMax();
-                const float  mouse_y  = ImGui::GetMousePos().y;
-                const float  mid_y    = (rect_min.y + rect_max.y) * 0.5f;
-                const bool   above    = mouse_y < mid_y;
-                const float  line_y   = above ? rect_min.y : rect_max.y;
-
-                auto *const dl = ImGui::GetWindowDrawList();
-                dl->AddLine({rect_min.x, line_y}, {rect_max.x, line_y}, insert_color, 2.0f);
+                bool above = false;
+                detail::draw_insertion_indicator(insert_color, above);
 
                 if (const auto from_opt = drag_drop::accept_payload<int>("REORDER_ITEM")) {
-                    const int from = *from_opt;
-                    int       to   = above ? i : i + 1;
-
-                    if (from != to && from >= 0 && from < count) {
-                        // Adjust target index after removal
-                        if (from < to) --to;
-                        if (to != from && to >= 0 && to <= count - 1) {
-                            if (from < to) {
-                                std::ranges::rotate(items.begin() + from, items.begin() + from + 1,
-                                                    items.begin() + to + 1);
-                            } else {
-                                std::ranges::rotate(items.begin() + to, items.begin() + from, items.begin() + from + 1);
-                            }
-                            changed = true;
-                        }
-                    }
+                    const int to = above ? i : i + 1;
+                    changed      = detail::apply_reorder(items, *from_opt, to, count) || changed;
                     storage->SetInt(src_key, -1);
                     storage->SetBool(active_key, false);
                 }

@@ -55,7 +55,7 @@ namespace imgui_util::parse {
     [[nodiscard]] constexpr std::optional<T> try_parse(const std::string_view sv) noexcept {
         T result{};
         auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), result);
-        if (ec == std::errc{}) return result;
+        if (ec != std::errc::invalid_argument && ec != std::errc::result_out_of_range) return result;
 
         return std::nullopt;
     }

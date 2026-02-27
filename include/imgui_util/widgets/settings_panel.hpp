@@ -101,6 +101,8 @@ namespace imgui_util {
                     it->render_fn();
                 }
             }
+
+            sections_.clear();
         }
 
     private:
@@ -121,7 +123,7 @@ namespace imgui_util {
             }
         }
 
-        void render_tree_node(const section_entry &entry) noexcept {
+        void render_tree_node(const section_entry &entry) noexcept { // NOLINT(misc-no-recursion)
             const bool has_children =
                 std::ranges::any_of(sections_, [&](const auto &sec) { return sec.parent == entry.name; });
 

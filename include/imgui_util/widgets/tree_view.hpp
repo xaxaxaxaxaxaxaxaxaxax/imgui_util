@@ -93,7 +93,7 @@ namespace imgui_util {
         // render() each frame so that selection is re-evaluated before use.
         const NodeT    *selected_ = nullptr;
 
-        void render_node(const NodeT &node) {
+        void render_node(const NodeT &node) { // NOLINT(misc-no-recursion)
             const char *const label = label_fn_ ? label_fn_(node) : "???";
 
             // Cache children result to avoid calling children_fn_ twice

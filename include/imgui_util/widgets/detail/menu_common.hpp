@@ -26,7 +26,7 @@ namespace imgui_util::detail {
         std::vector<menu_entry>         children;
     };
 
-    inline void render_menu_entries(std::span<menu_entry> entries) {
+    inline void render_menu_entries(std::span<menu_entry> entries) { // NOLINT(misc-no-recursion)
         for (auto &[type, label, action, shortcut, checkbox_value, enabled, children]: entries) {
             switch (type) {
                 case menu_entry_type::item:

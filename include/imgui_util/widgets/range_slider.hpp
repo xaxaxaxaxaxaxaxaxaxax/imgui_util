@@ -22,6 +22,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <concepts>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -45,7 +46,7 @@ namespace imgui_util {
         template<typename T>
         [[nodiscard]] constexpr T range_denormalize(float t, T range_min, T range_max) noexcept {
             if constexpr (std::integral<T>) {
-                return static_cast<T>(range_min + static_cast<T>(t * static_cast<float>(range_max - range_min) + 0.5f));
+                return static_cast<T>(range_min + std::lround(t * static_cast<float>(range_max - range_min)));
             } else {
                 return range_min + static_cast<T>(t) * (range_max - range_min);
             }
@@ -61,45 +62,49 @@ namespace imgui_util {
                 return fmt_buf<>("{:.3f}", val);
         }
 
-        /**
-         * @brief Shared handle drag logic for range slider handles.
-         *
-         * Returns true if the value changed. Updates @p t and @p px in-place.
-         *
-         * @param handle_id ImGui ID for ButtonBehavior.
-         * @param grab_bb   Bounding rectangle for the grab handle.
-         * @param val       Pointer to the value being dragged.
-         * @param range_min Minimum of the slider range.
-         * @param range_max Maximum of the slider range.
-         * @param clamp_lo  Lower normalized clamp bound (prevents crossing the other handle).
-         * @param clamp_hi  Upper normalized clamp bound.
-         * @param pos_x     Screen X of the slider left edge.
-         * @param grab_radius  Half-width of the grab handle in pixels.
-         * @param usable    Usable pixel width between the two grab radii.
-         * @param t         Normalized position (updated on drag).
-         * @param px        Pixel position (updated on drag).
-         * @return True if the value was modified.
-         */
-        template<typename T>
-        [[nodiscard]] bool handle_drag(const ImGuiID handle_id, const ImRect &grab_bb, T *val, T range_min, T range_max,
-                                       const float clamp_lo, const float clamp_hi, const float pos_x,
-                                       const float grab_radius, const float usable, float &t, float &px) noexcept {
-            bool hovered = false;
-            bool held    = false;
-            ImGui::ButtonBehavior(grab_bb, handle_id, &hovered, &held, ImGuiButtonFlags_NoKeyModsAllowed);
-            if (held) {
-                const float new_t =
-                    std::clamp((ImGui::GetIO().MousePos.x - pos_x - grab_radius) / usable, clamp_lo, clamp_hi);
-                const T new_val = range_denormalize(new_t, range_min, range_max);
-                if (new_val != *val) {
-                    *val = new_val;
-                    t    = new_t;
-                    px   = pos_x + grab_radius + t * usable;
-                    return true;
-                }
+        /// @brief Normalized + pixel position of a slider handle.
+        struct handle_pos {
+            float t;  ///< Normalized position in [0, 1].
+            float px; ///< Pixel X position on screen.
+        };
+
+        /// @brief Geometry needed to map between pixel and normalized slider space.
+        struct slider_geometry {
+            float pos_x;       ///< Screen X of the slider left edge.
+            float grab_radius; ///< Half-width of the grab handle in pixels.
+            float usable;      ///< Usable pixel width between the two grab radii.
+
+            /// @brief Compute the normalized t from the current mouse X position.
+            [[nodiscard]] float normalized_from_mouse(const float clamp_lo, const float clamp_hi) const noexcept {
+                const float raw = (ImGui::GetIO().MousePos.x - pos_x - grab_radius) / usable;
+                return std::clamp(raw, clamp_lo, clamp_hi);
             }
-            return false;
-        }
+
+            /// @brief Convert a normalized t to a pixel X position.
+            [[nodiscard]] float pixel_from_normalized(const float t) const noexcept {
+                return pos_x + grab_radius + t * usable;
+            }
+
+            /// @brief Shared handle drag logic. Returns true if the value changed.
+            template<typename T>
+            [[nodiscard]] bool handle_drag(const ImGuiID handle_id, const ImRect &grab_bb, T *val, T range_min,
+                                           T range_max, const float clamp_lo, const float clamp_hi,
+                                           handle_pos &pos) const noexcept {
+                bool hovered = false;
+                bool held    = false;
+                ImGui::ButtonBehavior(grab_bb, handle_id, &hovered, &held, ImGuiButtonFlags_NoKeyModsAllowed);
+                if (!held) return false;
+
+                const float new_t   = normalized_from_mouse(clamp_lo, clamp_hi);
+                const T     new_val = range_denormalize(new_t, range_min, range_max);
+                if (new_val == *val) return false;
+
+                *val   = new_val;
+                pos.t  = new_t;
+                pos.px = pixel_from_normalized(pos.t);
+                return true;
+            }
+        };
 
     } // namespace detail
 
@@ -154,34 +159,30 @@ namespace imgui_util {
         dl->AddRectFilled({pos.x, track_y - track_height * 0.5f}, {pos.x + w, track_y + track_height * 0.5f},
                           ImGui::GetColorU32(ImGuiCol_FrameBg), track_height * 0.5f);
 
-        // Normalized positions
-        float t_lo = detail::range_normalize(*v_min, range_min, range_max);
-        float t_hi = detail::range_normalize(*v_max, range_min, range_max);
+        const detail::slider_geometry geo{.pos_x = pos.x, .grab_radius = grab_radius, .usable = w - grab_radius * 2.0f};
 
-        // Handle positions in pixels
-        const float usable = w - grab_radius * 2.0f;
-        float       px_lo  = pos.x + grab_radius + t_lo * usable;
-        float       px_hi  = pos.x + grab_radius + t_hi * usable;
+        detail::handle_pos lo{.t = detail::range_normalize(*v_min, range_min, range_max)};
+        detail::handle_pos hi{.t = detail::range_normalize(*v_max, range_min, range_max)};
+        lo.px = geo.pixel_from_normalized(lo.t);
+        hi.px = geo.pixel_from_normalized(hi.t);
 
         bool changed = false;
 
         // Low handle interaction
         {
-            const ImRect grab_bb({px_lo - grab_radius, pos.y}, {px_lo + grab_radius, pos.y + h});
-            changed |= detail::handle_drag(id_lo, grab_bb, v_min, range_min, range_max, 0.0f, t_hi, pos.x, grab_radius,
-                                           usable, t_lo, px_lo);
+            const ImRect grab_bb({lo.px - grab_radius, pos.y}, {lo.px + grab_radius, pos.y + h});
+            changed |= geo.handle_drag(id_lo, grab_bb, v_min, range_min, range_max, 0.0f, hi.t, lo);
         }
 
         // High handle interaction
         {
-            const ImRect grab_bb({px_hi - grab_radius, pos.y}, {px_hi + grab_radius, pos.y + h});
-            changed |= detail::handle_drag(id_hi, grab_bb, v_max, range_min, range_max, t_lo, 1.0f, pos.x, grab_radius,
-                                           usable, t_hi, px_hi);
+            const ImRect grab_bb({hi.px - grab_radius, pos.y}, {hi.px + grab_radius, pos.y + h});
+            changed |= geo.handle_drag(id_hi, grab_bb, v_max, range_min, range_max, lo.t, 1.0f, hi);
         }
 
         // Filled region between handles
         const ImU32 fill_col = ImGui::GetColorU32(ImGuiCol_SliderGrabActive);
-        dl->AddRectFilled({px_lo, track_y - track_height * 0.5f}, {px_hi, track_y + track_height * 0.5f}, fill_col,
+        dl->AddRectFilled({lo.px, track_y - track_height * 0.5f}, {hi.px, track_y + track_height * 0.5f}, fill_col,
                           track_height * 0.5f);
 
         // Draw handles
@@ -191,8 +192,8 @@ namespace imgui_util {
         const bool lo_active = ImGui::GetActiveID() == id_lo;
         const bool hi_active = ImGui::GetActiveID() == id_hi;
 
-        dl->AddCircleFilled({px_lo, track_y}, grab_radius, lo_active ? grab_col_act : grab_col);
-        dl->AddCircleFilled({px_hi, track_y}, grab_radius, hi_active ? grab_col_act : grab_col);
+        dl->AddCircleFilled({lo.px, track_y}, grab_radius, lo_active ? grab_col_act : grab_col);
+        dl->AddCircleFilled({hi.px, track_y}, grab_radius, hi_active ? grab_col_act : grab_col);
 
         // Value overlay text
         const auto         lo_text = detail::range_format_value(*v_min, format);

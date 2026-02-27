@@ -7,7 +7,6 @@
 #include <GLFW/glfw3.h>
 #include <imgui_util/core/fmt_buf.hpp>
 #include <imgui_util/core/raii.hpp>
-#include <imgui_util/layout/helpers.hpp>
 #include <imgui_util/table/table_builder.hpp>
 #include <imgui_util/theme/theme.hpp>
 #include <imgui_util/theme/theme_manager.hpp>
@@ -15,7 +14,6 @@
 #include <imnodes.h>
 #include <implot.h>
 #include <log.h>
-#include <numbers>
 #include <string>
 #include <unistd.h>
 #include <unordered_set>
@@ -608,27 +606,6 @@ namespace {
         if (s.show_undo_history) s.undo.render_history_panel("Undo History##demo");
     }
 
-    void section_layout_helpers(const demo_state & /**/) {
-        if (!ImGui::CollapsingHeader("Layout Helpers")) return;
-
-        ImGui::TextWrapped("Centering, right-alignment, and horizontal layout utilities.");
-        ImGui::Spacing();
-
-        ImGui::SeparatorText("center_next / right_align_next");
-        iu::layout::center_next(200.0f);
-        ImGui::Button("Centered (200px)", {200, 0});
-        iu::layout::right_align_next(150.0f);
-        ImGui::Button("Right (150px)", {150, 0});
-
-        ImGui::SeparatorText("horizontal_layout");
-        iu::layout::horizontal_layout h{4.0f};
-        for (int i = 0; i < 6; ++i) {
-            h.next();
-            ImGui::Button(iu::fmt_buf<16>("Btn {}", i).c_str(), {60, 0});
-        }
-        ImGui::NewLine();
-    }
-
     void section_menu_bar_builder(const demo_state & /**/) {
         if (!ImGui::CollapsingHeader("Menu Bar Builder")) return;
 
@@ -674,31 +651,6 @@ namespace {
         ImGui::SameLine();
         if (iu::confirm_button("Reset All", "##reset", 5.0f))
             iu::toast::show("Everything reset!", iu::severity::warning);
-    }
-
-    void section_controls(const demo_state & /**/) {
-        if (!ImGui::CollapsingHeader("Controls")) return;
-
-        ImGui::TextWrapped("Styled buttons, combo boxes, and convenience wrappers.");
-        ImGui::Spacing();
-
-        ImGui::SeparatorText("styled_button");
-        if (iu::styled_button("Delete", {0.8f, 0.2f, 0.2f, 1.0f}))
-            iu::toast::show("Delete clicked", iu::severity::error);
-        ImGui::SameLine();
-        if (iu::styled_button("Accept", {0.2f, 0.7f, 0.3f, 1.0f})) iu::toast::show("Accepted", iu::severity::success);
-        ImGui::SameLine();
-        if (iu::styled_button("Info", {0.2f, 0.4f, 0.8f, 1.0f})) iu::toast::show("Info clicked");
-
-        ImGui::SeparatorText("column_combo");
-        static int                                   combo_idx   = 0;
-        static constexpr std::array<const char *, 4> combo_items = {"Option A", "Option B", "Option C", "Option D"};
-        if (iu::column_combo("Choose##cc", combo_idx, std::span<const char *const>{combo_items}))
-            iu::toast::show(std::format("Selected: {}", combo_items[combo_idx]));
-
-        ImGui::SeparatorText("checkbox_action");
-        static bool cb_val = false;
-        (void) iu::checkbox_action("Enable feature", &cb_val, [] { iu::toast::show("Feature toggled"); });
     }
 
     void section_curve_editor(demo_state &s) {
@@ -853,37 +805,6 @@ namespace {
         iu::fmt_text("Tags: {}", s.tags.size());
     }
 
-    void section_text(const demo_state & /**/) {
-        if (!ImGui::CollapsingHeader("Text Utilities")) return;
-
-        ImGui::TextWrapped("Semantic text colors, alignment, truncation, and formatted text helpers.");
-        ImGui::Spacing();
-
-        ImGui::SeparatorText("Semantic Colors");
-        iu::colored_text("Accent text", iu::colors::accent);
-        iu::colored_text("Teal text", iu::colors::teal);
-        iu::secondary_text("Secondary text");
-        iu::dim_text("Dim text");
-        iu::error_text("Error text");
-        iu::status_message("Success status", iu::severity::success);
-        iu::status_message("Warning status", iu::severity::warning);
-
-        ImGui::SeparatorText("fmt_text");
-        iu::fmt_text("Formatted: pi = {:.4f}, count = {}", std::numbers::pi_v<float>, 42);
-
-        ImGui::SeparatorText("Truncation");
-        constexpr std::string_view long_text = "This is a very long string that will be truncated to fit";
-        const auto                 t         = iu::truncate_to_width(long_text, 200.0f);
-        ImGui::TextUnformatted(t.view().data(), t.view().data() + t.view().size());
-        iu::fmt_text("Truncated: {}", t.was_truncated() ? "yes" : "no");
-
-        ImGui::SeparatorText("format_count / format_bytes");
-        iu::fmt_text("1500 -> {}", iu::format_count(1500).sv());
-        iu::fmt_text("2500000 -> {}", iu::format_count(2500000).sv());
-        iu::fmt_text("1536 bytes -> {}", iu::format_bytes(1536).sv());
-        iu::fmt_text("1048576 bytes -> {}", iu::format_bytes(1048576).sv());
-    }
-
     void section_timeline(demo_state &s) {
         if (!ImGui::CollapsingHeader("Timeline")) return;
 
@@ -896,26 +817,6 @@ namespace {
 
         if (s.tl.render("##timeline_demo", s.tl_events, s.tl_playhead, 0.0f, 20.0f))
             iu::toast::show(iu::fmt_buf<32>("Playhead: {:.1f}", s.tl_playhead).sv());
-    }
-
-    void section_helpers(const demo_state & /**/) {
-        if (!ImGui::CollapsingHeader("Helpers")) return;
-
-        ImGui::TextWrapped("Small reusable widgets: help markers, section headers, label-value rows, shortcuts.");
-        ImGui::Spacing();
-
-        iu::section_header("Section Header");
-        iu::label_value("FPS:", "60.0");
-        iu::label_value_colored("Status:", iu::colors::success, "Online");
-        iu::help_marker("This is a help tooltip.");
-
-        ImGui::Spacing();
-        static constexpr std::array<iu::shortcut, 3> shortcuts = {{
-            {.key = "Ctrl+S", .description = "Save project"},
-            {.key = "Ctrl+Z", .description = "Undo"},
-            {.key = "Ctrl+P", .description = "Command palette"},
-        }};
-        iu::shortcut_list("Keyboard Shortcuts", shortcuts);
     }
 
 } // anonymous namespace
@@ -987,15 +888,12 @@ int main() {
             if (ImGui::Button("Theme Editor")) state.show_theme_editor = !state.show_theme_editor;
 
             section_confirm_button(state);
-            section_controls(state);
             section_curve_editor(state);
             section_diff_viewer(state);
             section_drag_drop(state);
-            section_helpers(state);
             section_hex_viewer(state);
             section_inline_edit(state);
             section_key_binding(state);
-            section_layout_helpers(state);
             section_log_viewer(state);
             section_menu_bar_builder(state);
             section_modal(state);
@@ -1008,7 +906,6 @@ int main() {
             section_splitter(state);
             section_table(state);
             section_tag_input(state);
-            section_text(state);
             section_timeline(state);
             section_toast(state);
             section_toolbar(state);
