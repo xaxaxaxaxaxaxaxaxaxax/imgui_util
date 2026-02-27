@@ -52,11 +52,11 @@ static_assert(editor_size.width == 500.0f);
 static_assert(editor_size.height == 600.0f);
 
 TEST(LayoutPresets, SizePresetVec) {
-    constexpr auto dv = dialog_size.vec();
+    constexpr auto dv = dialog_size.operator ImVec2();
     EXPECT_FLOAT_EQ(dv.x, 500.0f);
     EXPECT_FLOAT_EQ(dv.y, 400.0f);
 
-    constexpr auto ev = editor_size.vec();
+    constexpr auto ev = editor_size.operator ImVec2();
     EXPECT_FLOAT_EQ(ev.x, 500.0f);
     EXPECT_FLOAT_EQ(ev.y, 600.0f);
 }
@@ -89,7 +89,8 @@ TEST(LayoutPresets, WithWithoutRoundTrip) {
 // --- Exact flag composition checks ---
 
 static_assert(window::modal_dialog
-              == (ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse));
+              == (ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse
+                  | ImGuiWindowFlags_NoSavedSettings));
 static_assert(window::sidebar
               == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
                   | ImGuiWindowFlags_NoCollapse));
@@ -98,7 +99,7 @@ static_assert(window::overlay
                   | ImGuiWindowFlags_NoSavedSettings));
 static_assert(window::popup
               == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
-                  | ImGuiWindowFlags_AlwaysAutoResize));
+                  | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings));
 static_assert(window::navbar
               == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
                   | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking
@@ -145,7 +146,7 @@ TEST(LayoutPresets, CompactTableFlags) {
 }
 
 TEST(LayoutPresets, AutoSize) {
-    constexpr auto v = defaults::auto_size.vec();
+    constexpr auto v = defaults::auto_size.operator ImVec2();
     EXPECT_FLOAT_EQ(v.x, 0.0f);
     EXPECT_FLOAT_EQ(v.y, 0.0f);
 }
@@ -165,13 +166,13 @@ TEST(LayoutPresets, SizePresetWithHeight) {
 }
 
 TEST(LayoutPresets, SizePresetExplicitConversion) {
-    constexpr ImVec2 v = dialog_size.vec();
+    constexpr ImVec2 v = dialog_size.operator ImVec2();
     EXPECT_FLOAT_EQ(v.x, 500.0f);
     EXPECT_FLOAT_EQ(v.y, 400.0f);
 }
 
 TEST(LayoutPresets, SizePresetVecRoundTrip) {
-    constexpr ImVec2 v = editor_size.vec();
+    constexpr ImVec2 v = editor_size.operator ImVec2();
     EXPECT_FLOAT_EQ(v.x, editor_size.width);
     EXPECT_FLOAT_EQ(v.y, editor_size.height);
 }

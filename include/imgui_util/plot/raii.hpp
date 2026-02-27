@@ -90,7 +90,7 @@ namespace imgui_util::implot {
     struct plot_clip_rect_trait {
         static constexpr auto policy = end_policy::none;
         using storage                = std::monostate;
-        static void begin(const float expand = 0) noexcept { ImPlot::PushPlotClipRect(expand); }
+        static void begin(const float expand = 0.0f) noexcept { ImPlot::PushPlotClipRect(expand); }
         static void end() noexcept { ImPlot::PopPlotClipRect(); }
     };
 
@@ -105,7 +105,7 @@ namespace imgui_util::implot {
     struct drag_drop_source_plot_trait {
         static constexpr auto policy = end_policy::conditional;
         using storage                = std::monostate;
-        static bool begin(const ImGuiDragDropFlags flags = 0) noexcept {
+        static bool begin(const ImGuiDragDropFlags flags = ImGuiDragDropFlags_None) noexcept {
             return ImPlot::BeginDragDropSourcePlot(flags);
         }
         static void end() noexcept { ImPlot::EndDragDropSource(); }
@@ -114,7 +114,7 @@ namespace imgui_util::implot {
     struct drag_drop_source_axis_trait {
         static constexpr auto policy = end_policy::conditional;
         using storage                = std::monostate;
-        static bool begin(const ImAxis axis, const ImGuiDragDropFlags flags = 0) noexcept {
+        static bool begin(const ImAxis axis, const ImGuiDragDropFlags flags = ImGuiDragDropFlags_None) noexcept {
             return ImPlot::BeginDragDropSourceAxis(axis, flags);
         }
         static void end() noexcept { ImPlot::EndDragDropSource(); }
@@ -123,7 +123,7 @@ namespace imgui_util::implot {
     struct drag_drop_source_item_trait {
         static constexpr auto policy = end_policy::conditional;
         using storage                = std::monostate;
-        static bool begin(const char *label_id, const ImGuiDragDropFlags flags = 0) noexcept {
+        static bool begin(const char *label_id, const ImGuiDragDropFlags flags = ImGuiDragDropFlags_None) noexcept {
             return ImPlot::BeginDragDropSourceItem(label_id, flags);
         }
         static void end() noexcept { ImPlot::EndDragDropSource(); }

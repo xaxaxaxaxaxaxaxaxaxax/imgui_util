@@ -161,7 +161,7 @@ TEST(TryParseNamed, U32) {
 
 TEST(ParseFloatComponents, ThreeComponents) {
     std::array<float, 3> arr = {0.0f, 0.0f, 0.0f};
-    parse_float_components<3>("1.0,2.0,3.0", std::span<float, 3>{arr});
+    EXPECT_TRUE(parse_float_components<3>("1.0,2.0,3.0", std::span<float, 3>{arr}));
     EXPECT_NEAR(arr[0], 1.0f, 0.001f);
     EXPECT_NEAR(arr[1], 2.0f, 0.001f);
     EXPECT_NEAR(arr[2], 3.0f, 0.001f);
@@ -169,7 +169,7 @@ TEST(ParseFloatComponents, ThreeComponents) {
 
 TEST(ParseFloatComponents, PartialFill) {
     std::array<float, 3> arr = {10.0f, 20.0f, 30.0f};
-    parse_float_components<3>("5.0", std::span<float, 3>{arr});
+    EXPECT_TRUE(parse_float_components<3>("5.0", std::span<float, 3>{arr}));
     EXPECT_NEAR(arr[0], 5.0f, 0.001f);
     // Remaining values stay at their initial values
     EXPECT_NEAR(arr[1], 20.0f, 0.001f);
@@ -178,7 +178,7 @@ TEST(ParseFloatComponents, PartialFill) {
 
 TEST(ParseFloatComponents, FourComponents) {
     std::array<float, 4> arr = {0.0f, 0.0f, 0.0f, 0.0f};
-    parse_float_components<4>("0.1,0.2,0.3,0.4", std::span<float, 4>{arr});
+    EXPECT_TRUE(parse_float_components<4>("0.1,0.2,0.3,0.4", std::span<float, 4>{arr}));
     EXPECT_NEAR(arr[0], 0.1f, 0.001f);
     EXPECT_NEAR(arr[1], 0.2f, 0.001f);
     EXPECT_NEAR(arr[2], 0.3f, 0.001f);
@@ -241,7 +241,7 @@ TEST(ParseImU32, ClampValues) {
 
 TEST(ParseFloatComponents, WhitespacePaddedCsv) {
     std::array<float, 3> arr = {0.0f, 0.0f, 0.0f};
-    parse_float_components<3>("1.0, 2.0, 3.0", std::span<float, 3>{arr});
+    EXPECT_TRUE(parse_float_components<3>("1.0, 2.0, 3.0", std::span<float, 3>{arr}));
     EXPECT_NEAR(arr[0], 1.0f, 0.001f);
     EXPECT_NEAR(arr[1], 2.0f, 0.001f);
     EXPECT_NEAR(arr[2], 3.0f, 0.001f);

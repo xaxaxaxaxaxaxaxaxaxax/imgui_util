@@ -83,6 +83,12 @@ namespace imgui_util {
     [[nodiscard]] inline bool key_binding_editor(const char *label, key_combo *combo) noexcept {
         ImGuiWindow *win = ImGui::GetCurrentWindow();
         if (win->SkipItems) return false;
+        if (combo == nullptr) {
+            ImGui::TextUnformatted("(none)");
+            ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+            ImGui::TextUnformatted(label);
+            return false;
+        }
 
         const ImGuiID widget_id = win->GetID(label);
         const auto   &style     = ImGui::GetStyle();

@@ -59,8 +59,8 @@ namespace imgui_util {
         /// @brief Append formatted text to the buffer. Truncates on overflow.
         template<typename... Args>
         constexpr void append(std::format_string<Args...> fmt, Args &&...args) {
+            if (len >= N - 1) return;
             const auto remaining = static_cast<std::ptrdiff_t>(N - 1 - len);
-            if (remaining <= 0) return;
             auto result = std::format_to_n(buf.data() + len, remaining, fmt, std::forward<Args>(args)...);
             len         = static_cast<uint16_t>(result.out - buf.data());
             buf[len]    = '\0';
@@ -77,7 +77,7 @@ namespace imgui_util {
 
     /// @brief Format a count with K/M suffixes (e.g. 1500 -> "1.5K", 2000000 -> "2.0M").
     // NOTE: effectively constexpr in C++26 only (std::format_to_n, P2510R3).
-    [[nodiscard]] constexpr fmt_buf<32> format_count(const std::integral auto count) {
+    [[nodiscard]] constexpr fmt_buf<32> format_count(const std::signed_integral auto count) {
         const auto c = static_cast<int64_t>(count);
         // 999'950 rounds to "1.0M" at 1 decimal, avoiding "1000.0K"
         if (c >= 999'950) {
@@ -91,10 +91,11 @@ namespace imgui_util {
 
     /// @brief Format byte size with B/KB/MB/GB suffixes (e.g. 1536 -> "1.5 KB").
     // NOTE: effectively constexpr in C++26 only (std::format_to_n, P2510R3).
-    [[nodiscard]] constexpr fmt_buf<32> format_bytes(int64_t bytes) { // NOLINT(readability-function-size)
-        constexpr int64_t kb = 1024;
-        constexpr int64_t mb = kb * 1024;
-        constexpr int64_t gb = mb * 1024;
+    [[nodiscard]] constexpr fmt_buf<32> format_bytes(const std::integral auto bytes_in) { // NOLINT(readability-function-size)
+        const auto        bytes = static_cast<int64_t>(bytes_in);
+        constexpr int64_t kb    = 1024;
+        constexpr int64_t mb    = kb * 1024;
+        constexpr int64_t gb    = mb * 1024;
         if (bytes < kb) {
             return fmt_buf<32>("{} B", bytes);
         }

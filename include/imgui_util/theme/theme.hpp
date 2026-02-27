@@ -2,7 +2,7 @@
 /// @brief Preset-driven theme definition and constexpr color derivation.
 ///
 /// For compile-time use (no ImNodes context):
-///   constexpr auto core = theme_config::from_preset_core(my_preset, +1.0f);
+///   constexpr auto core = theme_config::from_preset_core(my_preset, theme_mode::dark);
 ///
 /// Usage:
 /// @code
@@ -159,15 +159,6 @@ namespace imgui_util::theme {
          * @param mode   Dark (offsets go brighter) or light (offsets go darker).
          */
         static constexpr theme_config from_preset_core(const theme_preset &preset, theme_mode mode = theme_mode::dark);
-
-        [[deprecated("use theme_mode overload")]] static theme_config from_preset(const theme_preset &preset,
-                                                                                  const float         offset_dir) {
-            return from_preset(preset, offset_dir > 0 ? theme_mode::dark : theme_mode::light);
-        }
-        [[deprecated("use theme_mode overload")]] static constexpr theme_config
-        from_preset_core(const theme_preset &preset, const float offset_dir) {
-            return from_preset_core(preset, offset_dir > 0 ? theme_mode::dark : theme_mode::light);
-        }
 
         /**
          * @brief Fill any unset node_colors entries with ImNodes default colors.
@@ -379,9 +370,11 @@ namespace imgui_util::theme {
         set_node(ImNodesCol_NodeBackground,
                  preset.node_background != 0 ? preset.node_background : default_node_background);
         set_node(ImNodesCol_NodeBackgroundHovered,
-                 preset.node_background_hovered != 0 ? preset.node_background_hovered : default_node_background_hovered);
+                 preset.node_background_hovered != 0 ? preset.node_background_hovered
+                                                     : default_node_background_hovered);
         set_node(ImNodesCol_NodeBackgroundSelected,
-                 preset.node_background_selected != 0 ? preset.node_background_selected : default_node_background_selected);
+                 preset.node_background_selected != 0 ? preset.node_background_selected
+                                                      : default_node_background_selected);
         set_node(ImNodesCol_NodeOutline, preset.node_outline != 0 ? preset.node_outline : default_node_outline);
         set_node(ImNodesCol_TitleBar, preset.node_title_bar);
         set_node(ImNodesCol_TitleBarHovered, preset.node_title_bar_hovered);
@@ -424,7 +417,7 @@ namespace imgui_util::theme {
      * @param t Interpolation factor.
      * @return Newly constructed interpolated theme_config.
      */
-    [[nodiscard]] constexpr theme_config lerp(const theme_config &a, const theme_config &b, const float t) {
+    [[nodiscard]] constexpr theme_config lerp(const theme_config &a, const theme_config &b, const float t) noexcept {
         using color::float4_to_u32;
         using color::u32_to_float4;
 
@@ -455,8 +448,23 @@ namespace imgui_util::theme {
             }
         }
 
+        // Lerp optional preset RGB fields
+        for (const auto &[name, ptr]: theme_opt_rgb_fields) {
+            const auto &oa = a.*ptr;
+            if (const auto &ob = b.*ptr; oa && ob) {
+                rgb_color c{};
+                for (int j = 0; j < 3; j++) {
+                    c.channels[j] = oa->channels[j] * s + ob->channels[j] * t;
+                }
+                result.*ptr = c;
+            } else if (oa) {
+                result.*ptr = oa;
+            } else if (ob) {
+                result.*ptr = ob;
+            }
+        }
+
         return result;
     }
-
 
 } // namespace imgui_util::theme

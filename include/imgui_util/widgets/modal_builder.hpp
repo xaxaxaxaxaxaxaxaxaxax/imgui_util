@@ -117,8 +117,8 @@ namespace imgui_util {
                 }
 
                 {
+                    std::optional<style_colors> danger_style;
                     if (danger_) {
-                        std::optional<style_colors> danger_style;
                         danger_style.emplace(std::initializer_list<style_color_entry>{
                             {ImGuiCol_Button, colors::error_dark},
                             {ImGuiCol_ButtonHovered, colors::error},

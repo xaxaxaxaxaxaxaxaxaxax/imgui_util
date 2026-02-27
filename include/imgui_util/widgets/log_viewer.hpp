@@ -235,8 +235,8 @@ namespace imgui_util {
             const char *const prefix = level_prefix(entry.lvl);
 
             const id id_scope{row};
+            std::optional<style_color> color_scope;
             if (entry.lvl != level::info) {
-                std::optional<style_color> color_scope;
                 color_scope.emplace(ImGuiCol_Text, entry.lvl == level::warning ? colors::warning : colors::error);
             }
             if (show_timestamps_) {

@@ -45,7 +45,7 @@ namespace imgui_util {
          * @return Reference to this panel for chaining.
          */
         [[nodiscard]] settings_panel &section(const std::string_view          name,
-                                              std::move_only_function<void()> render_fn) noexcept {
+                                              std::move_only_function<void()> render_fn) {
             sections_.push_back({.name = std::string(name), .parent = {}, .render_fn = std::move(render_fn)});
             return *this;
         }
@@ -58,7 +58,7 @@ namespace imgui_util {
          * @return Reference to this panel for chaining.
          */
         [[nodiscard]] settings_panel &section(const std::string_view name, const std::string_view parent,
-                                              std::move_only_function<void()> render_fn) noexcept {
+                                              std::move_only_function<void()> render_fn) {
             sections_.push_back(
                 {.name = std::string(name), .parent = std::string(parent), .render_fn = std::move(render_fn)});
             return *this;

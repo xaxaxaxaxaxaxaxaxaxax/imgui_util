@@ -61,6 +61,17 @@ namespace imgui_util {
         }
 
         /**
+         * @brief Render a read-only hex view from a uint8_t span.
+         * @param id           ImGui child window ID.
+         * @param data         Byte data to display.
+         * @param base_address Address shown in the gutter for the first byte.
+         */
+        void render(const std::string_view id, const std::span<const uint8_t> data,
+                    const std::size_t base_address = 0) {
+            render(id, std::as_bytes(data), base_address);
+        }
+
+        /**
          * @brief Render an editable hex view. Double-click a byte to edit it.
          * @param id           ImGui child window ID.
          * @param data         Mutable byte data to display and edit.
@@ -114,9 +125,10 @@ namespace imgui_util {
         // editing state
         std::optional<std::size_t>   editing_offset_;
         std::array<char, 3>          edit_buf_{};
-        bool                         modified_       = false;
-        float                        cached_char_w_  = 0.0f;
-        float                        cached_space_w_ = 0.0f;
+        bool                         modified_        = false;
+        float                        cached_char_w_   = 0.0f;
+        float                        cached_space_w_  = 0.0f;
+        ImFont                      *cached_font_     = nullptr;
 
         void draw_row_backgrounds(const ImVec2 row_pos, const float row_h, const std::size_t row_offset,
                                   const std::size_t row_bytes, const row_layout &lay) const {
@@ -241,9 +253,10 @@ namespace imgui_util {
 
             const std::size_t total_rows = (data_size + bytes_per_row_ - 1) / bytes_per_row_;
 
-            if (cached_char_w_ == 0.0f) {
+            if (ImFont *const font = ImGui::GetFont(); font != cached_font_) {
                 cached_char_w_  = ImGui::CalcTextSize("F").x;
                 cached_space_w_ = ImGui::CalcTextSize(" ").x;
+                cached_font_    = font;
             }
             const float      char_w  = cached_char_w_;
             const float      space_w = cached_space_w_;

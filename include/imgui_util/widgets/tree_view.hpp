@@ -45,27 +45,27 @@ namespace imgui_util {
         explicit tree_view(const char *id) noexcept : id_(id) {}
 
         /// @brief Set the callback that returns child nodes for a given node.
-        tree_view &set_children(children_fn fn) noexcept {
+        [[nodiscard]] tree_view &set_children(children_fn fn) noexcept {
             children_fn_ = std::move(fn);
             return *this;
         }
         /// @brief Set the callback that returns the display label for a node.
-        tree_view &set_label(label_fn fn) noexcept {
+        [[nodiscard]] tree_view &set_label(label_fn fn) noexcept {
             label_fn_ = std::move(fn);
             return *this;
         }
         /// @brief Set the callback invoked when a node is selected.
-        tree_view &set_on_select(select_fn fn) noexcept {
+        [[nodiscard]] tree_view &set_on_select(select_fn fn) noexcept {
             select_fn_ = std::move(fn);
             return *this;
         }
         /// @brief Set the callback invoked to render a right-click context menu for a node.
-        tree_view &set_on_context_menu(context_menu_fn fn) noexcept {
+        [[nodiscard]] tree_view &set_on_context_menu(context_menu_fn fn) noexcept {
             context_fn_ = std::move(fn);
             return *this;
         }
         /// @brief Set a predicate that overrides the default leaf detection (empty children).
-        tree_view &set_is_leaf(leaf_fn fn) noexcept {
+        [[nodiscard]] tree_view &set_is_leaf(leaf_fn fn) noexcept {
             leaf_fn_ = std::move(fn);
             return *this;
         }

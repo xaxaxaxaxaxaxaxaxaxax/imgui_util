@@ -144,7 +144,7 @@ namespace imgui_util::parse {
      * @return True if at least one component was successfully parsed.
      */
     template<size_t N>
-    constexpr bool parse_float_components(const std::string_view sv, std::span<float, N> out) noexcept {
+    [[nodiscard]] constexpr bool parse_float_components(const std::string_view sv, std::span<float, N> out) noexcept {
         bool parsed = false;
         for_each_csv_token(sv, N, [&](size_t i, const std::string_view part) {
             if (auto v = try_parse<float>(part)) {
@@ -156,12 +156,12 @@ namespace imgui_util::parse {
     }
 
     /// @brief Parse 3 comma-separated floats as RGB into a span.
-    constexpr bool parse_float_rgb(const std::string_view sv, std::span<float, 3> out) noexcept {
+    [[nodiscard]] constexpr bool parse_float_rgb(const std::string_view sv, const std::span<float, 3> out) noexcept {
         return parse_float_components<3>(sv, out);
     }
 
     /// @brief Parse 4 comma-separated floats as RGBA into a span.
-    constexpr bool parse_float_rgba(const std::string_view sv, std::span<float, 4> out) noexcept {
+    [[nodiscard]] constexpr bool parse_float_rgba(const std::string_view sv, const std::span<float, 4> out) noexcept {
         return parse_float_components<4>(sv, out);
     }
 
@@ -169,7 +169,7 @@ namespace imgui_util::parse {
     [[nodiscard]] constexpr ImVec2 parse_vec2(const std::string_view sv,
                                               const ImVec2           default_val = {0.0f, 0.0f}) noexcept {
         std::array components = {default_val.x, default_val.y};
-        parse_float_components<2>(sv, std::span{components});
+        (void)parse_float_components<2>(sv, std::span{components});
         return {components[0], components[1]};
     }
 
@@ -177,7 +177,7 @@ namespace imgui_util::parse {
     [[nodiscard]] constexpr ImVec4 parse_vec4(const std::string_view sv,
                                               const ImVec4           default_val = {0.0f, 0.0f, 0.0f, 1.0f}) noexcept {
         std::array components = {default_val.x, default_val.y, default_val.z, default_val.w};
-        parse_float_components<4>(sv, std::span{components});
+        (void)parse_float_components<4>(sv, std::span{components});
         return {components[0], components[1], components[2], components[3]};
     }
 

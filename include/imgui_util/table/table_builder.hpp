@@ -22,6 +22,7 @@
 #include <optional>
 #include <ranges>
 #include <span>
+#include <string>
 #include <string_view>
 #include <tuple>
 #include <unordered_set>
@@ -51,7 +52,7 @@ namespace imgui_util {
 
     /// @brief Non-template configuration state shared across table_builder type morphs.
     struct table_config {
-        std::string_view         id;
+        std::string              id;
         ImGuiTableFlags          flags            = ImGuiTableFlags_None;
         int                      freeze_cols      = 0;
         int                      freeze_rows      = 0;
@@ -92,7 +93,7 @@ namespace imgui_util {
 
         /// @brief Set the ImGui table string ID.
         table_builder set_id(const std::string_view id) && {
-            cfg_.id = id;
+            cfg_.id = std::string(id);
             return std::move(*this);
         }
         /// @brief Set ImGuiTableFlags for the table.
@@ -167,7 +168,7 @@ namespace imgui_util {
         }
 
         /// @brief Set a callback invoked when a row is double-clicked.
-        table_builder set_row_activate(std::move_only_function<void(const RowT &)> fn) && {
+        table_builder set_row_activate(std::move_only_function<void(const RowT &, int index)> fn) && {
             row_activate_fn_ = std::move(fn);
             return std::move(*this);
         }
@@ -263,6 +264,21 @@ namespace imgui_util {
         template<std::ranges::sized_range R>
             requires std::convertible_to<std::ranges::range_reference_t<R>, const RowT &>
         void render_clipped(R &&data) { // NOLINT(cppcoreguidelines-missing-std-forward)
+            if constexpr (has_row_id) {
+                if constexpr (std::ranges::random_access_range<R>) {
+                    index_to_id_ = [this, &data](const int idx) {
+                        return row_id_for(*(std::ranges::begin(data) + idx), idx);
+                    };
+                } else {
+                    index_to_id_ = [this, &data](const int idx) {
+                        auto it = std::ranges::begin(data);
+                        std::ranges::advance(it, idx);
+                        return row_id_for(*it, idx);
+                    };
+                }
+            } else {
+                index_to_id_ = nullptr;
+            }
             if constexpr (has_filter) {
                 rebuild_filter_range(data);
                 clip_and_render(static_cast<int>(filtered_indices_.size()), [&](const int fi) {
@@ -344,11 +360,28 @@ namespace imgui_util {
             ImGui::TableSetColumnEnabled(col_index, visible);
         }
 
+        /// @brief Clear all selected rows.
+        void clear_selection() const {
+            if (cfg_.selection) cfg_.selection->clear();
+        }
+
+        /// @brief Return true if the row with the given ID is currently selected.
+        [[nodiscard]] bool is_selected(const int row_id) const {
+            return (cfg_.selection != nullptr) && cfg_.selection->contains(row_id);
+        }
+
+        /// @brief Select all rows in data.
+        void select_all(std::span<const RowT> data) {
+            if (!cfg_.selection) return;
+            for (int i = 0; i < static_cast<int>(data.size()); ++i)
+                cfg_.selection->insert(row_id_for(data[i], i));
+        }
+
     private:
         template<typename NewCols>
-        table_builder(const table_config cfg, NewCols &&cols, FilterFn filter, RowIdFn row_id,
+        table_builder(table_config cfg, NewCols &&cols, FilterFn filter, RowIdFn row_id,
                       row_highlight_fn<RowT> highlight = {}) :
-            cfg_(cfg),
+            cfg_(std::move(cfg)),
             cols_(std::forward<NewCols>(cols)),
             filter_(std::move(filter)),
             row_id_fn_(std::move(row_id)),
@@ -361,11 +394,12 @@ namespace imgui_util {
         [[no_unique_address]] FilterFn filter_{};
         [[no_unique_address]] RowIdFn  row_id_fn_{};
 
-        mutable std::vector<int>                    filtered_indices_;
-        mutable bool                                filter_dirty_ = true;
-        row_highlight_fn_t                          row_highlight_fn_;
-        std::move_only_function<void()>             empty_state_fn_;
-        std::move_only_function<void(const RowT &)> row_activate_fn_;
+        mutable std::vector<int>                               filtered_indices_;
+        mutable bool                                           filter_dirty_ = true;
+        row_highlight_fn_t                                     row_highlight_fn_;
+        std::move_only_function<void()>                        empty_state_fn_;
+        std::move_only_function<void(const RowT &, int index)> row_activate_fn_;
+        std::function<int(int)>                                index_to_id_;
 
         void render_empty_state() {
             ImGui::TableNextRow();
@@ -422,43 +456,44 @@ namespace imgui_util {
             }
         }
 
-        void check_row_activate(const RowT &data) {
+        void check_row_activate(const RowT &data, const int index) {
             if (row_activate_fn_ && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                row_activate_fn_(data);
+                row_activate_fn_(data, index);
             }
         }
 
-        void handle_selection_click(const int rid, const bool is_selected) {
+        void handle_selection_click(const int row_index, const int row_id, const bool is_selected) {
             if (const auto &io = ImGui::GetIO(); io.KeyShift && cfg_.last_clicked_row >= 0) {
-                const int lo = std::min(cfg_.last_clicked_row, rid);
-                const int hi = std::max(cfg_.last_clicked_row, rid);
+                const int lo = std::min(cfg_.last_clicked_row, row_index);
+                const int hi = std::max(cfg_.last_clicked_row, row_index);
                 for (int r = lo; r <= hi; ++r)
-                    cfg_.selection->insert(r);
+                    cfg_.selection->insert(index_to_id_ ? index_to_id_(r) : r);
             } else if (io.KeyCtrl) {
                 if (is_selected)
-                    cfg_.selection->insert(rid);
+                    cfg_.selection->insert(row_id);
                 else
-                    cfg_.selection->erase(rid);
+                    cfg_.selection->erase(row_id);
             } else {
                 cfg_.selection->clear();
-                cfg_.selection->insert(rid);
+                cfg_.selection->insert(row_id);
             }
-            cfg_.last_clicked_row = rid;
+            cfg_.last_clicked_row = row_index;
         }
 
-        void render_row_with_selection(const RowT &data, const int rid) {
+        void render_row_with_selection(const RowT &data, const int index) {
+            const int row_id = row_id_for(data, index);
             ImGui::TableNextRow();
             apply_row_highlight(data);
 
             if (cfg_.selection != nullptr) {
                 ImGui::TableSetColumnIndex(0);
-                const bool was_selected = cfg_.selection->contains(rid);
+                const bool was_selected = cfg_.selection->contains(row_id);
                 bool       is_selected  = was_selected;
                 ImGui::Selectable("##sel", &is_selected,
                                   ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap);
-                check_row_activate(data);
+                check_row_activate(data, index);
                 if (is_selected != was_selected) {
-                    handle_selection_click(rid, is_selected);
+                    handle_selection_click(index, row_id, is_selected);
                 }
                 ImGui::SameLine();
             }
@@ -466,7 +501,7 @@ namespace imgui_util {
             render_columns(data, std::make_index_sequence<std::tuple_size_v<Cols>>{});
 
             if (cfg_.selection == nullptr) {
-                check_row_activate(data);
+                check_row_activate(data, index);
             }
         }
 

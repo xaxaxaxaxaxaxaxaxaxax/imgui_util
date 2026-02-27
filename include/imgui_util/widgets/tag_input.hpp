@@ -120,14 +120,18 @@ namespace imgui_util {
             const float input_w = wrap_width - cursor_x;
             ImGui::SetCursorScreenPos({origin.x + cursor_x, origin.y + cursor_y});
 
-            // Single static buffer -- only one InputText can be active at a time.
-            // Reset when switching between different tag_input instances.
-            static std::array<char, 128> input_buf{};
-            static ImGuiID               active_buf_id = 0;
-            if (const ImGuiID buf_id = ImGui::GetID("##tag_buf"); active_buf_id != buf_id) {
-                input_buf[0]  = '\0';
-                active_buf_id = buf_id;
+            // Per-instance buffer stored in ImGui state storage to support multiple tag_input widgets.
+            const ImGuiID buf_id  = ImGui::GetID("##tag_buf");
+            auto *const   storage = ImGui::GetStateStorage();
+            // Store pointer to heap-allocated buffer in state storage
+            using tag_buf_t = std::array<char, 128>;
+            auto *buf_ptr   = static_cast<tag_buf_t *>(storage->GetVoidPtr(buf_id));
+            if (buf_ptr == nullptr) {
+                buf_ptr       = IM_NEW(tag_buf_t);
+                (*buf_ptr)[0] = '\0';
+                storage->SetVoidPtr(buf_id, buf_ptr);
             }
+            auto &input_buf = *buf_ptr;
 
             const item_width iw{input_w > 0.0f ? input_w : -1.0f};
             if (ImGui::InputTextWithHint("##tag_add", "Add tag...", input_buf.data(), input_buf.size(),

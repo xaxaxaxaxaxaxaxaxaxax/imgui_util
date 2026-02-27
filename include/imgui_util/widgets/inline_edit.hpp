@@ -56,7 +56,7 @@ namespace imgui_util {
             // Single static buffer -- only one InputText can be focused at a time
             std::array<char, 256> edit_buf{};
 
-            // Initialize buffer on first edit frame
+            // Initialize buffer on first edit frame only
             const ImGuiID init_id  = ImGui::GetID("##init");
             auto *const   init_val = storage->GetIntRef(init_id, 0);
             if (*init_val == 0) {

@@ -19,6 +19,7 @@
 #pragma once
 
 #include <imgui.h>
+#include <optional>
 
 namespace imgui_util::layout {
 
@@ -46,26 +47,26 @@ namespace imgui_util::layout {
     class [[nodiscard]] horizontal_layout {
     public:
         /// @brief Construct a horizontal layout group.
-        /// @param spacing  Pixel spacing between items (-1 = use default ImGui spacing).
-        explicit horizontal_layout(const float spacing = -1.0f) noexcept : spacing_(spacing) {}
+        /// @param spacing  Pixel spacing between items (nullopt = use default ImGui spacing).
+        explicit horizontal_layout(const std::optional<float> spacing = std::nullopt) noexcept : spacing_(spacing) {}
 
         /// @brief Call before each item. Inserts SameLine after the first item.
         void next() noexcept {
-            if (count_ > 0) {
-                ImGui::SameLine(0.0f, spacing_);
+            if (started_) {
+                ImGui::SameLine(0.0f, spacing_.value_or(-1.0f));
             }
-            ++count_;
+            started_ = true;
         }
 
         /// @brief Call next() then invoke a callable for the item.
-        void item(auto&& callable) noexcept(noexcept(callable())) {
+        void item(auto &&callable) noexcept(noexcept(callable())) {
             next();
             callable();
         }
 
     private:
-        float spacing_;
-        int   count_ = 0;
+        std::optional<float> spacing_;
+        bool                 started_ = false;
     };
 
 } // namespace imgui_util::layout

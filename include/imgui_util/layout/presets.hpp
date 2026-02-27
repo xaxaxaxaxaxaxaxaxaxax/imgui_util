@@ -53,15 +53,15 @@ namespace imgui_util::layout {
             | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking;
         constexpr ImGuiWindowFlags overlay = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground
             | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
-        constexpr ImGuiWindowFlags modal_dialog =
-            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
+        constexpr ImGuiWindowFlags modal_dialog = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
         constexpr ImGuiWindowFlags dockspace_host = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
             | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus
             | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
         constexpr ImGuiWindowFlags sidebar = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove
             | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
         constexpr ImGuiWindowFlags popup = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
-            | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize;
+            | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings;
 
     } // namespace window
 
@@ -96,9 +96,7 @@ namespace imgui_util::layout {
         float width;
         float height;
 
-        /// @brief Convert to ImVec2.
-        [[nodiscard]] constexpr ImVec2 vec() const noexcept { return {width, height}; }
-        /// @brief Explicit conversion to ImVec2 -- use .vec() or static_cast.
+        /// @brief Explicit conversion to ImVec2 -- use static_cast.
         explicit constexpr             operator ImVec2() const noexcept {
             return {width, height};
         }

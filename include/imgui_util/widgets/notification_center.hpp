@@ -67,7 +67,7 @@ namespace imgui_util::notification_center {
         }
 
         /// @brief Return a short text icon for the given severity (e.g. "[i]", "[!]").
-        [[nodiscard]] inline const char *severity_icon(const severity sev) noexcept {
+        [[nodiscard]] constexpr const char *severity_icon(const severity sev) noexcept {
             switch (sev) {
                 case severity::info:
                     return "[i]";

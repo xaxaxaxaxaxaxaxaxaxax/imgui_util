@@ -125,8 +125,7 @@ namespace imgui_util {
             if (t >= keys.back().time) return keys.back().value;
 
             // Find the segment containing t using binary search
-            auto it = std::lower_bound(keys.begin(), keys.end(), t,
-                                       [](const keyframe &k, float val) { return k.time < val; });
+            auto it = std::ranges::lower_bound(keys, t, std::less{}, &keyframe::time);
             if (it == keys.begin()) it = keys.begin() + 1;
             const std::size_t seg = static_cast<std::size_t>(it - keys.begin()) - 1;
 
@@ -302,11 +301,37 @@ namespace imgui_util {
                 constexpr int sample_count = 256;
                 ImVec2        prev         = ctx.to_screen(keys.front().time, keys.front().value);
 
+                std::size_t seg = 0;
                 for (int i = 1; i <= sample_count; ++i) {
-                    const float  frac = static_cast<float>(i) / static_cast<float>(sample_count);
-                    const float  t    = ctx.t_min + frac * ctx.t_range;
-                    const float  v    = evaluate(keys, t);
-                    const ImVec2 cur  = ctx.to_screen(t, v);
+                    const float frac = static_cast<float>(i) / static_cast<float>(sample_count);
+                    const float t    = ctx.t_min + frac * ctx.t_range;
+
+                    // Advance segment index linearly (keys are sorted by time)
+                    while (seg + 2 < keys.size() && keys[seg + 1].time <= t)
+                        ++seg;
+
+                    const auto &k0 = keys[seg];
+                    const auto &k1 = keys[seg + 1];
+                    const float dt = k1.time - k0.time;
+                    float       v  = NAN;
+                    if (dt <= 0.0f || t <= k0.time) {
+                        v = k0.value;
+                    } else if (t >= k1.time) {
+                        v = k1.value;
+                    } else {
+                        const float u   = (t - k0.time) / dt;
+                        const float u2  = u * u;
+                        const float u3  = u2 * u;
+                        const float h00 = 2.0f * u3 - 3.0f * u2 + 1.0f;
+                        const float h10 = u3 - 2.0f * u2 + u;
+                        const float h01 = -2.0f * u3 + 3.0f * u2;
+                        const float h11 = u3 - u2;
+                        const float m0  = k0.tangent_out * dt;
+                        const float m1  = k1.tangent_in * dt;
+                        v               = h00 * k0.value + h10 * m0 + h01 * k1.value + h11 * m1;
+                    }
+
+                    const ImVec2 cur = ctx.to_screen(t, v);
                     ctx.dl->AddLine(prev, cur, curve_color_, 2.0f);
                     prev = cur;
                 }

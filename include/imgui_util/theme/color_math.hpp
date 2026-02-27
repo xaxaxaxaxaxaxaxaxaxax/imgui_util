@@ -27,10 +27,10 @@ namespace imgui_util::color {
     struct rgb_color {
         std::array<float, 3> channels{};
 
-        constexpr float &operator[](const std::size_t i) {
+        constexpr float &operator[](const std::size_t i) noexcept {
             return channels[i];
         } // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
-        constexpr const float &operator[](const std::size_t i) const {
+        constexpr const float &operator[](const std::size_t i) const noexcept {
             return channels[i];
         } // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
 

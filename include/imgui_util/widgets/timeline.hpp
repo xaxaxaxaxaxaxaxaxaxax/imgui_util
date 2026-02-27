@@ -105,6 +105,23 @@ namespace imgui_util {
             return changed;
         }
 
+        /**
+         * @brief Render the timeline for read-only viewing (no event modification).
+         * @param str_id        ImGui ID string.
+         * @param events        Read-only span of events to draw.
+         * @param playhead      Current playhead position (may be modified by dragging).
+         * @param visible_start Left edge of the visible time range.
+         * @param visible_end   Right edge of the visible time range.
+         * @return True if the playhead was modified this frame.
+         */
+        [[nodiscard]] bool render_readonly(const std::string_view str_id, const std::span<const timeline_event> events,
+                                           float &playhead, const float visible_start,
+                                           const float visible_end) noexcept {
+            mutable_events_buf_.assign(events.begin(), events.end());
+            return render(str_id, std::span{mutable_events_buf_}, playhead, visible_start,
+                          visible_end);
+        }
+
         /// @brief Enable snap-to-grid at the given interval (0 to disable). Chainable.
         [[nodiscard]] timeline &set_snap(const float interval = 0.0f) noexcept {
             snap_ = interval;
@@ -128,6 +145,7 @@ namespace imgui_util {
         float                         snap_         = 0.0f;
         float                         track_height_ = 30.0f;
         std::vector<std::string_view> track_labels_;
+        std::vector<timeline_event>   mutable_events_buf_;
         int                           dragging_event_               = -1;
         enum class drag_edge { none, body, left, right } drag_edge_ = drag_edge::none;
         float drag_offset_                                          = 0.0f;

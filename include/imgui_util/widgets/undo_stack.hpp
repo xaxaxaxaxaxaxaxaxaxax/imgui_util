@@ -48,7 +48,7 @@ namespace imgui_util {
          * @param max_depth  Maximum number of entries retained (default 100). Oldest entries
          *                   are discarded when exceeded.
          */
-        explicit undo_stack(State initial, const std::size_t max_depth = 100) noexcept : max_depth_(max_depth) {
+        explicit undo_stack(State initial, const std::size_t max_depth = 100) : max_depth_(max_depth) {
             stack_.push_back({.description = "Initial", .state = std::move(initial)});
         }
 

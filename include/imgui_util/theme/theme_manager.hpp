@@ -13,6 +13,7 @@
 #pragma once
 
 #include <filesystem>
+#include <functional>
 #include <span>
 #include <string>
 #include <vector>
@@ -40,7 +41,7 @@ namespace imgui_util::theme {
         theme_manager();
 
         /// @brief Apply and store a theme as the current theme.
-        void set_theme(theme_config theme);
+        void                              set_theme(theme_config theme);
         [[nodiscard]] theme_config       &get_current_theme() { return current_theme_; }
         [[nodiscard]] const theme_config &get_current_theme() const { return current_theme_; }
 
@@ -50,13 +51,13 @@ namespace imgui_util::theme {
          * @brief Build a theme_config from a named built-in preset.
          * @param name Preset name (must match an entry from get_presets()).
          */
-        [[nodiscard]] static theme_config get_preset(std::string_view name);
+        [[nodiscard]] static theme_config                  get_preset(std::string_view name);
         /**
          * @brief Look up a built-in preset by name.
          * @param name Preset name.
          * @return Pointer to the preset, or nullptr if not found.
          */
-        [[nodiscard]] static const theme_preset *find_preset(std::string_view name);
+        [[nodiscard]] static const theme_preset           *find_preset(std::string_view name);
 
         /**
          * @brief Apply a built-in preset by name.
@@ -83,15 +84,20 @@ namespace imgui_util::theme {
         /// @brief Render the built-in theme editor window. Call each frame when open.
         void render_theme_editor(bool *open);
 
+        /// @brief Register a callback invoked whenever the active theme changes.
+        void set_on_theme_changed(std::function<void(const theme_config &)> fn) { on_theme_changed_ = std::move(fn); }
+
     private:
         theme_config    current_theme_;
         theme_config    editing_theme_; // scratch copy while editor is open
         bool            live_preview_ = true;
         ImGuiTextFilter color_filter_;
 
+        std::function<void(const theme_config &)> on_theme_changed_;
+
         void        render_color_category(const char *name, std::span<const int> indices);
         void        render_node_colors();
-        static void render_sizes_tab();
+        void        render_sizes_tab();
         static void render_fonts_tab();
         static void render_rendering_tab();
     };

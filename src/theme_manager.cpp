@@ -328,6 +328,26 @@ namespace imgui_util::theme {
         ImGuiCol_ResizeGripHovered,
         ImGuiCol_ResizeGripActive,
     });
+    static constexpr auto separator_indices      = std::to_array<int>({
+        ImGuiCol_Separator,
+        ImGuiCol_SeparatorHovered,
+        ImGuiCol_SeparatorActive,
+    });
+    static constexpr auto table_indices          = std::to_array<int>({
+        ImGuiCol_TableHeaderBg,
+        ImGuiCol_TableBorderStrong,
+        ImGuiCol_TableBorderLight,
+        ImGuiCol_TableRowBg,
+        ImGuiCol_TableRowBgAlt,
+    });
+    static constexpr auto overlay_indices        = std::to_array<int>({
+        ImGuiCol_TextLink,
+        ImGuiCol_DragDropTarget,
+        ImGuiCol_NavCursor,
+        ImGuiCol_NavWindowingHighlight,
+        ImGuiCol_NavWindowingDimBg,
+        ImGuiCol_ModalWindowDimBg,
+    });
 
     // ============================================================================
     // theme_manager implementation
@@ -340,6 +360,7 @@ namespace imgui_util::theme {
         current_theme_ = std::move(theme);
         current_theme_.apply();
         Log::info("Theme", "applied '", current_theme_.name, "'");
+        if (on_theme_changed_) on_theme_changed_(current_theme_);
     }
 
     const theme_preset *theme_manager::find_preset(const std::string_view name) {
@@ -355,6 +376,7 @@ namespace imgui_util::theme {
         if (const theme_preset *const preset = find_preset(name)) {
             return theme_config::from_preset(*preset);
         }
+        Log::warning("Theme", "preset '", name, "' not found; using default");
         return theme_config::from_preset(theme_presets.at(0));
     }
 
@@ -422,35 +444,42 @@ namespace imgui_util::theme {
             int        index; // index into the corresponding constexpr table or color array
         };
 
-        // Full dispatch map including node keys — built once since all key strings are
-        // composed from static constexpr names (node_color_names) and ImGui style color names.
-        static const auto field_map = [] {
-            // Owned storage for "node_" prefixed keys so string_views remain valid.
-            static std::array<std::string, ImNodesCol_COUNT> node_keys = [] {
-                std::array<std::string, ImNodesCol_COUNT> keys;
-                for (int i = 0; i < ImNodesCol_COUNT; i++)
-                    keys[i] = std::string("node_") + std::string(node_color_names[i]);
-                return keys;
-            }();
-
-            std::unordered_map<std::string_view, field_entry> map;
-            map.reserve(static_cast<size_t>(ImGuiCol_COUNT) + static_cast<size_t>(ImNodesCol_COUNT)
-                        + theme_float_fields.size() + theme_rgb_fields.size() + theme_opt_rgb_fields.size());
-            for (int i = 0; std::cmp_less(i, theme_float_fields.size()); i++)
-                map.emplace(theme_float_fields[i].name, field_entry{.kind = field_kind::float_field, .index = i});
-            for (int i = 0; std::cmp_less(i, theme_rgb_fields.size()); i++)
-                map.emplace(theme_rgb_fields[i].name, field_entry{.kind = field_kind::rgb_field, .index = i});
-            for (int i = 0; std::cmp_less(i, theme_opt_rgb_fields.size()); i++)
-                map.emplace(theme_opt_rgb_fields[i].name, field_entry{.kind = field_kind::opt_rgb_field, .index = i});
-            for (int i = 0; i < ImGuiCol_COUNT; i++)
-                map.emplace(ImGui::GetStyleColorName(i), field_entry{.kind = field_kind::imgui_color, .index = i});
+        // Full dispatch map including node keys — built once per ImGui context.
+        // Uses a pointer so initialization is deferred until this function is called
+        // (guaranteeing a live ImGui context when GetStyleColorName() is invoked).
+        static const std::unordered_map<std::string_view, field_entry> *field_map_ptr = nullptr;
+        // Owned storage for "node_" prefixed keys so string_views remain valid.
+        static std::array<std::string, ImNodesCol_COUNT>                node_keys;
+        if (!field_map_ptr) {
             for (int i = 0; i < ImNodesCol_COUNT; i++)
-                map.emplace(std::string_view(node_keys[i]), field_entry{.kind = field_kind::node_color, .index = i});
-            return map;
-        }();
+                node_keys[i] = std::string("node_") + std::string(node_color_names[i]);
 
-        std::string line;
-        bool        version_found = false;
+            static std::unordered_map<std::string_view, field_entry> field_map_storage;
+            field_map_storage.reserve(static_cast<size_t>(ImGuiCol_COUNT) + static_cast<size_t>(ImNodesCol_COUNT)
+                                      + theme_float_fields.size() + theme_rgb_fields.size()
+                                      + theme_opt_rgb_fields.size());
+            for (int i = 0; std::cmp_less(i, theme_float_fields.size()); i++)
+                field_map_storage.emplace(theme_float_fields[i].name,
+                                          field_entry{.kind = field_kind::float_field, .index = i});
+            for (int i = 0; std::cmp_less(i, theme_rgb_fields.size()); i++)
+                field_map_storage.emplace(theme_rgb_fields[i].name,
+                                          field_entry{.kind = field_kind::rgb_field, .index = i});
+            for (int i = 0; std::cmp_less(i, theme_opt_rgb_fields.size()); i++)
+                field_map_storage.emplace(theme_opt_rgb_fields[i].name,
+                                          field_entry{.kind = field_kind::opt_rgb_field, .index = i});
+            for (int i = 0; i < ImGuiCol_COUNT; i++)
+                field_map_storage.emplace(ImGui::GetStyleColorName(i),
+                                          field_entry{.kind = field_kind::imgui_color, .index = i});
+            for (int i = 0; i < ImNodesCol_COUNT; i++)
+                field_map_storage.emplace(std::string_view(node_keys[i]),
+                                          field_entry{.kind = field_kind::node_color, .index = i});
+            field_map_ptr = &field_map_storage;
+        }
+        const auto &field_map = *field_map_ptr;
+
+        std::string  line;
+        bool         version_found = false;
+        theme_config tmp           = current_theme_;
         try {
             while (std::getline(file, line)) {
                 const size_t eq = line.find('=');
@@ -468,7 +497,7 @@ namespace imgui_util::theme {
                 }
 
                 if (key == "name") {
-                    current_theme_.name = std::string(value);
+                    tmp.name = std::string(value);
                     continue;
                 }
 
@@ -476,24 +505,23 @@ namespace imgui_util::theme {
                 if (auto it = field_map.find(key); it != field_map.end()) {
                     switch (const auto &[kind, idx] = it->second; kind) {
                         case field_kind::float_field:
-                            current_theme_.*theme_float_fields[idx].ptr =
-                                parse::parse_float(value, current_theme_.*theme_float_fields[idx].ptr);
+                            tmp.*theme_float_fields[idx].ptr =
+                                parse::parse_float(value, tmp.*theme_float_fields[idx].ptr);
                             break;
                         case field_kind::rgb_field:
-                            parse::parse_float_rgb(value,
-                                                   std::span{(current_theme_.*theme_rgb_fields[idx].ptr).channels});
+                            (void) parse::parse_float_rgb(value, std::span{(tmp.*theme_rgb_fields[idx].ptr).channels});
                             break;
                         case field_kind::opt_rgb_field: {
                             rgb_color c{};
-                            parse::parse_float_rgb(value, std::span{c.channels});
-                            current_theme_.*theme_opt_rgb_fields[idx].ptr = c;
+                            (void) parse::parse_float_rgb(value, std::span{c.channels});
+                            tmp.*theme_opt_rgb_fields[idx].ptr = c;
                             break;
                         }
                         case field_kind::imgui_color:
-                            current_theme_.colors.at(idx) = parse::parse_vec4(value);
+                            tmp.colors.at(idx) = parse::parse_vec4(value);
                             break;
                         case field_kind::node_color:
-                            current_theme_.node_colors.at(idx) = parse::parse_u32(value);
+                            tmp.node_colors.at(idx) = parse::parse_u32(value);
                             break;
                     }
                     continue;
@@ -502,19 +530,18 @@ namespace imgui_util::theme {
                 // Backward compat: positional "color0=..." format
                 if (key.starts_with("color") && key.size() > 5 && key[5] >= '0' && key[5] <= '9') {
                     if (const int idx = parse::parse_int(key.substr(5), -1); idx >= 0 && idx < ImGuiCol_COUNT) {
-                        current_theme_.colors.at(idx) = parse::parse_vec4(value);
+                        tmp.colors.at(idx) = parse::parse_vec4(value);
                     }
                 }
                 // Backward compat: positional "nodeColor0=..." format
                 else if (key.starts_with("nodeColor") && key.size() > 9) {
                     if (const int idx = parse::parse_int(key.substr(9), -1); idx >= 0 && idx < ImNodesCol_COUNT) {
-                        current_theme_.node_colors.at(idx) = parse::parse_u32(value);
+                        tmp.node_colors.at(idx) = parse::parse_u32(value);
                     }
                 }
             }
         } catch (const std::exception &e) {
             Log::error("Theme", "load failed: parse error in ", path.c_str(), ": ", e.what());
-            current_theme_ = theme_config::from_preset(theme_presets.at(0));
             return false;
         }
 
@@ -522,6 +549,7 @@ namespace imgui_util::theme {
             Log::warning("Theme", "no version line in ", path.c_str(), "; assuming version ", file_version);
         }
 
+        current_theme_ = std::move(tmp);
         current_theme_.apply();
         editing_theme_ = current_theme_;
         Log::info("Theme", "loaded '", current_theme_.name, "' from ", path.c_str());
@@ -620,6 +648,9 @@ namespace imgui_util::theme {
                 render_color_category("Plot Histogram", plot_histogram_indices);
                 render_color_category("Scrollbar", scrollbar_indices);
                 render_color_category("Resize Grip", resize_grip_indices);
+                render_color_category("Separator", separator_indices);
+                render_color_category("Tables", table_indices);
+                render_color_category("Overlays & Nav", overlay_indices);
             }
             if (const tab_item ti{"Fonts"}) {
                 render_fonts_tab();
@@ -691,6 +722,14 @@ namespace imgui_util::theme {
     void theme_manager::render_sizes_tab() {
         ImGuiStyle &style = ImGui::GetStyle();
 
+        // Helper: edit a theme_config float field and mirror to live style when live_preview_ is on.
+        auto theme_slider = [&](const char *label, float theme_config::*theme_ptr, float ImGuiStyle::*style_ptr,
+                                const float min, const float max, const char *fmt = "%.0f") {
+            if (ImGui::SliderFloat(label, &(editing_theme_.*theme_ptr), min, max, fmt)) {
+                if (live_preview_) style.*style_ptr = editing_theme_.*theme_ptr;
+            }
+        };
+
         if (ImGui::CollapsingHeader("Main", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::SliderFloat("Alpha", &style.Alpha, 0.20f, 1.0f, "%.2f");
             ImGui::SliderFloat("DisabledAlpha", &style.DisabledAlpha, 0.0f, 1.0f, "%.2f");
@@ -705,10 +744,12 @@ namespace imgui_util::theme {
         }
 
         if (ImGui::CollapsingHeader("Borders")) {
-            ImGui::SliderFloat("WindowBorderSize", &style.WindowBorderSize, 0.0f, 2.0f, "%.1f");
+            theme_slider("WindowBorderSize", &theme_config::window_border_size, &ImGuiStyle::WindowBorderSize, 0.0f,
+                         2.0f, "%.1f");
             ImGui::SliderFloat("ChildBorderSize", &style.ChildBorderSize, 0.0f, 2.0f, "%.1f");
             ImGui::SliderFloat("PopupBorderSize", &style.PopupBorderSize, 0.0f, 2.0f, "%.1f");
-            ImGui::SliderFloat("FrameBorderSize", &style.FrameBorderSize, 0.0f, 2.0f, "%.1f");
+            theme_slider("FrameBorderSize", &theme_config::frame_border_size, &ImGuiStyle::FrameBorderSize, 0.0f, 2.0f,
+                         "%.1f");
             ImGui::SliderFloat("TabBorderSize", &style.TabBorderSize, 0.0f, 2.0f, "%.1f");
             ImGui::SliderFloat("TabBarBorderSize", &style.TabBarBorderSize, 0.0f, 2.0f, "%.1f");
             ImGui::SliderFloat("TabBarOverlineSize", &style.TabBarOverlineSize, 0.0f, 3.0f, "%.1f");
@@ -716,13 +757,14 @@ namespace imgui_util::theme {
         }
 
         if (ImGui::CollapsingHeader("Rounding")) {
-            ImGui::SliderFloat("WindowRounding", &style.WindowRounding, 0.0f, 14.0f, "%.0f");
+            theme_slider("WindowRounding", &theme_config::window_rounding, &ImGuiStyle::WindowRounding, 0.0f, 14.0f);
             ImGui::SliderFloat("ChildRounding", &style.ChildRounding, 0.0f, 14.0f, "%.0f");
-            ImGui::SliderFloat("FrameRounding", &style.FrameRounding, 0.0f, 14.0f, "%.0f");
+            theme_slider("FrameRounding", &theme_config::frame_rounding, &ImGuiStyle::FrameRounding, 0.0f, 14.0f);
             ImGui::SliderFloat("PopupRounding", &style.PopupRounding, 0.0f, 14.0f, "%.0f");
-            ImGui::SliderFloat("ScrollbarRounding", &style.ScrollbarRounding, 0.0f, 14.0f, "%.0f");
-            ImGui::SliderFloat("GrabRounding", &style.GrabRounding, 0.0f, 14.0f, "%.0f");
-            ImGui::SliderFloat("TabRounding", &style.TabRounding, 0.0f, 14.0f, "%.0f");
+            theme_slider("ScrollbarRounding", &theme_config::scrollbar_rounding, &ImGuiStyle::ScrollbarRounding, 0.0f,
+                         14.0f);
+            theme_slider("GrabRounding", &theme_config::grab_rounding, &ImGuiStyle::GrabRounding, 0.0f, 14.0f);
+            theme_slider("TabRounding", &theme_config::tab_rounding, &ImGuiStyle::TabRounding, 0.0f, 14.0f);
         }
 
         if (ImGui::CollapsingHeader("Tables")) {

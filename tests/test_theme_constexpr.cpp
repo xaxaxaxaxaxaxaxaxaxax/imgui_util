@@ -95,8 +95,8 @@ namespace {
     };
 
     // Build theme at compile time
-    constexpr auto dark_theme  = theme_config::from_preset_core(test_preset, 1.0f);
-    constexpr auto light_theme = theme_config::from_preset_core(test_preset, -1.0f);
+    constexpr auto dark_theme  = theme_config::from_preset_core(test_preset, theme_mode::dark);
+    constexpr auto light_theme = theme_config::from_preset_core(test_preset, theme_mode::light);
 } // namespace
 
 TEST(FromPresetCore, PresetColorsPreserved) {
@@ -187,7 +187,6 @@ TEST(FromPresetCore, ThemeModeEnum) {
 }
 
 // Verify from_preset_core is truly constexpr
-static_assert(theme_config::from_preset_core(test_preset, 1.0f).preset_accent == test_preset.accent);
 static_assert(theme_config::from_preset_core(test_preset, theme_mode::dark).preset_accent == test_preset.accent);
 
 // --- Preset without light overrides ---
@@ -215,13 +214,13 @@ namespace {
 TEST(FromPresetCore, NoLightOverrides) {
     EXPECT_FALSE(dark_only_preset.has_light());
     // Even in "light" mode, falls back to dark values since no overrides exist
-    static constexpr auto theme = theme_config::from_preset_core(dark_only_preset, -1.0f);
+    static constexpr auto theme = theme_config::from_preset_core(dark_only_preset, theme_mode::light);
     EXPECT_TRUE(theme.preset_bg_mid == dark_only_preset.bg_mid);
     EXPECT_TRUE(theme.preset_accent == dark_only_preset.accent);
 }
 
 TEST(FromPresetCore, AlternateUsedForPlotHistogram) {
-    static constexpr auto theme     = theme_config::from_preset_core(dark_only_preset, 1.0f);
+    static constexpr auto theme     = theme_config::from_preset_core(dark_only_preset, theme_mode::dark);
     // PlotHistogram should use the alternate color
     const ImVec4         &plot_hist = theme.colors.at(ImGuiCol_PlotHistogram);
     constexpr ImVec4      expected  = rgb(*dark_only_preset.alternate);
@@ -231,7 +230,7 @@ TEST(FromPresetCore, AlternateUsedForPlotHistogram) {
 }
 
 TEST(FromPresetCore, PresetAlternatePreserved) {
-    static constexpr auto theme = theme_config::from_preset_core(dark_only_preset, 1.0f);
+    static constexpr auto theme = theme_config::from_preset_core(dark_only_preset, theme_mode::dark);
     ASSERT_TRUE(theme.preset_alternate.has_value());
     EXPECT_TRUE(*theme.preset_alternate == *dark_only_preset.alternate);
 }
