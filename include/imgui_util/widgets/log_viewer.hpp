@@ -128,8 +128,7 @@ namespace imgui_util {
             text_tail_        = 0;
             text_base_offset_ = 0;
             level_counts_.fill(0);
-            last_filtered_count_ = 0;
-            last_level_mask_     = 0xFF;
+            last_level_mask_ = 0xFF;
             last_query_.fill('\0');
             scroll_to_filtered_.reset();
             scroll_to_error_last_ = 0;
@@ -210,18 +209,8 @@ namespace imgui_util {
                 std::ranges::copy_n(current_query.data(), static_cast<std::ptrdiff_t>(n), last_query_.data());
             }
 
-            // Build filtered index vector (incremental when only new entries arrived)
-            if (criteria_changed || count_ < last_filtered_count_) {
-                // Full rebuild when filter criteria changed or ring buffer wrapped
+            if (criteria_changed || drained_this_frame_) {
                 rebuild_filter(current_query);
-            } else if (count_ > last_filtered_count_) {
-                // Incremental: only scan new entries
-                for (std::size_t i = last_filtered_count_; i < count_; ++i) {
-                    if (passes_filter(i, current_query)) {
-                        filtered_.push_back(i);
-                    }
-                }
-                last_filtered_count_ = count_;
             }
         }
 
@@ -284,7 +273,6 @@ namespace imgui_util {
                     filtered_.push_back(i);
                 }
             }
-            last_filtered_count_ = count_;
         }
 
         // Check whether a logical entry index passes the current filter
@@ -436,7 +424,6 @@ namespace imgui_util {
         std::array<std::size_t, 3> level_counts_{};
 
         // Filter cache: rebuilt only when level mask or search query changes
-        std::size_t           last_filtered_count_ = 0;
         std::array<char, 256> last_query_{};
         std::uint8_t          last_level_mask_ = 0xFF;
 

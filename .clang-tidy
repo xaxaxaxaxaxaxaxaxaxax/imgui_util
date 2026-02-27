@@ -1,5 +1,6 @@
 ---
 # Exclusion rationale:
+#   bugprone-array-index                    Bounds are known at all call sites; noise for lookup-table code.
 #   bugprone-easily-swappable-parameters    Too noisy with legitimate code patterns.
 #   bugprone-empty-catch                    Sometimes intentional (e.g., cleanup that must not throw).
 #   bugprone-exception-escape               Overly aggressive; flags noexcept functions that call throwing code.
@@ -32,6 +33,7 @@
 #   readability-uppercase-literal-suffix    _KiB, _s, etc. are perfectly readable.
 Checks: '-*,
     bugprone-*,
+    -bugprone-array-index,
     -bugprone-easily-swappable-parameters,
     -bugprone-empty-catch,
     -bugprone-exception-escape,
@@ -55,9 +57,7 @@ Checks: '-*,
     -cppcoreguidelines-avoid-do-while,
     -cppcoreguidelines-avoid-magic-numbers,
     -cppcoreguidelines-non-private-member-variables-in-classes,
-    -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
-    -cppcoreguidelines-pro-bounds-constant-array-index,
-    -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+    -cppcoreguidelines-pro-bounds-*,
     -cppcoreguidelines-pro-type-const-cast,
     -cppcoreguidelines-pro-type-reinterpret-cast,
     -cppcoreguidelines-pro-type-vararg,
