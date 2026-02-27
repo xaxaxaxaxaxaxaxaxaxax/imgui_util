@@ -22,17 +22,6 @@
 
 namespace imgui_util::theme {
 
-    /// @brief Generate a valid C++ theme_preset{...} initializer string from a theme_config.
-    [[nodiscard]] std::string generate_preset_code(const theme_config &cfg);
-
-    /**
-     * @brief Validate a theme_config, returning a list of human-readable error strings.
-     *
-     * Checks for: alpha values out of [0,1], fully transparent window background,
-     * nonsensical rounding values, etc.
-     */
-    [[nodiscard]] std::vector<std::string> validate(const theme_config &cfg);
-
     /// @brief Theme persistence, preset registry, and built-in editor window.
     class theme_manager {
     public:
@@ -59,11 +48,31 @@ namespace imgui_util::theme {
          */
         [[nodiscard]] static const theme_preset           *find_preset(std::string_view name);
 
+        /// @brief Generate a valid C++ theme_preset{...} initializer string from a theme_config.
+        [[nodiscard]] static std::string generate_preset_code(const theme_config &cfg);
+
         /**
-         * @brief Apply a built-in preset by name.
+         * @brief Validate a theme_config, returning a list of human-readable error strings.
+         *
+         * Checks for: alpha values out of [0,1], fully transparent window background,
+         * nonsensical rounding values, etc.
+         */
+        [[nodiscard]] static std::vector<std::string> validate(const theme_config &cfg);
+
+        /**
+         * @brief Apply a built-in preset by name and mode.
          *
          * Looks up the preset, builds a theme_config, and applies it.
          * Logs a warning and does nothing if the preset is not found.
+         * @param name Preset name (must match an entry from get_presets()).
+         * @param mode Dark or light mode.
+         */
+        void apply_preset(std::string_view name, theme_mode mode);
+
+        /**
+         * @brief Apply a built-in preset by name in dark mode.
+         *
+         * Delegates to apply_preset(name, theme_mode::dark).
          * @param name Preset name (must match an entry from get_presets()).
          */
         void apply_preset(std::string_view name);

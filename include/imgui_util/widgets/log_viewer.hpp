@@ -9,7 +9,7 @@
 ///   static imgui_util::log_viewer log;
 ///   bool had_err = log.render([](auto cb) {
 ///       for (auto& msg : pending) cb(log_viewer::level::info, msg);
-///   }, "##LogSearch", "LogEntries");
+///   }, "##log");
 /// @endcode
 #pragma once
 
@@ -19,7 +19,6 @@
 #include <concepts>
 #include <cstdint>
 #include <cstring>
-#include <deque>
 #include <functional>
 #include <imgui.h>
 #include <optional>
@@ -63,21 +62,21 @@ namespace imgui_util {
          * @brief Drain pending entries and render the log panel. Call once per frame.
          *
          * @tparam DrainFn  Callable matching drain_fn concept.
-         * @param  drain     Callback that receives a sink: `void(auto cb)` where cb is
-         *                   `void(level, string_view)`.
-         * @param  search_id ImGui ID for the search bar widget.
-         * @param  child_id  ImGui ID for the scrollable child region.
+         * @param  drain    Callback that receives a sink: `void(auto cb)` where cb is
+         *                  `void(level, string_view)`.
+         * @param  str_id   ImGui ID string for the panel scope (sub-IDs are derived internally).
          * @return True if any error-level entries were drained this frame.
          */
         template<drain_fn DrainFn>
-        [[nodiscard]] bool render(DrainFn &&drain, const char *search_id, const char *child_id) {
+        [[nodiscard]] bool render(DrainFn &&drain, const char *str_id) {
+            const id scope{str_id};
             const bool had_error = drain_entries(std::forward<DrainFn>(drain));
 
-            render_toolbar(search_id);
+            render_toolbar();
             update_filter();
 
             // --- Scrolling child region ---
-            if (const child child_scope{child_id, ImVec2(0, 0), ImGuiChildFlags_Borders}) {
+            if (const child child_scope{"##entries", ImVec2(0, 0), ImGuiChildFlags_Borders}) {
                 ImGuiListClipper clipper;
                 clipper.Begin(static_cast<int>(filtered_.size()));
                 while (clipper.Step()) {
@@ -110,17 +109,17 @@ namespace imgui_util {
             std::size_t total_size = 0;
             for (const std::size_t idx: filtered_) {
                 const auto &entry = entry_at(idx);
-                total_size += level_prefix_len() + entry.text_length + 1; // +1 for '\n'
+                total_size += level_prefix(entry.lvl).size() + entry.text_length + 1; // +1 for '\n'
             }
 
             std::string result;
             result.reserve(total_size);
             for (const std::size_t idx: filtered_) {
-                const auto       &entry  = entry_at(idx);
-                const auto        text   = entry_text(entry);
-                const char *const prefix = level_prefix(entry.lvl);
-                result.append(prefix, level_prefix_len());
-                result.append(text.data(), text.size());
+                const auto &entry  = entry_at(idx);
+                const auto  text   = entry_text(entry);
+                const auto  prefix = level_prefix(entry.lvl);
+                result.append(prefix);
+                result.append(text);
                 result += '\n';
             }
             return result;
@@ -178,23 +177,23 @@ namespace imgui_util {
             return {text_buf_.data() + entry.text_offset - text_base_offset_, entry.text_length};
         }
 
-        void render_toolbar(const char *search_id) {
-            constexpr std::array level_indices = {
-                static_cast<int>(level::info),
-                static_cast<int>(level::warning),
-                static_cast<int>(level::error),
-            };
-
-            const std::array level_flags = {&show_info_, &show_warn_, &show_error_};
-
-            for (int li = 0; li < 3; ++li) {
-                constexpr std::array level_labels = {"Info", "Warn", "Error"};
-                if (li > 0) ImGui::SameLine();
-                const fmt_buf<32> lbl("{} ({})", level_labels[li], level_counts_[level_indices[li]]);
-                ImGui::Checkbox(lbl.c_str(), level_flags[li]);
+        void render_toolbar() {
+            {
+                const fmt_buf<32> lbl("Info ({})", level_counts_[static_cast<int>(level::info)]);
+                ImGui::Checkbox(lbl.c_str(), &show_info_);
             }
             ImGui::SameLine();
-            (void) search_.render("Search...", 200.0f, search_id);
+            {
+                const fmt_buf<32> lbl("Warn ({})", level_counts_[static_cast<int>(level::warning)]);
+                ImGui::Checkbox(lbl.c_str(), &show_warn_);
+            }
+            ImGui::SameLine();
+            {
+                const fmt_buf<32> lbl("Error ({})", level_counts_[static_cast<int>(level::error)]);
+                ImGui::Checkbox(lbl.c_str(), &show_error_);
+            }
+            ImGui::SameLine();
+            (void) search_.render("Search...", 200.0f, "##search");
             ImGui::SameLine();
             ImGui::Checkbox("Auto-scroll", &auto_scroll_);
             ImGui::SameLine();
@@ -232,28 +231,30 @@ namespace imgui_util {
         void render_row(const int row) const {
             const auto       &entry  = entry_at(filtered_[static_cast<std::size_t>(row)]);
             const auto        text   = entry_text(entry);
-            const char *const prefix = level_prefix(entry.lvl);
+            const auto prefix = level_prefix(entry.lvl);
 
             const id id_scope{row};
-            std::optional<style_color> color_scope;
-            if (entry.lvl != level::info) {
-                color_scope.emplace(ImGuiCol_Text, entry.lvl == level::warning ? colors::warning : colors::error);
-            }
+            const bool has_color = entry.lvl != level::info;
+            if (has_color)
+                ImGui::PushStyleColor(ImGuiCol_Text, entry.lvl == level::warning ? colors::warning : colors::error);
             if (show_timestamps_) {
                 const auto secs = std::chrono::duration_cast<std::chrono::seconds>(entry.timestamp.time_since_epoch());
                 const fmt_buf<24> ts_buf("[{:>6}s] ", secs.count());
                 ImGui::TextUnformatted(ts_buf.c_str(), ts_buf.end());
                 ImGui::SameLine(0.0f, 0.0f);
             }
-            ImGui::TextUnformatted(prefix);
+            ImGui::TextUnformatted(prefix.data(), prefix.data() + prefix.size());
             ImGui::SameLine(0.0f, 0.0f);
             ImGui::TextUnformatted(text.data(), text.data() + text.size());
+
+            if (has_color) ImGui::PopStyleColor();
 
             // Right-click context menu: copy line
             if (const popup_context_item ctx{"##log_ctx"}) {
                 if (ImGui::Selectable("Copy line")) {
-                    std::string full_line = prefix;
-                    full_line += text;
+                    std::string full_line;
+                    full_line.append(prefix);
+                    full_line.append(text);
                     ImGui::SetClipboardText(full_line.c_str());
                 }
             }
@@ -303,7 +304,7 @@ namespace imgui_util {
             return query.empty() || search::contains_ignore_case(entry_text(entry), query);
         }
 
-        [[nodiscard]] static constexpr const char *level_prefix(const level lvl) noexcept {
+        [[nodiscard]] static constexpr std::string_view level_prefix(const level lvl) noexcept {
             switch (lvl) {
                 case level::warning:
                     return "[WARN] ";
@@ -312,13 +313,6 @@ namespace imgui_util {
                 default:
                     return "[INFO] ";
             }
-        }
-
-        [[nodiscard]] static constexpr std::size_t level_prefix_len() noexcept {
-            constexpr auto len = std::string_view("[INFO] ").size();
-            static_assert(std::string_view("[WARN] ").size() == len);
-            static_assert(std::string_view("[ERR]  ").size() == len);
-            return len;
         }
 
         [[nodiscard]] std::uint32_t append_text(const std::string_view msg) {
@@ -437,7 +431,7 @@ namespace imgui_util {
         std::size_t                scroll_to_error_last_ = 0; // last error position for wrap-around
 
         // Pending queue for push() -- drained at start of drain_entries()
-        std::deque<pending_entry> pending_;
+        std::vector<pending_entry> pending_;
     };
 
 } // namespace imgui_util

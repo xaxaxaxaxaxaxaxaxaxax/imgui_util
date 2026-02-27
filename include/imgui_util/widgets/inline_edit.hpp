@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <array>
+#include <new>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <string>
@@ -53,8 +54,17 @@ namespace imgui_util {
         bool committed = false;
 
         if (is_editing) {
-            // Single static buffer -- only one InputText can be focused at a time
-            std::array<char, 256> edit_buf{};
+            // Per-instance buffer stored in ImGui state storage (persists across frames)
+            const ImGuiID buf_id = ImGui::GetID("##buf");
+            using edit_buf_t     = std::array<char, 256>;
+            auto *buf_ptr        = static_cast<edit_buf_t *>(storage->GetVoidPtr(buf_id));
+            if (buf_ptr == nullptr) {
+                buf_ptr = new (std::nothrow) edit_buf_t; // NOLINT(cppcoreguidelines-owning-memory)
+                if (buf_ptr == nullptr) return false;
+                (*buf_ptr)[0] = '\0';
+                storage->SetVoidPtr(buf_id, buf_ptr);
+            }
+            auto &edit_buf = *buf_ptr;
 
             // Initialize buffer on first edit frame only
             const ImGuiID init_id  = ImGui::GetID("##init");
@@ -67,26 +77,30 @@ namespace imgui_util {
                 ImGui::SetKeyboardFocusHere();
             }
 
+            const auto end_editing = [&] {
+                *editing_val = 0;
+                *init_val    = 0;
+                delete buf_ptr; // NOLINT(cppcoreguidelines-owning-memory)
+                storage->SetVoidPtr(buf_id, nullptr);
+            };
+
             ImGui::SetNextItemWidth(width > 0.0f ? width : -1.0f);
 
             if (ImGui::InputText("##input", edit_buf.data(), edit_buf.size(), ImGuiInputTextFlags_EnterReturnsTrue)) {
-                text         = edit_buf.data();
-                *editing_val = 0;
-                *init_val    = 0;
-                committed    = true;
+                text      = edit_buf.data();
+                committed = true;
+                end_editing();
             }
 
             // Escape cancels
             if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-                *editing_val = 0;
-                *init_val    = 0;
+                end_editing();
             }
 
             // Cancel when InputText loses focus (click away). IsItemDeactivated only
             // fires after the widget was active, avoiding the first-frame false trigger.
             if (!committed && *editing_val != 0 && ImGui::IsItemDeactivated()) {
-                *editing_val = 0;
-                *init_val    = 0;
+                end_editing();
             }
         } else {
             // Display mode: TextUnformatted with InvisibleButton for double-click detection

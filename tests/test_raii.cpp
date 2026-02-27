@@ -9,7 +9,7 @@ using namespace imgui_util;
 TEST(RaiiEndPolicy, EnumValuesExist) {
     [[maybe_unused]] constexpr auto always_val      = end_policy::always;
     [[maybe_unused]] constexpr auto conditional_val = end_policy::conditional;
-    [[maybe_unused]] constexpr auto none_val        = end_policy::none;
+    [[maybe_unused]] constexpr auto push_pop_val    = end_policy::push_pop;
 }
 
 // --- raii_scope is non-copyable and non-movable ---
@@ -52,35 +52,35 @@ TEST(RaiiTraits, EndPolicyValues) {
     EXPECT_EQ(table_trait::policy, end_policy::conditional);
     EXPECT_EQ(list_box_trait::policy, end_policy::conditional);
 
-    // None policy traits
-    EXPECT_EQ(style_var_trait::policy, end_policy::none);
-    EXPECT_EQ(style_color_trait::policy, end_policy::none);
-    EXPECT_EQ(id_trait::policy, end_policy::none);
-    EXPECT_EQ(item_width_trait::policy, end_policy::none);
-    EXPECT_EQ(indent_trait::policy, end_policy::none);
+    // Push/pop policy traits
+    EXPECT_EQ(style_var_trait::policy, end_policy::push_pop);
+    EXPECT_EQ(style_color_trait::policy, end_policy::push_pop);
+    EXPECT_EQ(id_trait::policy, end_policy::push_pop);
+    EXPECT_EQ(item_width_trait::policy, end_policy::push_pop);
+    EXPECT_EQ(indent_trait::policy, end_policy::push_pop);
 }
 
 // --- kHasState correctness ---
-// kHasState is true when kPolicy != end_policy::none, i.e. always and conditional
+// kHasState is true for always/conditional traits with bool begin, false for push_pop
 
 TEST(RaiiTraits, HasStateForAlwaysPolicy) {
-    // Always policy: kHasState = true (policy != none)
-    static_assert(window_trait::policy != end_policy::none);
-    static_assert(group_trait::policy != end_policy::none);
+    // Always policy with bool begin: tracks_state = true
+    static_assert(window_trait::policy != end_policy::push_pop);
+    static_assert(group_trait::policy != end_policy::push_pop);
 }
 
 TEST(RaiiTraits, HasStateForConditionalPolicy) {
-    // Conditional policy: kHasState = true (policy != none)
-    static_assert(tab_bar_trait::policy != end_policy::none);
-    static_assert(combo_trait::policy != end_policy::none);
+    // Conditional policy: tracks_state = true
+    static_assert(tab_bar_trait::policy != end_policy::push_pop);
+    static_assert(combo_trait::policy != end_policy::push_pop);
 }
 
-TEST(RaiiTraits, NoStateForNonePolicy) {
-    // None policy: kHasState = false (policy == none)
-    static_assert(style_var_trait::policy == end_policy::none);
-    static_assert(style_color_trait::policy == end_policy::none);
-    static_assert(id_trait::policy == end_policy::none);
-    static_assert(indent_trait::policy == end_policy::none);
+TEST(RaiiTraits, NoStateForPushPopPolicy) {
+    // Push/pop policy: has_state = false
+    static_assert(style_var_trait::policy == end_policy::push_pop);
+    static_assert(style_color_trait::policy == end_policy::push_pop);
+    static_assert(id_trait::policy == end_policy::push_pop);
+    static_assert(indent_trait::policy == end_policy::push_pop);
 }
 
 // --- storage type correctness ---
@@ -143,8 +143,8 @@ namespace {
         static void end() noexcept { ++mock_counter::end_count; }
     };
 
-    struct mock_none_trait {
-        static constexpr auto policy = end_policy::none;
+    struct mock_push_pop_trait {
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = std::monostate;
         static void begin() noexcept { ++mock_counter::begin_count; }
         static void end() noexcept { ++mock_counter::end_count; }
@@ -172,9 +172,9 @@ TEST(RaiiMock, ConditionalEndNotCalledWhenFalse) {
     EXPECT_EQ(mock_counter::end_count, 0);
 }
 
-TEST(RaiiMock, NoneEndAlwaysCalled) {
+TEST(RaiiMock, PushPopEndAlwaysCalled) {
     mock_counter::reset();
-    { const raii_scope<mock_none_trait> scope; }
+    { const raii_scope<mock_push_pop_trait> scope; }
     EXPECT_EQ(mock_counter::begin_count, 1);
     EXPECT_EQ(mock_counter::end_count, 1);
 }

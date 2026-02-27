@@ -2,6 +2,9 @@
 //
 // Usage:
 //   #include <imgui_util/core.hpp>
+//
+// Note: raii_internal.hpp (font_scale) depends on imgui_internal.h and is NOT included here.
+//   Include it explicitly: #include <imgui_util/core/raii_internal.hpp>
 // NOLINTBEGIN(misc-include-cleaner)
 #pragma once
 #include "imgui_util/core/error.hpp"

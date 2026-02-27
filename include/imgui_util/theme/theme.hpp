@@ -64,10 +64,10 @@ namespace imgui_util::theme {
         ImU32 node_pin_hovered;
         ImU32 node_grid_bg;
 
-        ImU32 node_background          = 0; ///< 0 = use default.
-        ImU32 node_background_hovered  = 0; ///< 0 = use default.
-        ImU32 node_background_selected = 0; ///< 0 = use default.
-        ImU32 node_outline             = 0; ///< 0 = use default.
+        std::optional<ImU32> node_background;
+        std::optional<ImU32> node_background_hovered;
+        std::optional<ImU32> node_background_selected;
+        std::optional<ImU32> node_outline;
 
         /// @brief Optional palette overrides applied in light mode.
         struct light_overrides {
@@ -84,8 +84,6 @@ namespace imgui_util::theme {
 
     /// @brief Type-safe dark/light mode selector (replaces raw float +1/-1).
     enum class theme_mode : int8_t { dark = 1, light = -1 };
-    static_assert(static_cast<float>(theme_mode::dark) == 1.0f, "theme_mode::dark must cast to +1.0f");
-    static_assert(static_cast<float>(theme_mode::light) == -1.0f, "theme_mode::light must cast to -1.0f");
 
     /// @brief Default node color constants used when a preset does not override them.
     /// @{
@@ -111,7 +109,7 @@ namespace imgui_util::theme {
         float scrollbar_rounding = 0.0f;
         float grab_rounding      = 0.0f;
 
-        std::array<ImVec4, ImGuiCol_COUNT>  colors;
+        std::array<ImVec4, ImGuiCol_COUNT>  colors{};
         std::array<ImU32, ImNodesCol_COUNT> node_colors{};
         /// @brief Tracks which node_colors entries were explicitly set by the preset
         /// (avoids using == 0 as sentinel, which would incorrectly overwrite black colors).
@@ -252,8 +250,8 @@ namespace imgui_util::theme {
         theme_config theme{};
 
         // Direction multiplier: +1 offsets go brighter (dark mode), -1 go darker (light mode)
-        const auto d        = static_cast<float>(mode);
-        const bool is_light = d < 0.0f;
+        const bool  is_light = (mode == theme_mode::light);
+        const float d        = is_light ? -1.0f : 1.0f;
 
         // Pick light-mode overrides when available
         const rgb_color bg_dark_c = is_light && preset.light ? preset.light->bg_dark : preset.bg_dark;
@@ -361,21 +359,23 @@ namespace imgui_util::theme {
         // ImNodes colors — always use dark preset values (node canvas stays dark)
         // ====================================================================
 
-        // Helper: set a node color and mark it as explicitly set
+        // Helper: set a node color and mark it as explicitly set.
+        // idx is an ImNodesCol_ enum value.
         auto set_node = [&](const int idx, const ImU32 val) {
             theme.node_colors.at(idx) = val;
             theme.node_colors_set.set(static_cast<std::size_t>(idx));
         };
 
         set_node(ImNodesCol_NodeBackground,
-                 preset.node_background != 0 ? preset.node_background : default_node_background);
+                 preset.node_background.has_value() ? *preset.node_background : default_node_background);
         set_node(ImNodesCol_NodeBackgroundHovered,
-                 preset.node_background_hovered != 0 ? preset.node_background_hovered
-                                                     : default_node_background_hovered);
+                 preset.node_background_hovered.has_value() ? *preset.node_background_hovered
+                                                            : default_node_background_hovered);
         set_node(ImNodesCol_NodeBackgroundSelected,
-                 preset.node_background_selected != 0 ? preset.node_background_selected
-                                                      : default_node_background_selected);
-        set_node(ImNodesCol_NodeOutline, preset.node_outline != 0 ? preset.node_outline : default_node_outline);
+                 preset.node_background_selected.has_value() ? *preset.node_background_selected
+                                                             : default_node_background_selected);
+        set_node(ImNodesCol_NodeOutline,
+                 preset.node_outline.has_value() ? *preset.node_outline : default_node_outline);
         set_node(ImNodesCol_TitleBar, preset.node_title_bar);
         set_node(ImNodesCol_TitleBarHovered, preset.node_title_bar_hovered);
         set_node(ImNodesCol_TitleBarSelected, preset.node_title_bar_selected);
@@ -384,7 +384,10 @@ namespace imgui_util::theme {
         set_node(ImNodesCol_LinkSelected, preset.node_title_bar_selected);
         set_node(ImNodesCol_Pin, preset.node_pin);
         set_node(ImNodesCol_PinHovered, preset.node_pin_hovered);
-        set_node(ImNodesCol_BoxSelector, (preset.node_title_bar_selected & 0x00FFFFFF) | 40u << 24);
+        constexpr ImU32 rgb_mask = ~(0xFFu << IM_COL32_A_SHIFT);
+        set_node(ImNodesCol_BoxSelector, (preset.node_title_bar_selected & rgb_mask) | (40u << IM_COL32_A_SHIFT));
+        set_node(ImNodesCol_BoxSelectorOutline,
+                 (preset.node_title_bar_selected & rgb_mask) | (150u << IM_COL32_A_SHIFT));
 
         // Grid - derive line colors from background
         set_node(ImNodesCol_GridBackground, preset.node_grid_bg);

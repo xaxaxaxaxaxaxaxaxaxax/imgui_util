@@ -23,7 +23,7 @@
 #include <tuple>
 
 #include "imgui_util/core/raii.hpp"
-#include "imgui_util/widgets/helpers.hpp"
+#include "imgui_util/widgets/direction.hpp"
 
 namespace imgui_util {
 

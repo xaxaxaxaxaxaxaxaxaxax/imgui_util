@@ -29,6 +29,12 @@ namespace imgui_util::layout {
         return static_cast<T>(base | static_cast<T>(flags));
     }
 
+    template<typename T, typename... Us>
+        requires(sizeof...(Us) > 1 && (std::convertible_to<Us, T> && ...))
+    [[nodiscard]] constexpr T with(T base, Us... flags) noexcept {
+        return static_cast<T>((base | ... | static_cast<T>(flags)));
+    }
+
     /**
      * @brief Remove flags from a base flag set.
      * @param base   Base flag value.
@@ -41,6 +47,12 @@ namespace imgui_util::layout {
         return static_cast<T>(base & ~static_cast<T>(flags));
     }
 
+    template<typename T, typename... Us>
+        requires(sizeof...(Us) > 1 && (std::convertible_to<Us, T> && ...))
+    [[nodiscard]] constexpr T without(T base, Us... flags) noexcept {
+        return static_cast<T>((base & ... & ~static_cast<T>(flags)));
+    }
+
     namespace window {
 
         constexpr ImGuiWindowFlags navbar = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
@@ -50,7 +62,8 @@ namespace imgui_util::layout {
             | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking
             | ImGuiWindowFlags_NoFocusOnAppearing;
         constexpr ImGuiWindowFlags tooltip = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove
-            | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking;
+            | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking
+            | ImGuiWindowFlags_NoFocusOnAppearing;
         constexpr ImGuiWindowFlags overlay = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground
             | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
         constexpr ImGuiWindowFlags modal_dialog = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
@@ -75,7 +88,9 @@ namespace imgui_util::layout {
         constexpr ImGuiTableFlags sortable_list = resizable_list | ImGuiTableFlags_Sortable;
         constexpr ImGuiTableFlags property =
             ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
-        constexpr ImGuiTableFlags compact = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoBordersInBody;
+        constexpr ImGuiTableFlags compact     = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoBordersInBody;
+        constexpr ImGuiTableFlags equal_width = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg
+            | ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchSame;
 
     } // namespace table
 
@@ -88,6 +103,7 @@ namespace imgui_util::layout {
             ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortAscending;
 
         constexpr ImGuiTableColumnFlags frozen_default_sort = frozen_column | default_sort;
+        constexpr ImGuiTableColumnFlags stretch_fill        = ImGuiTableColumnFlags_WidthStretch;
 
     } // namespace column
 
@@ -97,9 +113,8 @@ namespace imgui_util::layout {
         float height;
 
         /// @brief Explicit conversion to ImVec2 -- use static_cast.
-        explicit constexpr             operator ImVec2() const noexcept {
-            return {width, height};
-        }
+        explicit constexpr                  operator ImVec2() const noexcept { return {width, height}; }
+        [[nodiscard]] constexpr ImVec2      vec2() const noexcept { return {width, height}; }
         /// @brief Return a copy with a different width.
         [[nodiscard]] constexpr size_preset with_width(const float w) const noexcept {
             return {.width = w, .height = height};
@@ -107,6 +122,9 @@ namespace imgui_util::layout {
         /// @brief Return a copy with a different height.
         [[nodiscard]] constexpr size_preset with_height(const float h) const noexcept {
             return {.width = width, .height = h};
+        }
+        [[nodiscard]] constexpr size_preset scaled(const float s) const noexcept {
+            return {.width = width * s, .height = height * s};
         }
     };
 

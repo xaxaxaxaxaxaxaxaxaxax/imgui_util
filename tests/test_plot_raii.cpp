@@ -18,10 +18,10 @@ static_assert(drag_drop_target_plot_trait::policy == end_policy::conditional);
 static_assert(drag_drop_target_axis_trait::policy == end_policy::conditional);
 static_assert(drag_drop_target_legend_trait::policy == end_policy::conditional);
 
-static_assert(colormap_trait::policy == end_policy::none);
-static_assert(plot_style_color_trait::policy == end_policy::none);
-static_assert(plot_style_var_trait::policy == end_policy::none);
-static_assert(plot_clip_rect_trait::policy == end_policy::none);
+static_assert(colormap_trait::policy == end_policy::push_pop);
+static_assert(plot_style_color_trait::policy == end_policy::push_pop);
+static_assert(plot_style_var_trait::policy == end_policy::push_pop);
+static_assert(plot_clip_rect_trait::policy == end_policy::push_pop);
 
 // --- raii_scope aliases are non-copyable and non-movable ---
 
@@ -32,7 +32,7 @@ static_assert(plot_clip_rect_trait::policy == end_policy::none);
     static_assert(!std::is_move_assignable_v<T>, #T " must not be move-assignable")
 
 ASSERT_NON_COPYABLE_NON_MOVABLE(plot);
-ASSERT_NON_COPYABLE_NON_MOVABLE(subplots);
+ASSERT_NON_COPYABLE_NON_MOVABLE(subplot);
 ASSERT_NON_COPYABLE_NON_MOVABLE(aligned_plots);
 ASSERT_NON_COPYABLE_NON_MOVABLE(legend_popup);
 ASSERT_NON_COPYABLE_NON_MOVABLE(colormap);
@@ -54,7 +54,7 @@ ASSERT_NON_COPYABLE_NON_MOVABLE(plot_style_colors);
 // --- conditional-policy types are bool-convertible ---
 
 static_assert(std::is_constructible_v<bool, plot>, "plot should be convertible to bool");
-static_assert(std::is_constructible_v<bool, subplots>, "subplots should be convertible to bool");
+static_assert(std::is_constructible_v<bool, subplot>, "subplot should be convertible to bool");
 static_assert(std::is_constructible_v<bool, aligned_plots>, "aligned_plots should be convertible to bool");
 static_assert(std::is_constructible_v<bool, legend_popup>, "legend_popup should be convertible to bool");
 static_assert(std::is_constructible_v<bool, drag_drop_source_plot>,
@@ -70,7 +70,7 @@ static_assert(std::is_constructible_v<bool, drag_drop_target_axis>,
 static_assert(std::is_constructible_v<bool, drag_drop_target_legend>,
               "drag_drop_target_legend should be convertible to bool");
 
-// --- none-policy types are NOT bool-convertible ---
+// --- push_pop-policy types are NOT bool-convertible ---
 
 static_assert(!std::is_constructible_v<bool, colormap>, "colormap should not be convertible to bool");
 static_assert(!std::is_constructible_v<bool, plot_style_color>, "plot_style_color should not be convertible to bool");

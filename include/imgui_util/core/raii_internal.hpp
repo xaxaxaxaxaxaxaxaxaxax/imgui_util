@@ -14,7 +14,7 @@
 namespace imgui_util {
 
     struct font_scale_trait {
-        static constexpr auto policy = end_policy::none;
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = std::optional<float>; // stores previous FontWindowScale, or nullopt if no window
         static std::optional<float> begin(const float scale) noexcept {
             const auto *w = ImGui::GetCurrentWindow();

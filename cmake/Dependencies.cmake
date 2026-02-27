@@ -86,7 +86,7 @@ if(NOT TARGET logh)
     FetchContent_Declare(
         logh_src
         GIT_REPOSITORY https://github.com/xaxaxaxaxaxaxaxaxaxax/log.h.git
-        GIT_TAG        a620bdd4d1ccbf89977d2dec72f1175b7d6f96db
+        GIT_TAG        5309659
         SOURCE_SUBDIR  _unused
     )
     FetchContent_MakeAvailable(logh_src)

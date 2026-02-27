@@ -603,7 +603,8 @@ namespace {
 
         if (s.undo.handle_shortcuts()) iu::toast::show("Undo/Redo");
 
-        if (s.show_undo_history) s.undo.render_history_panel("Undo History##demo");
+        if (s.show_undo_history && s.undo.render_history_panel("Undo History##demo"))
+            iu::toast::show("Undo/Redo");
     }
 
     void section_menu_bar_builder(const demo_state & /**/) {

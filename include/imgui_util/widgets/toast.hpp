@@ -39,6 +39,7 @@ namespace imgui_util::toast {
     namespace detail {
 
         struct entry {
+            int                             id;
             std::string                     text;
             severity                        sev;
             float                           start_time;
@@ -53,6 +54,7 @@ namespace imgui_util::toast {
             std::vector<entry> entries;
             position           anchor      = position::bottom_right;
             int                max_visible = 10;
+            int                next_id     = 0;
         };
 
         [[nodiscard]] inline auto &state() noexcept {
@@ -93,17 +95,21 @@ namespace imgui_util::toast {
      * @param duration_sec     Seconds before the toast auto-dismisses.
      * @param action_label     Optional button label (empty to omit).
      * @param action_callback  Callback invoked when the action button is clicked.
+     * @return Integer handle that can be passed to dismiss() to remove the toast early.
      */
-    inline void show(const std::string_view message, const severity sev = severity::info,
-                     const float duration_sec = 3.0f, const std::string_view action_label = {},
-                     std::move_only_function<void()> action_callback = {}) {
+    [[nodiscard]] inline int show(const std::string_view message, const severity sev = severity::info,
+                                  const float duration_sec = 3.0f, const std::string_view action_label = {},
+                                  std::move_only_function<void()> action_callback = {}) {
         constexpr float toast_padding = 12.0f;
         const ImVec2    text_size = ImGui::CalcTextSize(message.data(), message.data() + message.size(), false, 300.0f);
         const float     action_w  = action_label.empty()
                  ? 0.0f
                  : ImGui::CalcTextSize(action_label.data(), action_label.data() + action_label.size()).x
                 + ImGui::GetStyle().FramePadding.x * 2.0f + toast_padding;
-        detail::state().entries.push_back({
+        auto           &s         = detail::state();
+        const int       id        = s.next_id++;
+        s.entries.push_back({
+            .id               = id,
             .text             = std::string(message),
             .sev              = sev,
             .start_time       = static_cast<float>(ImGui::GetTime()),
@@ -113,11 +119,22 @@ namespace imgui_util::toast {
             .cached_text_size = text_size,
             .cached_action_w  = action_w,
         });
+        return id;
+    }
+
+    /// @brief Dismiss a specific toast by its handle ID.
+    inline void dismiss(const int id) noexcept {
+        for (auto &entries = detail::state().entries; auto &e: entries) {
+            if (e.id == id) {
+                e.duration = 0.0f;
+                break;
+            }
+        }
     }
 
     /// @brief Draw all active toasts. Call once per frame, typically at end of frame after other UI.
     inline void render() {
-        auto &[entries, anchor, max_visible] = detail::state();
+        auto &[entries, anchor, max_visible, next_id] = detail::state();
         if (entries.empty()) return;
 
         const auto   now      = static_cast<float>(ImGui::GetTime());
@@ -142,9 +159,9 @@ namespace imgui_util::toast {
             constexpr float spacing   = 6.0f;
             if (visible_cnt >= max_visible) break;
 
-            auto &[text, sev, start_time, duration, action_label, action_callback, cached_text_size, cached_action_w] =
-                entries[i];
-            const float elapsed = now - start_time;
+            auto &[entry_id, text, sev, start_time, duration, action_label, action_callback, cached_text_size,
+                   cached_action_w] = entries[i];
+            const float elapsed     = now - start_time;
             if (elapsed >= duration) continue;
 
             // Fade alpha only in the last fade_time seconds

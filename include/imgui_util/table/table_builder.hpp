@@ -22,7 +22,6 @@
 #include <optional>
 #include <ranges>
 #include <span>
-#include <string>
 #include <string_view>
 #include <tuple>
 #include <unordered_set>
@@ -52,7 +51,7 @@ namespace imgui_util {
 
     /// @brief Non-template configuration state shared across table_builder type morphs.
     struct table_config {
-        std::string              id;
+        std::string_view         id;
         ImGuiTableFlags          flags            = ImGuiTableFlags_None;
         int                      freeze_cols      = 0;
         int                      freeze_rows      = 0;
@@ -93,7 +92,7 @@ namespace imgui_util {
 
         /// @brief Set the ImGui table string ID.
         table_builder set_id(const std::string_view id) && {
-            cfg_.id = std::string(id);
+            cfg_.id = id;
             return std::move(*this);
         }
         /// @brief Set ImGuiTableFlags for the table.
@@ -159,7 +158,7 @@ namespace imgui_util {
         }
 
         /// @brief Mark filtered indices as stale (call when source data changes).
-        void invalidate_filter() const { filter_dirty_ = true; }
+        void invalidate_filter() const noexcept { filter_dirty_ = true; }
 
         /// @brief Set a callback to render when the table has no data.
         table_builder set_empty_state(std::move_only_function<void()> fn) && {
@@ -191,7 +190,7 @@ namespace imgui_util {
         }
 
         /// @brief Return the current sort specs (valid after begin()).
-        [[nodiscard]] ImGuiTableSortSpecs *get_sort_specs() const { return sort_specs_; }
+        [[nodiscard]] ImGuiTableSortSpecs *get_sort_specs() const noexcept { return sort_specs_; }
 
         /**
          * @brief Sort data by a single key extractor (uses the first sort spec only).
@@ -243,9 +242,10 @@ namespace imgui_util {
          * @brief Sort by a single comparator, respecting the current sort direction.
          * @param data  Mutable span of rows to sort in-place.
          * @param comp  Less-than comparator for the rows.
+         * @param force Force sorce
          */
-        void sort_if_dirty(std::span<RowT> data, comparator_fn comp) {
-            if (sort_specs_ != nullptr && sort_specs_->SpecsDirty) {
+        void sort_if_dirty(std::span<RowT> data, comparator_fn comp, const bool force = false) {
+            if (sort_specs_ != nullptr && (sort_specs_->SpecsDirty || force)) {
                 if (sort_specs_->SpecsCount > 0) {
                     const bool ascending = sort_specs_->Specs[0].SortDirection == ImGuiSortDirection_Ascending;
                     std::ranges::stable_sort(
@@ -263,7 +263,7 @@ namespace imgui_util {
 
         template<std::ranges::sized_range R>
             requires std::convertible_to<std::ranges::range_reference_t<R>, const RowT &>
-        void render_clipped(R &&data) { // NOLINT(cppcoreguidelines-missing-std-forward)
+        void render_clipped(const R &data) {
             if constexpr (has_row_id) {
                 if constexpr (std::ranges::random_access_range<R>) {
                     index_to_id_ = [this, &data](const int idx) {
@@ -281,21 +281,32 @@ namespace imgui_util {
             }
             if constexpr (has_filter) {
                 rebuild_filter_range(data);
-                clip_and_render(static_cast<int>(filtered_indices_.size()), [&](const int fi) {
-                    const int i = filtered_indices_[fi];
-                    if constexpr (std::ranges::random_access_range<R>) {
+                if constexpr (std::ranges::random_access_range<R>) {
+                    clip_and_render(static_cast<int>(filtered_indices_.size()), [&](const int fi) {
+                        const int   i   = filtered_indices_[fi];
                         const auto &row = *(std::ranges::begin(data) + i);
                         ImGui::PushID(i);
                         render_row_with_selection(row, i);
                         ImGui::PopID();
-                    } else {
-                        auto it = std::ranges::begin(data);
-                        std::ranges::advance(it, i);
-                        ImGui::PushID(i);
-                        render_row_with_selection(*it, i);
-                        ImGui::PopID();
+                    });
+                } else {
+                    const int        total = static_cast<int>(filtered_indices_.size());
+                    ImGuiListClipper clipper;
+                    clipper.Begin(total);
+                    while (clipper.Step()) {
+                        const int disp_end = std::min(clipper.DisplayEnd, total);
+                        auto      it       = std::ranges::begin(data);
+                        int       cur_data = 0;
+                        for (int fi = clipper.DisplayStart; fi < disp_end; ++fi) {
+                            const int i = filtered_indices_[fi];
+                            std::ranges::advance(it, i - cur_data);
+                            cur_data = i;
+                            ImGui::PushID(i);
+                            render_row_with_selection(*it, i);
+                            ImGui::PopID();
+                        }
                     }
-                });
+                }
             } else {
                 const auto count = static_cast<int>(std::ranges::size(data));
                 if constexpr (std::ranges::random_access_range<R>) {
@@ -361,13 +372,32 @@ namespace imgui_util {
         }
 
         /// @brief Clear all selected rows.
-        void clear_selection() const {
+        void clear_selection() const noexcept {
             if (cfg_.selection) cfg_.selection->clear();
         }
 
         /// @brief Return true if the row with the given ID is currently selected.
-        [[nodiscard]] bool is_selected(const int row_id) const {
+        [[nodiscard]] bool is_selected(const int row_id) const noexcept {
             return (cfg_.selection != nullptr) && cfg_.selection->contains(row_id);
+        }
+
+        /// @brief Return the number of currently selected rows.
+        [[nodiscard]] std::size_t selected_count() const noexcept {
+            return cfg_.selection ? cfg_.selection->size() : 0;
+        }
+
+        /// @brief Invoke fn(id) for each selected row ID.
+        template<typename Fn>
+        void for_each_selected(const Fn &fn) const noexcept {
+            if (cfg_.selection)
+                for (int id: *cfg_.selection)
+                    fn(id);
+        }
+
+        /// @brief Return a vector of all currently selected row IDs.
+        [[nodiscard]] std::vector<int> get_selected_ids() const {
+            if (!cfg_.selection) return {};
+            return {cfg_.selection->begin(), cfg_.selection->end()};
         }
 
         /// @brief Select all rows in data.
@@ -375,6 +405,16 @@ namespace imgui_util {
             if (!cfg_.selection) return;
             for (int i = 0; i < static_cast<int>(data.size()); ++i)
                 cfg_.selection->insert(row_id_for(data[i], i));
+        }
+
+        /// @brief Select all rows in a generic sized range.
+        template<std::ranges::sized_range R>
+            requires std::convertible_to<std::ranges::range_reference_t<R>, const RowT &>
+        void select_all(const R &data) {
+            if (!cfg_.selection) return;
+            int i = 0;
+            for (const auto &row: data)
+                cfg_.selection->insert(row_id_for(row, i++));
         }
 
     private:
@@ -399,7 +439,7 @@ namespace imgui_util {
         row_highlight_fn_t                                     row_highlight_fn_;
         std::move_only_function<void()>                        empty_state_fn_;
         std::move_only_function<void(const RowT &, int index)> row_activate_fn_;
-        std::function<int(int)>                                index_to_id_;
+        std::move_only_function<int(int)>                      index_to_id_;
 
         void render_empty_state() {
             ImGui::TableNextRow();
@@ -429,21 +469,14 @@ namespace imgui_util {
         }
 
         template<std::ranges::sized_range R>
-        void rebuild_filter_range(R &&data) const { // NOLINT(cppcoreguidelines-missing-std-forward)
+        void rebuild_filter_range(const R &data) const {
             if (!filter_dirty_) return;
             filtered_indices_.clear();
             const auto count = static_cast<int>(std::ranges::size(data));
             filtered_indices_.reserve(count);
-            if constexpr (std::ranges::random_access_range<R>) {
-                auto it = std::ranges::begin(data);
-                for (int i = 0; i < count; ++i) {
-                    if (filter_(*(it + i))) filtered_indices_.push_back(i);
-                }
-            } else {
-                int idx = 0;
-                for (auto it = std::ranges::begin(data); idx < count; ++it, ++idx) {
-                    if (filter_(*it)) filtered_indices_.push_back(idx);
-                }
+            int idx = 0;
+            for (auto it = std::ranges::begin(data); idx < count; ++it, ++idx) {
+                if (filter_(*it)) filtered_indices_.push_back(idx);
             }
             filter_dirty_ = false;
         }
@@ -462,14 +495,14 @@ namespace imgui_util {
             }
         }
 
-        void handle_selection_click(const int row_index, const int row_id, const bool is_selected) {
+        void handle_selection_click(const int row_index, const int row_id, const bool new_selected) {
             if (const auto &io = ImGui::GetIO(); io.KeyShift && cfg_.last_clicked_row >= 0) {
                 const int lo = std::min(cfg_.last_clicked_row, row_index);
                 const int hi = std::max(cfg_.last_clicked_row, row_index);
                 for (int r = lo; r <= hi; ++r)
                     cfg_.selection->insert(index_to_id_ ? index_to_id_(r) : r);
             } else if (io.KeyCtrl) {
-                if (is_selected)
+                if (new_selected)
                     cfg_.selection->insert(row_id);
                 else
                     cfg_.selection->erase(row_id);
@@ -488,12 +521,12 @@ namespace imgui_util {
             if (cfg_.selection != nullptr) {
                 ImGui::TableSetColumnIndex(0);
                 const bool was_selected = cfg_.selection->contains(row_id);
-                bool       is_selected  = was_selected;
-                ImGui::Selectable("##sel", &is_selected,
+                bool       new_selected = was_selected;
+                ImGui::Selectable("##sel", &new_selected,
                                   ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap);
                 check_row_activate(data, index);
-                if (is_selected != was_selected) {
-                    handle_selection_click(index, row_id, is_selected);
+                if (new_selected != was_selected) {
+                    handle_selection_click(index, row_id, new_selected);
                 }
                 ImGui::SameLine();
             }

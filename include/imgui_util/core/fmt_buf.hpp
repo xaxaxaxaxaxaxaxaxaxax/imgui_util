@@ -48,6 +48,7 @@ namespace imgui_util {
         [[nodiscard]] constexpr std::string_view sv() const noexcept { return {buf.data(), len}; }
         [[nodiscard]] constexpr size_t           size() const noexcept { return len; }
         [[nodiscard]] constexpr bool             empty() const noexcept { return len == 0; }
+        [[nodiscard]] constexpr bool             truncated() const noexcept { return len >= N - 1; }
         explicit constexpr operator std::string_view() const noexcept { return {buf.data(), len}; }
 
         /// @brief Clear the buffer, resetting length to zero.
@@ -77,7 +78,7 @@ namespace imgui_util {
 
     /// @brief Format a count with K/M suffixes (e.g. 1500 -> "1.5K", 2000000 -> "2.0M").
     // NOTE: effectively constexpr in C++26 only (std::format_to_n, P2510R3).
-    [[nodiscard]] constexpr fmt_buf<32> format_count(const std::signed_integral auto count) {
+    [[nodiscard]] constexpr fmt_buf<32> format_count(const std::integral auto count) {
         const auto c = static_cast<int64_t>(count);
         // 999'950 rounds to "1.0M" at 1 decimal, avoiding "1000.0K"
         if (c >= 999'950) {

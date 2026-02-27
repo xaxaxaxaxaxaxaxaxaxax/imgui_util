@@ -186,8 +186,7 @@ namespace imgui_util {
 
             if (editable && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
                 editing_offset_ = byte_offset;
-                const fmt_buf<4> tmp("{:02X}", byte_val);
-                std::copy_n(tmp.c_str(), std::min(tmp.size() + 1, edit_buf_.size()), edit_buf_.data());
+                std::copy_n(hex_str.c_str(), std::min(hex_str.size() + 1, edit_buf_.size()), edit_buf_.data());
             }
         }
 

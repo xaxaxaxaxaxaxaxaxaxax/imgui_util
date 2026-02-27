@@ -46,13 +46,12 @@ namespace imgui_util {
         [[nodiscard]] menu_bar_builder &menu(const char *label, Fn &&content) {
             menu_bar_builder sub;
             std::forward<Fn>(content)(sub);
-            entries_.push_back({.type           = detail::menu_entry_type::submenu,
-                                .label          = label,
-                                .action         = {},
-                                .shortcut       = nullptr,
-                                .checkbox_value = nullptr,
-                                .enabled        = true,
-                                .children       = std::move(sub.entries_)});
+            entries_.emplace_back(detail::menu_submenu{
+                .label    = label,
+                .enabled  = true,
+                .action   = {},
+                .children = std::move(sub.entries_),
+            });
             return *this;
         }
 
@@ -65,25 +64,18 @@ namespace imgui_util {
          */
         [[nodiscard]] menu_bar_builder &item(const char *label, std::move_only_function<void()> action,
                                              const char *shortcut = nullptr, const bool enabled = true) {
-            entries_.push_back({.type           = detail::menu_entry_type::item,
-                                .label          = label,
-                                .action         = std::move(action),
-                                .shortcut       = shortcut,
-                                .checkbox_value = nullptr,
-                                .enabled        = enabled,
-                                .children       = {}});
+            entries_.emplace_back(detail::menu_item{
+                .label    = label,
+                .shortcut = shortcut,
+                .enabled  = enabled,
+                .action   = std::move(action),
+            });
             return *this;
         }
 
         /// @brief Add a visual separator line.
         [[nodiscard]] menu_bar_builder &separator() {
-            entries_.push_back({.type           = detail::menu_entry_type::separator,
-                                .label          = nullptr,
-                                .action         = {},
-                                .shortcut       = nullptr,
-                                .checkbox_value = nullptr,
-                                .enabled        = true,
-                                .children       = {}});
+            entries_.emplace_back(detail::menu_separator{});
             return *this;
         }
 
@@ -93,13 +85,10 @@ namespace imgui_util {
          * @param value  Pointer to the boolean toggled by the checkbox.
          */
         [[nodiscard]] menu_bar_builder &checkbox(const char *label, bool *value) { // NOLINT(*-non-const-parameter)
-            entries_.push_back({.type           = detail::menu_entry_type::checkbox,
-                                .label          = label,
-                                .action         = {},
-                                .shortcut       = nullptr,
-                                .checkbox_value = value,
-                                .enabled        = true,
-                                .children       = {}});
+            entries_.emplace_back(detail::menu_checkbox{
+                .label = label,
+                .value = value,
+            });
             return *this;
         }
 

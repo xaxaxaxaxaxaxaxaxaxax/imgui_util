@@ -18,6 +18,7 @@
 
 #include <array>
 #include <imgui.h>
+#include <new>
 #include <imgui_internal.h>
 #include <string>
 #include <utility>
@@ -39,7 +40,7 @@ namespace imgui_util {
      * @param max_tags Maximum number of tags allowed (0 = unlimited).
      * @return True if the tag list changed this frame (added or removed).
      */
-    [[nodiscard]] inline bool tag_input(const char *label, std::vector<std::string> &tags, const int max_tags = 0) {
+    [[nodiscard]] inline bool tag_input(const char *label, std::vector<std::string> &tags, const std::size_t max_tags = 0) {
         if (const auto *const win = ImGui::GetCurrentWindow(); win->SkipItems) return false;
 
         const id scope{label};
@@ -110,7 +111,7 @@ namespace imgui_util {
         }
 
         // Input text for new tags
-        if (const bool at_limit = max_tags > 0 && std::cmp_greater_equal(tags.size(), max_tags); !at_limit) {
+        if (const bool at_limit = max_tags > 0 && tags.size() >= max_tags; !at_limit) {
             // Wrap input to next line if not enough space
             if (constexpr float input_min_w = 80.0f; cursor_x + input_min_w > wrap_width && cursor_x > 0.0f) {
                 cursor_x = 0.0f;
@@ -127,7 +128,8 @@ namespace imgui_util {
             using tag_buf_t = std::array<char, 128>;
             auto *buf_ptr   = static_cast<tag_buf_t *>(storage->GetVoidPtr(buf_id));
             if (buf_ptr == nullptr) {
-                buf_ptr       = IM_NEW(tag_buf_t);
+                buf_ptr = new (std::nothrow) tag_buf_t; // NOLINT(cppcoreguidelines-owning-memory)
+                if (buf_ptr == nullptr) return false;
                 (*buf_ptr)[0] = '\0';
                 storage->SetVoidPtr(buf_id, buf_ptr);
             }
@@ -138,8 +140,9 @@ namespace imgui_util {
                                          ImGuiInputTextFlags_EnterReturnsTrue)) {
                 if (const std::string new_tag(input_buf.data()); !new_tag.empty()) {
                     tags.push_back(new_tag);
-                    input_buf[0] = '\0';
-                    changed      = true;
+                    delete buf_ptr; // NOLINT(cppcoreguidelines-owning-memory)
+                    storage->SetVoidPtr(buf_id, nullptr);
+                    changed = true;
                     ImGui::SetKeyboardFocusHere(-1);
                 }
             }

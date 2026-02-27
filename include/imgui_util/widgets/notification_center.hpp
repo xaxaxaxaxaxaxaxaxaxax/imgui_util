@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <functional>
 #include <imgui.h>
+#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
@@ -124,9 +125,8 @@ namespace imgui_util::notification_center {
             }
         }
 
-        /// @brief Render a single notification row. Returns true if @p entries was mutated (dismiss).
-        inline bool render_notification_row(notification &e, int row, const std::size_t idx, state &s) {
-            auto    &entries = s.entries;
+        /// @brief Render a single notification row. Returns true if the user clicked dismiss.
+        inline bool render_notification_row(notification &e, int row, const std::size_t /*idx*/, state &s) {
             const id entry_id{row};
 
             // Unread indicator: slightly brighter background
@@ -171,9 +171,7 @@ namespace imgui_util::notification_center {
             {
                 const fmt_buf<32> dismiss_label("Dismiss##d{}", row);
                 if (ImGui::SmallButton(dismiss_label.c_str())) {
-                    decrement_unread_if(s, e);
-                    entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(idx));
-                    return true; // iterator invalidated
+                    return true;
                 }
             }
 
@@ -232,17 +230,19 @@ namespace imgui_util::notification_center {
 
             // Scrollable list (newest first)
             if (const child child_scope{"##notif_list"}) {
-                ImGuiListClipper clipper;
-                const int        count = static_cast<int>(entries.size());
-                clipper.Begin(count);
+                const int                count = static_cast<int>(entries.size());
+                std::vector<std::size_t> to_dismiss;
 
-                while (clipper.Step()) {
-                    for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row) {
-                        const auto idx = static_cast<std::size_t>(count - 1 - row);
+                for (int row = 0; row < count; ++row) {
+                    const auto idx = static_cast<std::size_t>(count - 1 - row);
 
-                        if (auto &e = entries[idx]; detail::render_notification_row(e, row, idx, s))
-                            break; // iterator invalidated by dismiss
-                    }
+                    if (auto &e = entries[idx]; detail::render_notification_row(e, row, idx, s))
+                        to_dismiss.push_back(idx);
+                }
+
+                for (const unsigned long &to_dismis: std::ranges::reverse_view(to_dismiss)) {
+                    detail::decrement_unread_if(s, entries[to_dismis]);
+                    entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(to_dismis));
                 }
             }
         }

@@ -12,6 +12,7 @@
 /// @endcode
 #pragma once
 #include <implot.h>
+#include <utility>
 #include <variant>
 
 #include "imgui_util/core/raii.hpp"
@@ -20,20 +21,20 @@ namespace imgui_util::implot {
 
     /// @brief Each *_trait struct adapts an ImPlot scope for use with raii_scope<T> from core/raii.hpp.
     ///
-    /// policy::conditional = end() only if begin() returned true; policy::none = always end().
+    /// policy::conditional = end() only if begin() returned true; policy::push_pop = always end().
 
     struct plot_trait {
         static constexpr auto policy = end_policy::conditional;
         using storage                = std::monostate;
         static bool begin(const char *title_id, const ImVec2 &size = ImVec2(-1, 0),
-                          const ImPlotFlags flags = 0) noexcept {
+                          const ImPlotFlags flags = ImPlotFlags_None) noexcept {
             return ImPlot::BeginPlot(title_id, size, flags);
         }
         static void end() noexcept { ImPlot::EndPlot(); }
     };
 
     struct colormap_trait {
-        static constexpr auto policy = end_policy::none; // push/pop always paired
+        static constexpr auto policy = end_policy::push_pop; // push/pop always paired
         using storage                = std::monostate;
         static void begin(const char *name) noexcept { ImPlot::PushColormap(name); }
         static void begin(const ImPlotColormap cmap) noexcept { ImPlot::PushColormap(cmap); }
@@ -41,7 +42,7 @@ namespace imgui_util::implot {
     };
 
     struct plot_style_color_trait {
-        static constexpr auto policy = end_policy::none;
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = std::monostate;
         static void begin(const ImPlotCol idx, const ImVec4 &col) noexcept { ImPlot::PushStyleColor(idx, col); }
         static void begin(const ImPlotCol idx, const ImU32 col) noexcept { ImPlot::PushStyleColor(idx, col); }
@@ -49,7 +50,7 @@ namespace imgui_util::implot {
     };
 
     struct plot_style_var_trait {
-        static constexpr auto policy = end_policy::none;
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = std::monostate;
         static void begin(const ImPlotStyleVar idx, const float val) noexcept { ImPlot::PushStyleVar(idx, val); }
         static void begin(const ImPlotStyleVar idx, const ImVec2 &val) noexcept { ImPlot::PushStyleVar(idx, val); }
@@ -61,7 +62,7 @@ namespace imgui_util::implot {
         static constexpr auto policy = end_policy::conditional;
         using storage                = std::monostate;
         static bool begin(const char *title_id, const int rows, const int cols, const ImVec2 &size = ImVec2(-1, 0),
-                          const ImPlotSubplotFlags flags = 0, float *row_ratios = nullptr,
+                          const ImPlotSubplotFlags flags = ImPlotSubplotFlags_None, float *row_ratios = nullptr,
                           float *col_ratios = nullptr) noexcept {
             return ImPlot::BeginSubplots(title_id, rows, cols, size, flags, row_ratios, col_ratios);
         }
@@ -88,7 +89,7 @@ namespace imgui_util::implot {
     };
 
     struct plot_clip_rect_trait {
-        static constexpr auto policy = end_policy::none;
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = std::monostate;
         static void begin(const float expand = 0.0f) noexcept { ImPlot::PushPlotClipRect(expand); }
         static void end() noexcept { ImPlot::PopPlotClipRect(); }
@@ -133,6 +134,10 @@ namespace imgui_util::implot {
     struct plot_style_var_entry {
         ImPlotStyleVar                   idx{};
         std::variant<float, ImVec2, int> val;
+
+        constexpr plot_style_var_entry(const ImPlotStyleVar i, const float v) noexcept : idx{i}, val{v} {}
+        constexpr plot_style_var_entry(const ImPlotStyleVar i, const ImVec2 &v) noexcept : idx{i}, val{v} {}
+        constexpr plot_style_var_entry(const ImPlotStyleVar i, const int v) noexcept : idx{i}, val{v} {}
     };
 
     /// @brief Entry for batched style-color pushes via multi_push.
@@ -140,8 +145,8 @@ namespace imgui_util::implot {
         ImPlotCol                   idx{};
         std::variant<ImVec4, ImU32> val;
 
-        plot_style_color_entry(const ImPlotCol i, const ImVec4 &c) noexcept : idx{i}, val{c} {}
-        plot_style_color_entry(const ImPlotCol i, const ImU32 c) noexcept : idx{i}, val{c} {}
+        constexpr plot_style_color_entry(const ImPlotCol i, const ImVec4 &c) noexcept : idx{i}, val{c} {}
+        constexpr plot_style_color_entry(const ImPlotCol i, const ImU32 c) noexcept : idx{i}, val{c} {}
     };
 
     constexpr auto push_plot_style_var_fn   = [](ImPlotStyleVar idx, const auto &v) { ImPlot::PushStyleVar(idx, v); };
@@ -154,7 +159,7 @@ namespace imgui_util::implot {
     using colormap                = raii_scope<colormap_trait>;
     using plot_style_color        = raii_scope<plot_style_color_trait>;
     using plot_style_var          = raii_scope<plot_style_var_trait>;
-    using subplots                = raii_scope<subplot_trait>;
+    using subplot                 = raii_scope<subplot_trait>;
     using aligned_plots           = raii_scope<aligned_plots_trait>;
     using legend_popup            = raii_scope<legend_popup_trait>;
     using plot_clip_rect          = raii_scope<plot_clip_rect_trait>;
@@ -170,13 +175,26 @@ namespace imgui_util::implot {
 
     /// @brief RAII owner for the ImPlot context (creates on construction, destroys on destruction).
     class [[nodiscard]] context {
+        ImPlotContext *ctx_;
+
     public:
-        context() noexcept { ImPlot::CreateContext(); }
-        ~context() noexcept { ImPlot::DestroyContext(); }
+        context() noexcept : ctx_(ImPlot::CreateContext()) {}
+        ~context() {
+            if (ctx_)
+                ImPlot::DestroyContext(ctx_);
+        }
         context(const context &)            = delete;
         context &operator=(const context &) = delete;
-        context(context &&)                 = delete;
-        context &operator=(context &&)      = delete;
+        context(context &&o) noexcept : ctx_(std::exchange(o.ctx_, nullptr)) {}
+        context &operator=(context &&o) noexcept {
+            if (this != &o) {
+                if (ctx_) ImPlot::DestroyContext(ctx_);
+                ctx_ = std::exchange(o.ctx_, nullptr);
+            }
+            return *this;
+        }
+        [[nodiscard]] ImPlotContext        *get() const noexcept { return ctx_; }
+        [[nodiscard]] explicit operator bool() const noexcept { return ctx_ != nullptr; }
     };
 
 } // namespace imgui_util::implot

@@ -102,7 +102,7 @@ namespace imgui_util {
     private:
         bool show_line_numbers_ = true;
 
-        [[nodiscard]] static ImU32 bg_color(const diff_kind kind) noexcept {
+        [[nodiscard]] static constexpr ImU32 bg_color(const diff_kind kind) noexcept {
             switch (kind) {
                 case diff_kind::added:
                     return IM_COL32(26, 58, 26, 255);

@@ -19,7 +19,6 @@
 #pragma once
 
 #include <imgui.h>
-#include <optional>
 
 namespace imgui_util::layout {
 
@@ -30,7 +29,8 @@ namespace imgui_util::layout {
      */
     inline void center_next(const float widget_width) noexcept {
         const float avail = ImGui::GetContentRegionAvail().x;
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (avail - widget_width) * 0.5f);
+        const float offset = (avail - widget_width) * 0.5f;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (offset > 0.0f ? offset : 0.0f));
     }
 
     /**
@@ -40,32 +40,33 @@ namespace imgui_util::layout {
      */
     inline void right_align_next(const float widget_width) noexcept {
         const float avail = ImGui::GetContentRegionAvail().x;
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - widget_width);
+        const float offset = avail - widget_width;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (offset > 0.0f ? offset : 0.0f));
     }
 
     /// @brief RAII helper that auto-inserts SameLine between items.
     class [[nodiscard]] horizontal_layout {
     public:
         /// @brief Construct a horizontal layout group.
-        /// @param spacing  Pixel spacing between items (nullopt = use default ImGui spacing).
-        explicit horizontal_layout(const std::optional<float> spacing = std::nullopt) noexcept : spacing_(spacing) {}
+        /// @param spacing  Pixel spacing between items (-1.0f = use default ImGui spacing).
+        explicit horizontal_layout(const float spacing = -1.0f) noexcept : spacing_(spacing) {}
 
         /// @brief Call before each item. Inserts SameLine after the first item.
         void next() noexcept {
             if (started_) {
-                ImGui::SameLine(0.0f, spacing_.value_or(-1.0f));
+                ImGui::SameLine(0.0f, spacing_);
             }
             started_ = true;
         }
 
         /// @brief Call next() then invoke a callable for the item.
-        void item(auto &&callable) noexcept(noexcept(callable())) {
+        decltype(auto) item(auto &&callable) noexcept(noexcept(callable())) {
             next();
-            callable();
+            return callable();
         }
 
     private:
-        std::optional<float> spacing_;
+        float spacing_;
         bool                 started_ = false;
     };
 

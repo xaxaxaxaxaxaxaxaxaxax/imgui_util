@@ -19,7 +19,7 @@
 
 #include <functional>
 #include <imgui.h>
-#include <optional>
+#include <string>
 
 #include "imgui_util/core/raii.hpp"
 #include "imgui_util/theme/color_math.hpp"
@@ -35,7 +35,7 @@ namespace imgui_util {
      */
     class modal_builder {
     public:
-        explicit modal_builder(const char *title) noexcept : title_(title) {}
+        explicit modal_builder(const char *title) : title_(title) {}
 
         /// @brief Set the message text displayed at the top of the dialog.
         [[nodiscard]] modal_builder &message(const char *text) noexcept {
@@ -88,9 +88,10 @@ namespace imgui_util {
         }
 
         /// @brief Render the modal dialog. Call once per frame.
-        void render(bool *open) noexcept {
+        void render(bool *open) {
+            dismissed_ = false;
             if (open != nullptr && *open) {
-                ImGui::OpenPopup(title_);
+                ImGui::OpenPopup(title_.c_str());
             }
 
             if (width_ > 0.0f) {
@@ -100,7 +101,7 @@ namespace imgui_util {
             const ImGuiWindowFlags win_flags =
                 width_ > 0.0f ? ImGuiWindowFlags_None : ImGuiWindowFlags_AlwaysAutoResize;
 
-            if (const popup_modal modal{title_, open, win_flags}) {
+            if (const popup_modal modal{title_.c_str(), open, win_flags}) {
                 if (message_ != nullptr) {
                     const text_wrap_pos wrap(0.0f);
                     ImGui::TextUnformatted(message_);
@@ -116,14 +117,15 @@ namespace imgui_util {
                     ImGui::Spacing();
                 }
 
-                {
-                    std::optional<style_colors> danger_style;
-                    if (danger_) {
-                        danger_style.emplace(std::initializer_list<style_color_entry>{
-                            {ImGuiCol_Button, colors::error_dark},
-                            {ImGuiCol_ButtonHovered, colors::error},
-                            {ImGuiCol_ButtonActive, color::offset(colors::error, 0.1f)}});
+                if (danger_) {
+                    const style_colors danger_style{std::initializer_list<style_color_entry>{
+                        {ImGuiCol_Button, colors::error_dark},
+                        {ImGuiCol_ButtonHovered, colors::error},
+                        {ImGuiCol_ButtonActive, color::offset(colors::error, 0.1f)}}};
+                    if (ImGui::Button(ok_label_, {120, 0})) {
+                        dismiss(open, on_ok_);
                     }
+                } else {
                     if (ImGui::Button(ok_label_, {120, 0})) {
                         dismiss(open, on_ok_);
                     }
@@ -146,13 +148,16 @@ namespace imgui_util {
         }
 
     private:
-        static void dismiss(bool *open, std::move_only_function<void()> &callback) noexcept {
+        void dismiss(bool *open, std::move_only_function<void()> &callback) noexcept {
+            if (dismissed_) return;
+            dismissed_ = true;
             if (callback) callback();
             if (open != nullptr) *open = false;
             ImGui::CloseCurrentPopup();
         }
 
-        const char                     *title_        = "";
+        std::string                     title_;
+        bool                            dismissed_    = false;
         const char                     *message_      = nullptr;
         const char                     *ok_label_     = "OK";
         const char                     *cancel_label_ = "Cancel";

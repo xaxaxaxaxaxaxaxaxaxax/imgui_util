@@ -27,7 +27,7 @@
 #include <vector>
 
 #include "imgui_util/core/raii.hpp"
-#include "imgui_util/widgets/helpers.hpp"
+#include "imgui_util/widgets/direction.hpp"
 
 namespace imgui_util {
 
@@ -84,7 +84,8 @@ namespace imgui_util {
          * @param value    Pointer to the bool to toggle on click.
          * @param tooltip  Optional hover tooltip.
          */
-        [[nodiscard]] toolbar &toggle(const char *label, bool *value, const char *tooltip = nullptr) { // NOLINT(*-non-const-parameter)
+        [[nodiscard]] toolbar &toggle(const char *label, bool *value, // NOLINT(*-non-const-parameter)
+                                      const char *tooltip = nullptr) {
             entries_.push_back({.type = entry_type::toggle, .label = label, .tooltip = tooltip, .value = value});
             return *this;
         }
@@ -132,7 +133,7 @@ namespace imgui_util {
             bool                            enabled = true;
         };
 
-        void render_entry(const entry_type type, const char *lbl, std::move_only_function<void()> &action,
+        void render_entry(const entry_type type, const char *lbl, std::move_only_function<void()> &action, // NOLINT(*-non-const-parameter)
                           const char *tip, const icon_data &icon, bool *value, const bool enabled) const {
             switch (type) {
                 case entry_type::button: {

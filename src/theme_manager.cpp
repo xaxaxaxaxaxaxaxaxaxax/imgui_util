@@ -44,10 +44,10 @@ namespace imgui_util::theme {
                     .node_pin                 = IM_COL32(75, 190, 180, 255),
                     .node_pin_hovered         = IM_COL32(100, 220, 210, 255),
                     .node_grid_bg             = IM_COL32(22, 22, 26, 255),
-                    .node_background          = {},
-                    .node_background_hovered  = {},
-                    .node_background_selected = {},
-                    .node_outline             = {},
+                    .node_background          = std::nullopt,
+                    .node_background_hovered  = std::nullopt,
+                    .node_background_selected = std::nullopt,
+                    .node_outline             = std::nullopt,
                     .light =
                         theme_preset::light_overrides{
                             .bg_dark   = {{{0.85f, 0.85f, 0.88f}}},
@@ -75,10 +75,10 @@ namespace imgui_util::theme {
                     .node_pin                 = IM_COL32(104, 157, 106, 255),
                     .node_pin_hovered         = IM_COL32(134, 187, 136, 255),
                     .node_grid_bg             = IM_COL32(30, 30, 30, 255),
-                    .node_background          = {},
-                    .node_background_hovered  = {},
-                    .node_background_selected = {},
-                    .node_outline             = {},
+                    .node_background          = std::nullopt,
+                    .node_background_hovered  = std::nullopt,
+                    .node_background_selected = std::nullopt,
+                    .node_outline             = std::nullopt,
                     .light =
                         theme_preset::light_overrides{
                             .bg_dark   = {{{0.922f, 0.859f, 0.698f}}}, // #ebdbb2
@@ -106,10 +106,10 @@ namespace imgui_util::theme {
                     .node_pin                 = IM_COL32(255, 121, 198, 255),
                     .node_pin_hovered         = IM_COL32(255, 151, 218, 255),
                     .node_grid_bg             = IM_COL32(30, 32, 44, 255),
-                    .node_background          = {},
-                    .node_background_hovered  = {},
-                    .node_background_selected = {},
-                    .node_outline             = {},
+                    .node_background          = std::nullopt,
+                    .node_background_hovered  = std::nullopt,
+                    .node_background_selected = std::nullopt,
+                    .node_outline             = std::nullopt,
                     .light =
                         theme_preset::light_overrides{
                             .bg_dark   = {{{0.910f, 0.910f, 0.886f}}}, // #e8e8e2
@@ -137,10 +137,10 @@ namespace imgui_util::theme {
                     .node_pin                 = IM_COL32(163, 190, 140, 255),
                     .node_pin_hovered         = IM_COL32(183, 210, 170, 255),
                     .node_grid_bg             = IM_COL32(36, 42, 54, 255),
-                    .node_background          = {},
-                    .node_background_hovered  = {},
-                    .node_background_selected = {},
-                    .node_outline             = {},
+                    .node_background          = std::nullopt,
+                    .node_background_hovered  = std::nullopt,
+                    .node_background_selected = std::nullopt,
+                    .node_outline             = std::nullopt,
                     .light =
                         theme_preset::light_overrides{
                             .bg_dark   = {{{0.898f, 0.914f, 0.941f}}},          // #E5E9F0
@@ -168,10 +168,10 @@ namespace imgui_util::theme {
                     .node_pin                 = IM_COL32(137, 180, 250, 255),
                     .node_pin_hovered         = IM_COL32(167, 200, 255, 255),
                     .node_grid_bg             = IM_COL32(22, 22, 36, 255),
-                    .node_background          = {},
-                    .node_background_hovered  = {},
-                    .node_background_selected = {},
-                    .node_outline             = {},
+                    .node_background          = std::nullopt,
+                    .node_background_hovered  = std::nullopt,
+                    .node_background_selected = std::nullopt,
+                    .node_outline             = std::nullopt,
                     .light =
                         theme_preset::light_overrides{
                             .bg_dark   = {{{0.902f, 0.914f, 0.937f}}},          // #E6E9EF Mantle
@@ -199,10 +199,10 @@ namespace imgui_util::theme {
                     .node_pin                 = IM_COL32(42, 161, 152, 255),
                     .node_pin_hovered         = IM_COL32(72, 191, 182, 255),
                     .node_grid_bg             = IM_COL32(0, 33, 44, 255),
-                    .node_background          = {},
-                    .node_background_hovered  = {},
-                    .node_background_selected = {},
-                    .node_outline             = {},
+                    .node_background          = std::nullopt,
+                    .node_background_hovered  = std::nullopt,
+                    .node_background_selected = std::nullopt,
+                    .node_outline             = std::nullopt,
                     .light =
                         theme_preset::light_overrides{
                             .bg_dark   = {{{0.933f, 0.910f, 0.835f}}}, // #EEE8D5 base2
@@ -391,39 +391,42 @@ namespace imgui_util::theme {
             return false;
         }
 
-        file << "version=" << file_version << "\n";
-        file << "name=" << current_theme_.name << "\n";
+        std::string buf;
+        buf.reserve(8192);
+        const auto out = std::back_inserter(buf);
+
+        std::format_to(out, "version={}\n", file_version);
+        std::format_to(out, "name={}\n", current_theme_.name);
 
         // Save style floats via constexpr member-pointer table (lossless round-trip)
-        for (const auto &[name, ptr]: theme_float_fields) {
-            file << name << "=" << std::format("{:.9g}", current_theme_.*ptr) << "\n";
-        }
+        for (const auto &[name, ptr]: theme_float_fields)
+            std::format_to(out, "{}={:.9g}\n", name, current_theme_.*ptr);
 
         // Save preset RGB fields for round-trip fidelity
         for (const auto &[name, ptr]: theme_rgb_fields) {
             const auto &[r, g, b] = (current_theme_.*ptr).channels;
-            file << name << "=" << std::format("{:.9g},{:.9g},{:.9g}", r, g, b) << "\n";
+            std::format_to(out, "{}={:.9g},{:.9g},{:.9g}\n", name, r, g, b);
         }
 
         // Save optional preset RGB fields
         for (const auto &[name, ptr]: theme_opt_rgb_fields) {
             if (const auto &opt = current_theme_.*ptr) {
                 const auto &[r, g, b] = opt->channels;
-                file << name << "=" << std::format("{:.9g},{:.9g},{:.9g}", r, g, b) << "\n";
+                std::format_to(out, "{}={:.9g},{:.9g},{:.9g}\n", name, r, g, b);
             }
         }
 
         // Save ImGui colors using named keys
         for (int i = 0; i < ImGuiCol_COUNT; i++) {
             const ImVec4 &c = current_theme_.colors.at(i);
-            file << ImGui::GetStyleColorName(i) << "=" << std::format("{:.9g},{:.9g},{:.9g},{:.9g}", c.x, c.y, c.z, c.w)
-                 << "\n";
+            std::format_to(out, "{}={:.9g},{:.9g},{:.9g},{:.9g}\n", ImGui::GetStyleColorName(i), c.x, c.y, c.z, c.w);
         }
 
         // Save ImNodes colors using named keys
-        for (int i = 0; i < ImNodesCol_COUNT; i++) {
-            file << "node_" << node_color_names.at(i) << "=" << current_theme_.node_colors.at(i) << "\n";
-        }
+        for (int i = 0; i < ImNodesCol_COUNT; i++)
+            std::format_to(out, "node_{}={}\n", node_color_names.at(i), current_theme_.node_colors.at(i));
+
+        file << buf;
 
         Log::info("Theme", "saved '", current_theme_.name, "' to ", path.c_str());
         return true;
@@ -444,13 +447,8 @@ namespace imgui_util::theme {
             int        index; // index into the corresponding constexpr table or color array
         };
 
-        // Full dispatch map including node keys — built once per ImGui context.
-        // Uses a pointer so initialization is deferred until this function is called
-        // (guaranteeing a live ImGui context when GetStyleColorName() is invoked).
-        static const std::unordered_map<std::string_view, field_entry> *field_map_ptr = nullptr;
-        // Owned storage for "node_" prefixed keys so string_views remain valid.
-        static std::array<std::string, ImNodesCol_COUNT>                node_keys;
-        if (!field_map_ptr) {
+        static const auto &field_map = []() -> const auto & {
+            static std::array<std::string, ImNodesCol_COUNT> node_keys;
             for (int i = 0; i < ImNodesCol_COUNT; i++)
                 node_keys[i] = std::string("node_") + std::string(node_color_names[i]);
 
@@ -473,9 +471,8 @@ namespace imgui_util::theme {
             for (int i = 0; i < ImNodesCol_COUNT; i++)
                 field_map_storage.emplace(std::string_view(node_keys[i]),
                                           field_entry{.kind = field_kind::node_color, .index = i});
-            field_map_ptr = &field_map_storage;
-        }
-        const auto &field_map = *field_map_ptr;
+            return field_map_storage;
+        }();
 
         std::string  line;
         bool         version_found = false;
@@ -556,13 +553,17 @@ namespace imgui_util::theme {
         return true;
     }
 
-    void theme_manager::apply_preset(const std::string_view name) {
+    void theme_manager::apply_preset(const std::string_view name, const theme_mode mode) {
         const auto *preset = find_preset(name);
         if (!preset) {
             Log::warning("Theme", "preset '", name, "' not found");
             return;
         }
-        set_theme(theme_config::from_preset(*preset));
+        set_theme(theme_config::from_preset(*preset, mode));
+    }
+
+    void theme_manager::apply_preset(const std::string_view name) {
+        apply_preset(name, theme_mode::dark);
     }
 
     // ============================================================================
@@ -669,9 +670,12 @@ namespace imgui_util::theme {
         if (color_filter_.IsActive()) {
             bool any_visible = false;
             for (const int idx: indices) {
-                if (idx < ImGuiCol_COUNT && color_filter_.PassFilter(ImGui::GetStyleColorName(idx))) {
-                    any_visible = true;
-                    break;
+                if (idx < ImGuiCol_COUNT) {
+                    if (const char *const color_name = ImGui::GetStyleColorName(idx);
+                        color_filter_.PassFilter(color_name)) {
+                        any_visible = true;
+                        break;
+                    }
                 }
             }
             if (!any_visible) return;
@@ -707,11 +711,11 @@ namespace imgui_util::theme {
         ImGui::Separator();
 
         for (int i = 0; i < ImNodesCol_COUNT; i++) {
-            ImVec4 col = ImGui::ColorConvertU32ToFloat4(editing_theme_.node_colors.at(i));
+            ImVec4 col = color::u32_to_float4(editing_theme_.node_colors.at(i));
             if (ImGui::ColorEdit4(
                     node_color_names.at(i).data(), &col.x,
                     ImGuiColorEditFlags_AlphaBar)) { // NOLINT(bugprone-not-null-terminated-result) — string literal
-                editing_theme_.node_colors.at(i) = ImGui::ColorConvertFloat4ToU32(col);
+                editing_theme_.node_colors.at(i) = color::float4_to_u32(col);
                 if (live_preview_) {
                     ImNodes::GetStyle().Colors[i] = editing_theme_.node_colors.at(i);
                 }
@@ -719,6 +723,9 @@ namespace imgui_util::theme {
         }
     }
 
+    // NOTE: live-only editor — most size values edit ImGuiStyle directly and
+    // won't persist through theme save/load/switch (only theme_config-backed
+    // fields use theme_slider and are round-tripped).
     void theme_manager::render_sizes_tab() {
         ImGuiStyle &style = ImGui::GetStyle();
 
@@ -825,7 +832,7 @@ namespace imgui_util::theme {
     // Code generation: produce a valid C++ theme_preset{...} initializer string
     // ============================================================================
 
-    std::string generate_preset_code(const theme_config &cfg) {
+    std::string theme_manager::generate_preset_code(const theme_config &cfg) {
         auto fmt_rgb = [](const rgb_color &c) {
             return std::format("{{{{{{{:.3f}f, {:.3f}f, {:.3f}f}}}}}}", c[0], c[1], c[2]);
         };
@@ -866,7 +873,7 @@ namespace imgui_util::theme {
         // Emit std::nullopt for optional node fields that match from_preset_core defaults,
         // so generated presets don't hardcode resolved defaults as explicit overrides.
         auto fmt_opt_u32 = [&](const ImU32 c, const ImU32 default_val) -> std::string {
-            if (c == default_val) return "{}";
+            if (c == default_val) return "std::nullopt";
             return fmt_u32(c);
         };
         std::format_to(out, "    .node_background          = {},\n",
@@ -887,7 +894,7 @@ namespace imgui_util::theme {
     // Validation: check a theme_config for common mistakes
     // ============================================================================
 
-    std::vector<std::string> validate(const theme_config &cfg) {
+    std::vector<std::string> theme_manager::validate(const theme_config &cfg) {
         std::vector<std::string> errors;
 
         // Check alpha values on all ImGui colors

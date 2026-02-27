@@ -38,28 +38,22 @@ namespace imgui_util::color {
         constexpr float                     *data() noexcept { return channels.data(); }
         constexpr bool                       operator==(const rgb_color &) const noexcept = default;
 
-        /**
-         * @brief Apply a binary operation to each channel, clamping results to [0, 1].
-         * @param c  Source color.
-         * @param v  Scalar operand passed to @p op alongside each channel.
-         * @param op Binary callable `(float channel, float v) -> float`.
-         * @return   New rgb_color with clamped results.
-         */
-        static constexpr rgb_color map(const rgb_color &c, const float v, auto op) noexcept {
-            return {{{std::clamp(op(c.channels[0], v), 0.0f, 1.0f), std::clamp(op(c.channels[1], v), 0.0f, 1.0f),
-                      std::clamp(op(c.channels[2], v), 0.0f, 1.0f)}}};
-        }
-
         constexpr friend rgb_color operator+(const rgb_color a, const float d) noexcept {
-            return map(a, d, [](const float x, const float y) { return x + y; });
+            return {{{std::clamp(a.channels[0] + d, 0.0f, 1.0f), std::clamp(a.channels[1] + d, 0.0f, 1.0f),
+                      std::clamp(a.channels[2] + d, 0.0f, 1.0f)}}};
         }
 
         constexpr friend rgb_color operator*(const rgb_color a, const float f) noexcept {
-            return map(a, f, [](const float x, const float y) { return x * y; });
+            return {{{std::clamp(a.channels[0] * f, 0.0f, 1.0f), std::clamp(a.channels[1] * f, 0.0f, 1.0f),
+                      std::clamp(a.channels[2] * f, 0.0f, 1.0f)}}};
         }
 
+        constexpr friend rgb_color operator+(const float d, const rgb_color a) noexcept { return a + d; }
+        constexpr friend rgb_color operator*(const float f, const rgb_color a) noexcept { return a * f; }
+
         constexpr friend rgb_color operator-(const rgb_color a, const float d) noexcept {
-            return map(a, d, [](const float x, const float y) { return x - y; });
+            return {{{std::clamp(a.channels[0] - d, 0.0f, 1.0f), std::clamp(a.channels[1] - d, 0.0f, 1.0f),
+                      std::clamp(a.channels[2] - d, 0.0f, 1.0f)}}};
         }
 
         constexpr rgb_color &operator+=(const float d) noexcept { return *this = *this + d; }

@@ -20,11 +20,12 @@
 /// @endcode
 #pragma once
 
-#include <algorithm>
 #include <functional>
 #include <imgui.h>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "imgui_util/core/raii.hpp"
@@ -44,8 +45,7 @@ namespace imgui_util {
          * @param render_fn Callback that renders the section content.
          * @return Reference to this panel for chaining.
          */
-        [[nodiscard]] settings_panel &section(const std::string_view          name,
-                                              std::move_only_function<void()> render_fn) {
+        [[nodiscard]] settings_panel &section(const std::string_view name, std::move_only_function<void()> render_fn) {
             sections_.push_back({.name = std::string(name), .parent = {}, .render_fn = std::move(render_fn)});
             return *this;
         }
@@ -67,15 +67,14 @@ namespace imgui_util {
         /**
          * @brief Render the settings panel (tree navigation + content area).
          * @param str_id ImGui ID string for the panel scope.
-         * @param open   Optional open state pointer (currently unused, reserved for modal usage).
          */
-        void render(const std::string_view str_id, [[maybe_unused]] const bool *open = nullptr) noexcept {
-            const id scope{str_id.data()};
+        void render(const char *str_id) noexcept {
+            const id scope{str_id};
 
             if (sections_.empty()) return;
 
-            if (selected_.empty()) {
-                selected_ = sections_[0].name;
+            if (selected_idx_ < 0 || static_cast<std::size_t>(selected_idx_) >= sections_.size()) {
+                selected_idx_ = 0;
             }
 
             const auto      avail      = ImGui::GetContentRegionAvail();
@@ -92,13 +91,11 @@ namespace imgui_util {
 
             {
                 const child right_child{"##settings_content", ImVec2(right_w, 0), ImGuiChildFlags_Borders};
-                const auto  it = std::ranges::find_if(
-                    sections_, [&](const auto &sec) { return sec.name == selected_ && sec.render_fn; });
-                if (it != sections_.end()) {
-                    ImGui::TextUnformatted(it->name.c_str(), it->name.c_str() + it->name.size());
+                if (auto &sec = sections_[static_cast<std::size_t>(selected_idx_)]; sec.render_fn) {
+                    ImGui::TextUnformatted(sec.name.c_str(), sec.name.c_str() + sec.name.size());
                     ImGui::Separator();
                     ImGui::Spacing();
-                    it->render_fn();
+                    sec.render_fn();
                 }
             }
         }
@@ -111,43 +108,41 @@ namespace imgui_util {
         };
 
         std::vector<section_entry> sections_;
-        std::string                selected_;
+        int                        selected_idx_ = -1;
 
         void render_tree() noexcept {
-            for (const auto &sec: sections_) {
-                if (sec.parent.empty()) {
-                    render_tree_node(sec);
-                }
+            std::unordered_map<std::string_view, std::vector<int>> children_of;
+            for (int i = 0; std::cmp_less(i ,sections_.size()); ++i) {
+                children_of[sections_[static_cast<std::size_t>(i)].parent].push_back(i);
+            }
+
+            for (const int i: children_of[""]) {
+                render_tree_node(sections_[static_cast<std::size_t>(i)], i, children_of);
             }
         }
 
-        void render_tree_node(const section_entry &entry) noexcept { // NOLINT(misc-no-recursion)
-            const bool has_children =
-                std::ranges::any_of(sections_, [&](const auto &sec) { return sec.parent == entry.name; });
-
-            if (has_children) {
+        void render_tree_node(const section_entry &entry, const int idx, // NOLINT(misc-no-recursion)
+                              const std::unordered_map<std::string_view, std::vector<int>> &children_of) noexcept {
+            if (const auto it = children_of.find(entry.name); it != children_of.end() && !it->second.empty()) {
                 constexpr ImGuiTreeNodeFlags base_flags =
                     ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
-                const ImGuiTreeNodeFlags flags =
-                    base_flags | (selected_ == entry.name ? ImGuiTreeNodeFlags_Selected : 0);
+                const ImGuiTreeNodeFlags flags = base_flags | (selected_idx_ == idx ? ImGuiTreeNodeFlags_Selected : 0);
 
                 if (const tree_node tn{entry.name.c_str(), flags}) {
                     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
-                        selected_ = entry.name;
+                        selected_idx_ = idx;
                     }
-                    for (const auto &sec: sections_) {
-                        if (sec.parent == entry.name) {
-                            render_tree_node(sec);
-                        }
+                    for (const int ci: it->second) {
+                        render_tree_node(sections_[static_cast<std::size_t>(ci)], ci, children_of);
                     }
                 } else {
                     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
-                        selected_ = entry.name;
+                        selected_idx_ = idx;
                     }
                 }
             } else {
-                if (ImGui::Selectable(entry.name.c_str(), selected_ == entry.name)) {
-                    selected_ = entry.name;
+                if (ImGui::Selectable(entry.name.c_str(), selected_idx_ == idx)) {
+                    selected_idx_ = idx;
                 }
             }
         }

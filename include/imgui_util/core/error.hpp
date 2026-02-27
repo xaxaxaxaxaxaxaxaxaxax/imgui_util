@@ -97,8 +97,9 @@ namespace imgui_util {
      * @param code   The error code.
      * @param detail Additional context (empty by default).
      */
-    [[nodiscard]] inline std::unexpected<ui_error> make_ui_error(const ui_error_code code, std::string detail = {}) {
-        return std::unexpected{ui_error{code, std::move(detail)}};
+    [[nodiscard]] constexpr std::unexpected<ui_error> make_ui_error(const ui_error_code code,
+                                                                    const std::string_view detail = {}) {
+        return std::unexpected{ui_error{code, std::string{detail}}};
     }
 
     /// @brief Maximum allowed filesystem path length for validate_path().

@@ -74,7 +74,8 @@ namespace imgui_util {
         }
 
         template<typename T>
-        bool apply_reorder(std::vector<T> &items, const int from, int to, const int count) {
+        bool apply_reorder(std::vector<T> &items, const int from, int to) {
+            const int count = static_cast<int>(items.size());
             if (from == to || from < 0 || from >= count) return false;
             if (from < to) --to;
             if (to == from || to < 0 || to > count - 1) return false;
@@ -112,7 +113,7 @@ namespace imgui_util {
      * @return True if the order changed this frame.
      */
     template<typename T, std::invocable<const T &> RenderFn>
-    [[nodiscard]] bool reorder_list(const char *str_id, std::vector<T> &items, RenderFn render_item,
+    [[nodiscard]] bool reorder_list(const char *str_id, std::vector<T> &items, const RenderFn &render_item,
                                     const float item_height = 0.0f) {
         if (items.empty()) return false;
 
@@ -157,7 +158,7 @@ namespace imgui_util {
 
                 if (const auto from_opt = drag_drop::accept_payload<int>("REORDER_ITEM")) {
                     const int to = above ? i : i + 1;
-                    changed      = detail::apply_reorder(items, *from_opt, to, count) || changed;
+                    changed      = detail::apply_reorder(items, *from_opt, to) || changed;
                     storage->SetInt(src_key, -1);
                     storage->SetBool(active_key, false);
                 }

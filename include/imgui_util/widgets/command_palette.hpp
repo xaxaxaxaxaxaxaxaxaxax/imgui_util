@@ -17,7 +17,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <functional>
 #include <imgui.h>
 #include <string>
@@ -49,6 +48,14 @@ namespace imgui_util {
 
         /// @brief Remove all registered commands.
         void clear() noexcept { commands_.clear(); }
+
+        /// @brief Remove the command with the given name, if it exists.
+        void remove(const std::string_view name) {
+            std::erase_if(commands_, [name](const command_entry &e) { return e.name == name; });
+        }
+
+        /// @brief Set the maximum number of results shown in the list.
+        void set_max_results(const int n) noexcept { max_visible_ = n; }
 
         /// @brief Open the palette popup (resets filter and selection).
         void open() noexcept {
@@ -135,7 +142,7 @@ namespace imgui_util {
 
         void render_results_list() {
             ImGui::Separator();
-            const int max_visible = std::min(static_cast<int>(scored_.size()), 10);
+            const int max_visible = std::min(static_cast<int>(scored_.size()), max_visible_);
             for (int i = 0; i < max_visible; ++i) {
                 auto &[name, description, callback] = commands_[scored_[i].idx];
                 const bool sel                      = i == selected_;
@@ -158,18 +165,21 @@ namespace imgui_util {
 
         // Fuzzy match: all query chars must appear in order in candidate.
         // Score prefers consecutive matches and matches near the start.
-        [[nodiscard]] static bool fuzzy_match(const std::string_view query, const std::string_view candidate,
-                                              int &score) noexcept {
+        [[nodiscard]] static constexpr bool fuzzy_match(const std::string_view query, const std::string_view candidate,
+                                                       int &score) noexcept {
             score                  = 0;
             std::size_t ci         = 0;
             int         last_match = -1;
 
+            constexpr auto to_lower = [](const char c) constexpr noexcept -> char {
+                return c >= 'A' && c <= 'Z' ? static_cast<char>(c + ('a' - 'A')) : c;
+            };
+
             for (const char qc: query) {
-                const char qlower = static_cast<char>(std::tolower(static_cast<unsigned char>(qc)));
+                const char qlower = to_lower(qc);
                 bool       found  = false;
                 while (ci < candidate.size()) {
-                    if (const char clower = static_cast<char>(std::tolower(static_cast<unsigned char>(candidate[ci])));
-                        qlower == clower) {
+                    if (const char clower = to_lower(candidate[ci]); qlower == clower) {
                         // Bonus for consecutive matches
                         if (last_match >= 0 && static_cast<int>(ci) == last_match + 1) score += 5;
                         // Bonus for early matches
@@ -190,6 +200,7 @@ namespace imgui_util {
         std::vector<scored_entry>  scored_; // transient per-frame
         std::array<char, 128>      filter_{};
         int                        selected_     = 0;
+        int                        max_visible_  = 10;
         bool                       should_open_  = false;
         bool                       filter_dirty_ = true;
     };

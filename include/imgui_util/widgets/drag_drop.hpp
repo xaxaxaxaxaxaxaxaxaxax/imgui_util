@@ -31,7 +31,7 @@
 namespace imgui_util::drag_drop {
 
     /// @brief Maximum size in bytes for a drag-drop payload value.
-    static constexpr std::size_t max_payload_bytes = 1024;
+    constexpr std::size_t max_payload_bytes = 1024;
 
     /// @brief Constraint for types usable as drag-drop payloads.
     template<typename T>

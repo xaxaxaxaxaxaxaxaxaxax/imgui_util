@@ -28,9 +28,9 @@ namespace imgui_util {
      *
      * - always:      end() unconditionally (e.g. Window, Group).
      * - conditional: end() only if begin() returned true (e.g. TabBar, Menu).
-     * - none:        always pop, no bool tracking (e.g. PushStyleVar, PushID).
+     * - push_pop:    always pop, no bool tracking (e.g. PushStyleVar, PushID).
      */
-    enum class end_policy { always, conditional, none };
+    enum class end_policy { always, conditional, push_pop };
 
     /**
      * @brief Generic RAII wrapper that calls Trait::begin() on construction and
@@ -39,9 +39,14 @@ namespace imgui_util {
      */
     template<typename Trait>
     class [[nodiscard]] raii_scope {
-        static constexpr end_policy policy    = Trait::policy;              // how/when to call end()
-        static constexpr bool       has_state = policy != end_policy::none; // track begin() return?
-        static constexpr bool       has_storage =
+        static constexpr end_policy policy = Trait::policy; // how/when to call end()
+        static constexpr bool has_state = [] {
+            if constexpr (requires { { Trait::tracks_state } -> std::convertible_to<bool>; })
+                return static_cast<bool>(Trait::tracks_state);
+            else
+                return Trait::policy == end_policy::conditional;
+        }();
+        static constexpr bool has_storage =
             !std::is_same_v<typename Trait::storage, std::monostate>; // extra data for end()
 
         [[no_unique_address]] std::conditional_t<has_state, bool, std::monostate>
@@ -80,7 +85,7 @@ namespace imgui_util {
             } else if constexpr (policy == end_policy::conditional) {
                 if (state_) Trait::end();
             } else {
-                // end_policy::none - always call end, may need storage
+                // end_policy::push_pop - always call end, may need storage
                 if constexpr (has_storage) {
                     Trait::end(storage_);
                 } else {
@@ -178,11 +183,12 @@ namespace imgui_util {
     using menu_trait     = simple_trait<end_policy::conditional, &ImGui::BeginMenu, &ImGui::EndMenu>;
     using list_box_trait = simple_trait<end_policy::conditional, &ImGui::BeginListBox, &ImGui::EndListBox>;
 
-    using item_width_trait = simple_trait<end_policy::none, &ImGui::PushItemWidth, &ImGui::PopItemWidth>;
+    using item_width_trait = simple_trait<end_policy::push_pop, &ImGui::PushItemWidth, &ImGui::PopItemWidth>;
 
     struct window_trait {
-        static constexpr auto policy = end_policy::always;
-        using storage                = std::monostate;
+        static constexpr auto policy       = end_policy::always;
+        static constexpr bool tracks_state = true;
+        using storage                      = std::monostate;
         static bool begin(const char *name, bool *open = nullptr, const ImGuiWindowFlags flags = 0) noexcept {
             return ImGui::Begin(name, open, flags);
         }
@@ -190,8 +196,9 @@ namespace imgui_util {
     };
 
     struct child_trait {
-        static constexpr auto policy = end_policy::always;
-        using storage                = std::monostate;
+        static constexpr auto policy       = end_policy::always;
+        static constexpr bool tracks_state = true;
+        using storage                      = std::monostate;
         static bool begin(const char *id, const ImVec2 &size = ImVec2(0, 0), const ImGuiChildFlags child_flags = 0,
                           const ImGuiWindowFlags window_flags = 0) noexcept {
             return ImGui::BeginChild(id, size, child_flags, window_flags);
@@ -279,7 +286,7 @@ namespace imgui_util {
     };
 
     struct style_var_trait {
-        static constexpr auto policy = end_policy::none;
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = std::monostate;
         static void begin(const ImGuiStyleVar idx, const float val) noexcept { ImGui::PushStyleVar(idx, val); }
         static void begin(const ImGuiStyleVar idx, const ImVec2 &val) noexcept { ImGui::PushStyleVar(idx, val); }
@@ -287,7 +294,7 @@ namespace imgui_util {
     };
 
     struct style_color_trait {
-        static constexpr auto policy = end_policy::none;
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = std::monostate;
         static void begin(const ImGuiCol idx, const ImU32 col) noexcept { ImGui::PushStyleColor(idx, col); }
         static void begin(const ImGuiCol idx, const ImVec4 &col) noexcept { ImGui::PushStyleColor(idx, col); }
@@ -295,7 +302,7 @@ namespace imgui_util {
     };
 
     struct id_trait {
-        static constexpr auto policy = end_policy::none;
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = std::monostate;
         static void begin(const char *str_id) noexcept { ImGui::PushID(str_id); }
         static void begin(const int int_id) noexcept { ImGui::PushID(int_id); }
@@ -304,7 +311,7 @@ namespace imgui_util {
     };
 
     struct indent_trait {
-        static constexpr auto policy = end_policy::none;
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = float;
         static float begin(const float width = 0.0f) noexcept {
             ImGui::Indent(width);
@@ -314,14 +321,14 @@ namespace imgui_util {
     };
 
     struct font_trait {
-        static constexpr auto policy = end_policy::none;
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = std::monostate;
         static void begin(ImFont *font) noexcept { ImGui::PushFont(font); }
         static void end() noexcept { ImGui::PopFont(); }
     };
 
     struct clip_rect_trait {
-        static constexpr auto policy = end_policy::none;
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = std::monostate;
         static void begin(const ImVec2 &min, const ImVec2 &max, const bool intersect = true) noexcept {
             ImGui::PushClipRect(min, max, intersect);
@@ -330,14 +337,14 @@ namespace imgui_util {
     };
 
     struct text_wrap_pos_trait {
-        static constexpr auto policy = end_policy::none;
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = std::monostate;
         static void begin(const float wrap_local_pos_x = 0.0f) noexcept { ImGui::PushTextWrapPos(wrap_local_pos_x); }
         static void end() noexcept { ImGui::PopTextWrapPos(); }
     };
 
     struct item_flag_trait {
-        static constexpr auto policy = end_policy::none;
+        static constexpr auto policy = end_policy::push_pop;
         using storage                = std::monostate;
         static void begin(const ImGuiItemFlags option, const bool enabled) noexcept {
             ImGui::PushItemFlag(option, enabled);
@@ -345,8 +352,8 @@ namespace imgui_util {
         static void end() noexcept { ImGui::PopItemFlag(); }
     };
 
-    using button_repeat_trait = simple_trait<end_policy::none, &ImGui::PushButtonRepeat, &ImGui::PopButtonRepeat>;
-    using tab_stop_trait      = simple_trait<end_policy::none, &ImGui::PushTabStop, &ImGui::PopTabStop>;
+    using button_repeat_trait = simple_trait<end_policy::push_pop, &ImGui::PushButtonRepeat, &ImGui::PopButtonRepeat>;
+    using tab_stop_trait      = simple_trait<end_policy::push_pop, &ImGui::PushTabStop, &ImGui::PopTabStop>;
     using drag_drop_target_trait =
         simple_trait<end_policy::conditional, &ImGui::BeginDragDropTarget, &ImGui::EndDragDropTarget>;
 

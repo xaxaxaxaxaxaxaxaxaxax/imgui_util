@@ -14,7 +14,6 @@
 #include <algorithm>
 #include <array>
 #include <concepts>
-#include <cstdint>
 #include <format>
 #include <imgui.h>
 #include <span>
@@ -25,9 +24,6 @@
 #include "imgui_util/widgets/text.hpp"
 
 namespace imgui_util {
-
-    /// @brief Shared direction enum used by splitter, toolbar, and other layout widgets.
-    enum class direction : uint8_t { horizontal, vertical };
 
     /// @brief Render an inline "(?) " help marker with a hover tooltip.
     inline void help_marker(const std::string_view tooltip) noexcept {

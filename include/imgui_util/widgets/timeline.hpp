@@ -22,7 +22,9 @@
 #include <cmath>
 #include <cstddef>
 #include <imgui.h>
+#include <limits>
 #include <span>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -34,11 +36,11 @@ namespace imgui_util {
 
     /// @brief A single event on the timeline, occupying a time range within a track.
     struct timeline_event {
-        float            start = 0.0f;                         ///< Start time (inclusive).
-        float            end   = 0.0f;                         ///< End time (inclusive).
-        std::string_view label;                                ///< Label drawn inside the event rectangle.
-        ImU32            color = IM_COL32(100, 150, 255, 255); ///< Fill color.
-        int              track = 0;                            ///< Track index (0-based).
+        float       start = 0.0f;                         ///< Start time (inclusive).
+        float       end   = 0.0f;                         ///< End time (inclusive).
+        std::string label;                                ///< Label drawn inside the event rectangle.
+        ImU32       color = IM_COL32(100, 150, 255, 255); ///< Fill color.
+        int         track = 0;                            ///< Track index (0-based).
     };
 
     /**
@@ -89,9 +91,9 @@ namespace imgui_util {
 
             bool changed = false;
 
-            if (std::cmp_not_equal(events.size(), last_event_count_)) {
+            if (events.size() != last_event_count_) {
                 max_track_dirty_  = true;
-                last_event_count_ = static_cast<int>(events.size());
+                last_event_count_ = events.size();
             }
 
             render_ruler(ctx);
@@ -117,9 +119,44 @@ namespace imgui_util {
         [[nodiscard]] bool render_readonly(const std::string_view str_id, const std::span<const timeline_event> events,
                                            float &playhead, const float visible_start,
                                            const float visible_end) noexcept {
-            mutable_events_buf_.assign(events.begin(), events.end());
-            return render(str_id, std::span{mutable_events_buf_}, playhead, visible_start,
-                          visible_end);
+            if (visible_end <= visible_start) return false;
+
+            const id     scope{str_id.data()};
+            const ImVec2 canvas_pos  = ImGui::GetCursorScreenPos();
+            const float  canvas_w    = ImGui::GetContentRegionAvail().x;
+            const ImVec2 canvas_size = {canvas_w, height_};
+
+            ImGui::InvisibleButton("##timeline_canvas", canvas_size);
+
+            const render_context ctx{
+                .dl             = ImGui::GetWindowDrawList(),
+                .canvas_pos     = canvas_pos,
+                .canvas_w       = canvas_w,
+                .height         = height_,
+                .visible_start  = visible_start,
+                .visible_end    = visible_end,
+                .time_range     = visible_end - visible_start,
+                .canvas_hovered = ImGui::IsItemHovered(),
+                .mouse          = ImGui::GetMousePos(),
+                .snap           = snap_,
+            };
+
+            ctx.dl->AddRectFilled(canvas_pos, {canvas_pos.x + canvas_w, canvas_pos.y + height_},
+                                  IM_COL32(30, 30, 30, 255));
+
+            bool changed = false;
+
+            if (events.size() != last_event_count_) {
+                max_track_dirty_  = true;
+                last_event_count_ = events.size();
+            }
+
+            render_ruler(ctx);
+            const auto [tracks_top, actual_track_h] = render_tracks_readonly(ctx, events);
+            render_events_readonly(ctx, events, tracks_top, actual_track_h);
+            render_playhead(ctx, playhead, changed);
+
+            return changed;
         }
 
         /// @brief Enable snap-to-grid at the given interval (0 to disable). Chainable.
@@ -136,7 +173,9 @@ namespace imgui_util {
 
         /// @brief Assign labels to tracks (indexed by track number). Chainable.
         [[nodiscard]] timeline &set_track_labels(const std::span<const std::string_view> labels) {
-            track_labels_.assign(labels.begin(), labels.end());
+            track_labels_.clear();
+            track_labels_.reserve(labels.size());
+            for (const auto sv : labels) track_labels_.emplace_back(sv);
             return *this;
         }
 
@@ -144,14 +183,13 @@ namespace imgui_util {
         float                         height_;
         float                         snap_         = 0.0f;
         float                         track_height_ = 30.0f;
-        std::vector<std::string_view> track_labels_;
-        std::vector<timeline_event>   mutable_events_buf_;
+        std::vector<std::string>      track_labels_;
         int                           dragging_event_               = -1;
         enum class drag_edge { none, body, left, right } drag_edge_ = drag_edge::none;
         float drag_offset_                                          = 0.0f;
         int   cached_max_track_                                     = 0;
         bool  max_track_dirty_                                      = true;
-        int   last_event_count_                                     = -1;
+        std::size_t last_event_count_                                = std::numeric_limits<std::size_t>::max();
 
         struct render_context {
             ImDrawList *dl{};
@@ -290,6 +328,61 @@ namespace imgui_util {
                             }
                         }
                     }
+                }
+            }
+        }
+
+        [[nodiscard]] track_layout render_tracks_readonly(const render_context                    &ctx,
+                                                        const std::span<const timeline_event> events) noexcept {
+            if (max_track_dirty_) {
+                cached_max_track_ = events.empty() ? 0 : std::ranges::max(events, {}, &timeline_event::track).track;
+                max_track_dirty_  = false;
+            }
+            const int   max_track    = cached_max_track_;
+            const int   num_tracks   = max_track + 1;
+            const float tracks_top   = ctx.canvas_pos.y + ruler_h;
+            const float tracks_avail = ctx.height - ruler_h;
+            const float actual_track_h =
+                std::min(track_height_, num_tracks > 0 ? tracks_avail / static_cast<float>(num_tracks) : tracks_avail);
+
+            for (int t = 0; t < num_tracks; ++t) {
+                const float y0 = tracks_top + static_cast<float>(t) * actual_track_h;
+                const float y1 = y0 + actual_track_h;
+
+                const ImU32 track_bg = t % 2 == 0 ? IM_COL32(35, 35, 35, 255) : IM_COL32(40, 40, 40, 255);
+                ctx.dl->AddRectFilled({ctx.canvas_pos.x, y0}, {ctx.canvas_pos.x + ctx.canvas_w, y1}, track_bg);
+
+                if (std::cmp_less(t, track_labels_.size())) {
+                    const auto &tl = track_labels_[static_cast<std::size_t>(t)];
+                    ctx.dl->AddText({ctx.canvas_pos.x + 4.0f, y0 + 2.0f}, IM_COL32(140, 140, 140, 255), tl.data(),
+                                    tl.data() + tl.size());
+                }
+
+                ctx.dl->AddLine({ctx.canvas_pos.x, y1}, {ctx.canvas_pos.x + ctx.canvas_w, y1},
+                                IM_COL32(60, 60, 60, 255));
+            }
+
+            return {.tracks_top = tracks_top, .actual_track_h = actual_track_h};
+        }
+
+        static void render_events_readonly(const render_context &ctx, const std::span<const timeline_event> events,
+                                           const float tracks_top, const float actual_track_h) noexcept {
+            for (const auto &[start, end, label, color, track] : events) {
+                constexpr float event_padding = 2.0f;
+
+                const float x0 = ctx.time_to_x(start);
+                const float x1 = ctx.time_to_x(end);
+                const float y0 = tracks_top + static_cast<float>(track) * actual_track_h + event_padding;
+                const float y1 = y0 + actual_track_h - event_padding * 2.0f;
+
+                ctx.dl->AddRectFilled({x0, y0}, {x1, y1}, color, 3.0f);
+                ctx.dl->AddRect({x0, y0}, {x1, y1}, IM_COL32(255, 255, 255, 60), 3.0f);
+
+                if (!label.empty() && x1 - x0 > 20.0f) {
+                    ctx.dl->PushClipRect({x0, y0}, {x1, y1}, true);
+                    ctx.dl->AddText({x0 + 4.0f, y0 + 2.0f}, IM_COL32(255, 255, 255, 220), label.data(),
+                                    label.data() + label.size());
+                    ctx.dl->PopClipRect();
                 }
             }
         }

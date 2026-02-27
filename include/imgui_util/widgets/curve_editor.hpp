@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstddef>
 #include <imgui.h>
+#include <optional>
 #include <span>
 #include <utility>
 #include <vector>
@@ -97,7 +98,10 @@ namespace imgui_util {
 
             render_grid(ctx);
 
-            std::ranges::sort(keys, {}, &keyframe::time);
+            if (keys_dirty_) {
+                std::ranges::sort(keys, {}, &keyframe::time);
+                keys_dirty_ = false;
+            }
 
             render_curve(ctx, keys);
             render_keyframes(ctx, keys, modified);
@@ -108,6 +112,24 @@ namespace imgui_util {
             handle_delete_keyframe(keys, modified);
 
             return modified;
+        }
+
+        /**
+         * @brief Render the curve without any interaction (read-only).
+         * @param id    ImGui ID string.
+         * @param keys  Keyframes defining the curve (not modified).
+         * @param t_min Left edge of the visible time range.
+         * @param t_max Right edge of the visible time range.
+         * @param v_min Bottom edge of the visible value range.
+         * @param v_max Top edge of the visible value range.
+         */
+        void render_readonly(const char *id, const std::span<const keyframe> keys, const float t_min = 0.f,
+                             const float t_max = 1.f, const float v_min = 0.f, const float v_max = 1.f) const {
+            const imgui_util::id              scope{id};
+            const render_context              ctx = setup_canvas(t_min, t_max, v_min, v_max);
+            const detail::draw_list_clip_rect clip{ctx.dl, ctx.canvas_pos, ctx.canvas_end, true};
+            render_grid(ctx);
+            render_curve(ctx, keys);
         }
 
         /**
@@ -184,15 +206,16 @@ namespace imgui_util {
         }
 
     private:
-        ImVec2 size_;
-        bool   show_grid_    = true;
-        float  grid_t_step_  = 0.1f;
-        float  grid_v_step_  = 0.1f;
-        float  snap_t_       = 0.0f;
-        float  snap_v_       = 0.0f;
-        ImU32  curve_color_  = IM_COL32(255, 200, 50, 255);
-        int    selected_key_ = -1;
-        int    dragging_key_ = -1;
+        ImVec2             size_;
+        bool               keys_dirty_  = true;
+        bool               show_grid_   = true;
+        float              grid_t_step_ = 0.1f;
+        float              grid_v_step_ = 0.1f;
+        float              snap_t_      = 0.0f;
+        float              snap_v_      = 0.0f;
+        ImU32              curve_color_ = IM_COL32(255, 200, 50, 255);
+        std::optional<int> selected_key_;
+        std::optional<int> dragging_key_;
 
         static constexpr float point_radius = 5.0f;
 
@@ -296,45 +319,18 @@ namespace imgui_util {
             }
         }
 
-        void render_curve(const render_context &ctx, const std::vector<keyframe> &keys) const {
+        void render_curve(const render_context &ctx, const std::span<const keyframe> keys) const {
             if (keys.size() >= 2) {
-                constexpr int sample_count = 256;
-                ImVec2        prev         = ctx.to_screen(keys.front().time, keys.front().value);
+                constexpr int                        sample_count = 256;
+                std::array<ImVec2, sample_count + 1> pts;
 
-                std::size_t seg = 0;
+                pts[0] = ctx.to_screen(keys.front().time, keys.front().value);
                 for (int i = 1; i <= sample_count; ++i) {
-                    const float frac = static_cast<float>(i) / static_cast<float>(sample_count);
-                    const float t    = ctx.t_min + frac * ctx.t_range;
-
-                    // Advance segment index linearly (keys are sorted by time)
-                    while (seg + 2 < keys.size() && keys[seg + 1].time <= t)
-                        ++seg;
-
-                    const auto &k0 = keys[seg];
-                    const auto &k1 = keys[seg + 1];
-                    const float dt = k1.time - k0.time;
-                    float       v  = NAN;
-                    if (dt <= 0.0f || t <= k0.time) {
-                        v = k0.value;
-                    } else if (t >= k1.time) {
-                        v = k1.value;
-                    } else {
-                        const float u   = (t - k0.time) / dt;
-                        const float u2  = u * u;
-                        const float u3  = u2 * u;
-                        const float h00 = 2.0f * u3 - 3.0f * u2 + 1.0f;
-                        const float h10 = u3 - 2.0f * u2 + u;
-                        const float h01 = -2.0f * u3 + 3.0f * u2;
-                        const float h11 = u3 - u2;
-                        const float m0  = k0.tangent_out * dt;
-                        const float m1  = k1.tangent_in * dt;
-                        v               = h00 * k0.value + h10 * m0 + h01 * k1.value + h11 * m1;
-                    }
-
-                    const ImVec2 cur = ctx.to_screen(t, v);
-                    ctx.dl->AddLine(prev, cur, curve_color_, 2.0f);
-                    prev = cur;
+                    const float frac                 = static_cast<float>(i) / static_cast<float>(sample_count);
+                    const float t                    = ctx.t_min + frac * ctx.t_range;
+                    pts[static_cast<std::size_t>(i)] = ctx.to_screen(t, evaluate(keys, t));
                 }
+                ctx.dl->AddPolyline(pts.data(), pts.size(), curve_color_, 0, 2.0f);
             } else if (keys.size() == 1) {
                 const ImVec2 left  = ctx.to_screen(ctx.t_min, keys[0].value);
                 const ImVec2 right = ctx.to_screen(ctx.t_max, keys[0].value);
@@ -346,7 +342,7 @@ namespace imgui_util {
             for (int ki = 0; std::cmp_less(ki, keys.size()); ++ki) {
                 auto &[time, value, tangent_in, tangent_out] = keys[static_cast<std::size_t>(ki)];
                 const ImVec2 pos                             = ctx.to_screen(time, value);
-                const bool   is_selected                     = ki == selected_key_;
+                const bool   is_selected                     = selected_key_.has_value() && *selected_key_ == ki;
 
                 // Draw tangent handles for selected key
                 if (is_selected) {
@@ -369,20 +365,23 @@ namespace imgui_util {
                     ctx.dl->AddCircleFilled(tan_out, handle_radius, IM_COL32(100, 180, 255, 220));
 
                     // Tangent handle interaction
-                    if (dragging_key_ == ki && dragging_part_ == drag_part::tangent_in) {
+                    if (dragging_key_.has_value() && *dragging_key_ == ki && dragging_part_ == drag_part::tangent_in) {
                         if (ImGui::IsMouseDown(0)) {
-                            tangent_in = -((ctx.mouse.y - pos.y) / tangent_len_px);
-                            modified   = true;
-                        } else {
-                            dragging_key_  = -1;
-                            dragging_part_ = drag_part::none;
-                        }
-                    } else if (dragging_key_ == ki && dragging_part_ == drag_part::tangent_out) {
-                        if (ImGui::IsMouseDown(0)) {
-                            tangent_out = -((ctx.mouse.y - pos.y) / tangent_len_px);
+                            tangent_in  = -((ctx.mouse.y - pos.y) / tangent_len_px);
+                            keys_dirty_ = true;
                             modified    = true;
                         } else {
-                            dragging_key_  = -1;
+                            dragging_key_.reset();
+                            dragging_part_ = drag_part::none;
+                        }
+                    } else if (dragging_key_.has_value() && *dragging_key_ == ki
+                               && dragging_part_ == drag_part::tangent_out) {
+                        if (ImGui::IsMouseDown(0)) {
+                            tangent_out = -((ctx.mouse.y - pos.y) / tangent_len_px);
+                            keys_dirty_ = true;
+                            modified    = true;
+                        } else {
+                            dragging_key_.reset();
                             dragging_part_ = drag_part::none;
                         }
                     }
@@ -409,20 +408,21 @@ namespace imgui_util {
         }
 
         void handle_point_drag(const render_context &ctx, std::vector<keyframe> &keys, bool &modified) {
-            if (dragging_key_ < 0 || dragging_part_ != drag_part::point) return;
+            if (!dragging_key_.has_value() || dragging_part_ != drag_part::point) return;
 
             if (ImGui::IsMouseDown(0)) {
-                auto &key   = keys[static_cast<std::size_t>(dragging_key_)];
+                auto &key   = keys[static_cast<std::size_t>(*dragging_key_)];
                 auto [t, v] = ctx.to_value(ctx.mouse);
 
                 if (snap_t_ > 0.0f) t = std::round(t / snap_t_) * snap_t_;
                 if (snap_v_ > 0.0f) v = std::round(v / snap_v_) * snap_v_;
 
-                key.time  = std::clamp(t, ctx.t_min, ctx.t_max);
-                key.value = std::clamp(v, ctx.v_min, ctx.v_max);
-                modified  = true;
+                key.time    = std::clamp(t, ctx.t_min, ctx.t_max);
+                key.value   = std::clamp(v, ctx.v_min, ctx.v_max);
+                keys_dirty_ = true;
+                modified    = true;
             } else {
-                dragging_key_  = -1;
+                dragging_key_.reset();
                 dragging_part_ = drag_part::none;
             }
         }
@@ -445,7 +445,7 @@ namespace imgui_util {
                 dragging_key_  = closest;
                 dragging_part_ = drag_part::point;
             } else {
-                selected_key_ = -1;
+                selected_key_.reset();
             }
         }
 
@@ -466,19 +466,21 @@ namespace imgui_util {
                 v           = std::clamp(v, ctx.v_min, ctx.v_max);
                 keys.push_back({.time = t, .value = v, .tangent_in = 0.0f, .tangent_out = 0.0f});
                 selected_key_ = static_cast<int>(keys.size()) - 1;
+                keys_dirty_   = true;
                 modified      = true;
             }
         }
 
         void handle_delete_keyframe(std::vector<keyframe> &keys, bool &modified) {
-            if (selected_key_ < 0 || !std::cmp_less(selected_key_, keys.size())
+            if (!selected_key_.has_value() || !std::cmp_less(*selected_key_, keys.size())
                 || !ImGui::IsKeyPressed(ImGuiKey_Delete, false))
                 return;
 
-            keys.erase(keys.begin() + selected_key_);
-            selected_key_  = -1;
-            dragging_key_  = -1;
+            keys.erase(keys.begin() + *selected_key_);
+            selected_key_.reset();
+            dragging_key_.reset();
             dragging_part_ = drag_part::none;
+            keys_dirty_    = true;
             modified       = true;
         }
     };

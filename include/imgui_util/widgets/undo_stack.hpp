@@ -14,7 +14,7 @@
 ///
 ///   // History panel:
 ///   static bool history_open = true;
-///   undo.render_history_panel("##history", &history_open);
+///   if (undo.render_history_panel("##history", &history_open)) { apply(undo.current()); }
 /// @endcode
 ///
 /// Template on any std::copyable State type. Supports configurable max depth,
@@ -57,7 +57,7 @@ namespace imgui_util {
          * @param description  Human-readable label shown in the history panel.
          * @param snapshot     The state to record.
          */
-        void push(const std::string_view description, State snapshot) noexcept {
+        void push(const std::string_view description, State snapshot) {
             stack_.resize(current_index_ + 1);
             stack_.push_back({.description = std::string(description), .state = std::move(snapshot)});
             current_index_ = stack_.size() - 1;
@@ -107,12 +107,13 @@ namespace imgui_util {
          * @param panel_id  ImGui window ID for the panel.
          * @param open      Optional visibility flag (pass nullptr to always show).
          */
-        void render_history_panel(const char *panel_id, bool *open = nullptr) noexcept {
+        [[nodiscard]] bool render_history_panel(const char *panel_id, bool *open = nullptr) noexcept {
             if (const window win{panel_id, open}) {
                 render_toolbar();
                 ImGui::Separator();
-                render_history_list();
+                return render_history_list();
             }
+            return false;
         }
 
         /// @brief Reset the stack with a new initial state, discarding all history.
@@ -154,8 +155,9 @@ namespace imgui_util {
             dim_text(pos.sv());
         }
 
-        void render_history_list() noexcept {
-            if (const child list{"##undo_list"}; !list) return;
+        [[nodiscard]] bool render_history_list() noexcept {
+            const auto prev = current_index_;
+            if (const child list{"##undo_list"}; !list) return false;
 
             for (std::size_t i = 0; i < stack_.size(); ++i) {
                 const auto &[description, state] = stack_[i];
@@ -172,6 +174,7 @@ namespace imgui_util {
                     current_index_ = i;
                 }
             }
+            return current_index_ != prev;
         }
     };
 
