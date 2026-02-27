@@ -50,14 +50,12 @@ namespace imgui_util::notification_center {
             std::vector<notification> entries;
         };
 
-        [[nodiscard]]
-        inline auto &get_state() noexcept {
+        [[nodiscard]] inline auto &get_state() noexcept {
             static state s;
             return s;
         }
 
-        [[nodiscard]]
-        inline const char *severity_icon(const severity sev) noexcept {
+        [[nodiscard]] inline const char *severity_icon(const severity sev) noexcept {
             switch (sev) {
                 case severity::info:
                     return "[i]";
@@ -71,8 +69,7 @@ namespace imgui_util::notification_center {
             return "[i]";
         }
 
-        [[nodiscard]]
-        inline ImVec4 severity_color(const severity sev) noexcept {
+        [[nodiscard]] inline ImVec4 severity_color(const severity sev) noexcept {
             switch (sev) {
                 case severity::info:
                     return theme::info_color();
@@ -86,8 +83,7 @@ namespace imgui_util::notification_center {
             return theme::info_color();
         }
 
-        [[nodiscard]]
-        inline fmt_buf<32> relative_time(const std::chrono::steady_clock::time_point then) {
+        [[nodiscard]] inline fmt_buf<32> relative_time(const std::chrono::steady_clock::time_point then) {
             const auto now  = std::chrono::steady_clock::now();
             const auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - then).count();
 
@@ -108,9 +104,9 @@ namespace imgui_util::notification_center {
             }
             ImGui::SameLine();
             {
-                const fmt_buf<32> badge("{} unread",
-                                        static_cast<int>(std::ranges::count_if(entries,
-                                                                               [](const auto &e) { return !e.read; })));
+                const fmt_buf<32> badge("{} unread", static_cast<int>(std::ranges::count_if(entries, [](const auto &e) {
+                    return !e.read;
+                })));
                 dim_text(badge.sv());
             }
         }
@@ -125,8 +121,7 @@ namespace imgui_util::notification_center {
                 const auto  pos   = ImGui::GetCursorScreenPos();
                 const float avail = ImGui::GetContentRegionAvail().x;
                 auto       *dl    = ImGui::GetWindowDrawList();
-                dl->AddRectFilled(pos,
-                                  {pos.x + avail, pos.y + ImGui::GetTextLineHeightWithSpacing() * 2.5f},
+                dl->AddRectFilled(pos, {pos.x + avail, pos.y + ImGui::GetTextLineHeightWithSpacing() * 2.5f},
                                   IM_COL32(255, 255, 255, 8));
             }
 
@@ -176,8 +171,7 @@ namespace imgui_util::notification_center {
 
     } // namespace detail
 
-    [[nodiscard]]
-    inline int unread_count() noexcept {
+    [[nodiscard]] inline int unread_count() noexcept {
         const auto &entries = detail::get_state().entries;
         return static_cast<int>(std::ranges::count_if(entries, [](const auto &e) { return !e.read; }));
     }

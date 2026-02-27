@@ -84,13 +84,14 @@ namespace {
         .node_background_hovered  = {},
         .node_background_selected = {},
         .node_outline             = {},
-        .light = theme_preset::light_overrides{
-            .bg_dark    = {{{0.85f, 0.85f, 0.88f}}},
-            .bg_mid     = {{{0.92f, 0.92f, 0.94f}}},
-            .accent     = {},
-            .secondary  = {},
-            .text       = rgb_color{{{0.10f, 0.10f, 0.12f}}},
-        },
+        .light =
+            theme_preset::light_overrides{
+                .bg_dark   = {{{0.85f, 0.85f, 0.88f}}},
+                .bg_mid    = {{{0.92f, 0.92f, 0.94f}}},
+                .accent    = {},
+                .secondary = {},
+                .text      = rgb_color{{{0.10f, 0.10f, 0.12f}}},
+            },
     };
 
     // Build theme at compile time
@@ -161,7 +162,7 @@ TEST(FromPresetCore, NodeColorsSetFromPreset) {
 }
 
 TEST(FromPresetCore, NodeGridLinesDerivedFromBg) {
-    constexpr ImU32 expected_line = offset_u32_rgb(test_preset.node_grid_bg, 16, 120);
+    constexpr ImU32 expected_line    = offset_u32_rgb(test_preset.node_grid_bg, 16, 120);
     constexpr ImU32 expected_primary = offset_u32_rgb(test_preset.node_grid_bg, 26, 180);
     EXPECT_EQ(dark_theme.node_colors.at(ImNodesCol_GridLine), expected_line);
     EXPECT_EQ(dark_theme.node_colors.at(ImNodesCol_GridLinePrimary), expected_primary);
@@ -178,7 +179,7 @@ TEST(FromPresetCore, HasLightMode) {
 }
 
 TEST(FromPresetCore, ThemeModeEnum) {
-    static constexpr auto dark_via_enum = theme_config::from_preset_core(test_preset, theme_mode::dark);
+    static constexpr auto dark_via_enum  = theme_config::from_preset_core(test_preset, theme_mode::dark);
     static constexpr auto light_via_enum = theme_config::from_preset_core(test_preset, theme_mode::light);
     // Should produce identical results as float overload
     EXPECT_TRUE(dark_via_enum.preset_bg_mid == dark_theme.preset_bg_mid);
@@ -193,21 +194,21 @@ static_assert(theme_config::from_preset_core(test_preset, theme_mode::dark).pres
 
 namespace {
     constexpr theme_preset dark_only_preset{
-        .name                     = "DarkOnly",
-        .bg_dark                  = {{{0.08f, 0.08f, 0.10f}}},
-        .bg_mid                   = {{{0.12f, 0.12f, 0.14f}}},
-        .accent                   = {{{0.50f, 0.30f, 0.80f}}},
-        .secondary                = {{{0.80f, 0.40f, 0.20f}}},
-        .alternate                = rgb_color{{{0.90f, 0.60f, 0.10f}}},
-        .text                     = std::nullopt,
-        .node_title_bar           = IM_COL32(80, 50, 130, 255),
-        .node_title_bar_hovered   = IM_COL32(100, 65, 160, 255),
-        .node_title_bar_selected  = IM_COL32(120, 80, 200, 255),
-        .node_link                = IM_COL32(200, 100, 50, 220),
-        .node_link_hovered        = IM_COL32(230, 130, 70, 255),
-        .node_pin                 = IM_COL32(200, 100, 50, 255),
-        .node_pin_hovered         = IM_COL32(230, 130, 70, 255),
-        .node_grid_bg             = IM_COL32(18, 18, 22, 255),
+        .name                    = "DarkOnly",
+        .bg_dark                 = {{{0.08f, 0.08f, 0.10f}}},
+        .bg_mid                  = {{{0.12f, 0.12f, 0.14f}}},
+        .accent                  = {{{0.50f, 0.30f, 0.80f}}},
+        .secondary               = {{{0.80f, 0.40f, 0.20f}}},
+        .alternate               = rgb_color{{{0.90f, 0.60f, 0.10f}}},
+        .text                    = std::nullopt,
+        .node_title_bar          = IM_COL32(80, 50, 130, 255),
+        .node_title_bar_hovered  = IM_COL32(100, 65, 160, 255),
+        .node_title_bar_selected = IM_COL32(120, 80, 200, 255),
+        .node_link               = IM_COL32(200, 100, 50, 220),
+        .node_link_hovered       = IM_COL32(230, 130, 70, 255),
+        .node_pin                = IM_COL32(200, 100, 50, 255),
+        .node_pin_hovered        = IM_COL32(230, 130, 70, 255),
+        .node_grid_bg            = IM_COL32(18, 18, 22, 255),
     };
 } // namespace
 
@@ -220,10 +221,10 @@ TEST(FromPresetCore, NoLightOverrides) {
 }
 
 TEST(FromPresetCore, AlternateUsedForPlotHistogram) {
-    static constexpr auto theme = theme_config::from_preset_core(dark_only_preset, 1.0f);
+    static constexpr auto theme     = theme_config::from_preset_core(dark_only_preset, 1.0f);
     // PlotHistogram should use the alternate color
-    const ImVec4 &plot_hist = theme.colors.at(ImGuiCol_PlotHistogram);
-    constexpr ImVec4 expected = rgb(*dark_only_preset.alternate);
+    const ImVec4         &plot_hist = theme.colors.at(ImGuiCol_PlotHistogram);
+    constexpr ImVec4      expected  = rgb(*dark_only_preset.alternate);
     EXPECT_FLOAT_EQ(plot_hist.x, expected.x);
     EXPECT_FLOAT_EQ(plot_hist.y, expected.y);
     EXPECT_FLOAT_EQ(plot_hist.z, expected.z);

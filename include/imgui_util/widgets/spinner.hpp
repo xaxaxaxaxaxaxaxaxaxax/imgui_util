@@ -26,8 +26,7 @@ namespace imgui_util {
         constexpr int   spinner_segments = 24;
 
         // Resolve transparent-alpha sentinel to theme's ButtonActive color
-        [[nodiscard]]
-        inline ImVec4 resolve_spinner_color(const ImVec4 &color) noexcept {
+        [[nodiscard]] inline ImVec4 resolve_spinner_color(const ImVec4 &color) noexcept {
             if (color.w == 0.0f) return ImGui::GetStyle().Colors[ImGuiCol_ButtonActive];
             return color;
         }
@@ -40,8 +39,8 @@ namespace imgui_util {
             ImU32       col{};
         };
 
-        [[nodiscard]]
-        inline spinner_setup spinner_begin(const char *label, const float radius, const ImVec4 &color) noexcept {
+        [[nodiscard]] inline spinner_setup spinner_begin(const char *label, const float radius,
+                                                         const ImVec4 &color) noexcept {
             const float  diameter = radius * 2.0f;
             const ImVec2 pos      = ImGui::GetCursorScreenPos();
             ImGui::InvisibleButton(label, {diameter, diameter});

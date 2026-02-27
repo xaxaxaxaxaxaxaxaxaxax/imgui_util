@@ -78,8 +78,7 @@ namespace imgui_util {
     }
 
     // Centering and alignment
-    [[nodiscard]]
-    inline float center_text_y(const float row_y, const float row_height) noexcept {
+    [[nodiscard]] inline float center_text_y(const float row_y, const float row_height) noexcept {
         return row_y + (row_height - ImGui::GetTextLineHeight()) * 0.5f;
     }
 
@@ -105,24 +104,19 @@ namespace imgui_util {
         explicit truncated_text(std::string_view original) : data_(original) {}
         explicit truncated_text(std::string truncated) : data_(std::move(truncated)) {}
 
-        [[nodiscard]]
-        std::string_view view() const noexcept {
+        [[nodiscard]] std::string_view view() const noexcept {
             if (const auto *sv = std::get_if<std::string_view>(&data_)) return *sv;
             return std::get<std::string>(data_);
         }
 
-        [[nodiscard]]
-        bool was_truncated() const noexcept {
-            return std::holds_alternative<std::string>(data_);
-        }
+        [[nodiscard]] bool was_truncated() const noexcept { return std::holds_alternative<std::string>(data_); }
 
     private:
         std::variant<std::string_view, std::string> data_;
     };
 
     // Truncate text to fit within max_width pixels (binary search on character count)
-    [[nodiscard]]
-    inline truncated_text truncate_to_width(const std::string_view text, const float max_width) {
+    [[nodiscard]] inline truncated_text truncate_to_width(const std::string_view text, const float max_width) {
         if (ImGui::CalcTextSize(text.data(), text.data() + text.size()).x <= max_width) {
             return truncated_text{text};
         }
@@ -152,8 +146,7 @@ namespace imgui_util {
     }
 
     // Linear fade
-    [[nodiscard]]
-    constexpr float linear_fade_alpha(const float elapsed, const float duration) noexcept {
+    [[nodiscard]] constexpr float linear_fade_alpha(const float elapsed, const float duration) noexcept {
         return std::clamp(1.0f - elapsed / duration, 0.0f, 1.0f);
     }
 

@@ -64,10 +64,10 @@ BreakConstructorInitializers: AfterColon
 PackConstructorInitializers: NextLine
 BreakInheritanceList: BeforeColon
 BreakBeforeTernaryOperators: true
-BreakBeforeBinaryOperators: None
+BreakBeforeBinaryOperators: NonAssignment
 BreakStringLiterals: true
 BreakAdjacentStringLiterals: true
-BreakAfterAttributes: Always
+BreakAfterAttributes: Never
 BreakBeforeConceptDeclarations: Always
 RequiresClausePosition: OwnLine
 RequiresExpressionIndentation: OuterScope
@@ -77,7 +77,7 @@ AlignConsecutiveAssignments:
   Enabled: true
   AcrossEmptyLines: false
   AcrossComments: true
-  AlignCompound: true
+  AlignCompound: false
   PadOperators: true
 AlignConsecutiveDeclarations:
   Enabled: true
@@ -90,7 +90,7 @@ AlignConsecutiveShortCaseStatements:
   AcrossEmptyLines: true
   AcrossComments: true
 AlignAfterOpenBracket: Align
-AlignOperands: Align
+AlignOperands: DontAlign
 AlignTrailingComments:
   Kind: Always
   OverEmptyLines: 0

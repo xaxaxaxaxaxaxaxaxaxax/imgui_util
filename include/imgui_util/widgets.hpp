@@ -1,3 +1,7 @@
+// widgets.hpp - umbrella header for all widget components
+//
+// Usage:
+//   #include <imgui_util/widgets.hpp>
 // NOLINTBEGIN(misc-include-cleaner)
 #pragma once
 #include "imgui_util/widgets/command_palette.hpp"

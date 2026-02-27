@@ -30,7 +30,7 @@ TEST(FmtBuf, TruncationToBufferSize) {
 // --- c_str() null termination ---
 
 TEST(FmtBuf, CStrIsNullTerminated) {
-    const fmt_buf<64>  buf("{}", "test");
+    const fmt_buf<64> buf("{}", "test");
     const char *const s = buf.c_str();
     EXPECT_EQ(s[4], '\0');
 }
@@ -38,7 +38,7 @@ TEST(FmtBuf, CStrIsNullTerminated) {
 // --- sv() returns correct string_view ---
 
 TEST(FmtBuf, SvReturnsCorrectView) {
-    const fmt_buf<64>       buf("{} {}", "hello", "world");
+    const fmt_buf<64>      buf("{} {}", "hello", "world");
     const std::string_view sv = buf.sv();
     EXPECT_EQ(sv, "hello world");
     EXPECT_EQ(sv.size(), 11u);
@@ -47,7 +47,7 @@ TEST(FmtBuf, SvReturnsCorrectView) {
 // --- Implicit string_view conversion ---
 
 TEST(FmtBuf, ImplicitStringViewConversion) {
-    const fmt_buf<64>       buf("{}", "abc");
+    const fmt_buf<64>      buf("{}", "abc");
     const std::string_view sv = buf.sv();
     EXPECT_EQ(sv, "abc");
 }
@@ -65,7 +65,7 @@ TEST(FmtBuf, CopyConstructorPreservesContent) {
 
 TEST(FmtBuf, CopyAssignmentPreservesContent) {
     const fmt_buf<64> original("{}", "assigned");
-    fmt_buf<64> other("{}", "other");
+    fmt_buf<64>       other("{}", "other");
     other = original;
     EXPECT_STREQ(other.c_str(), "assigned");
     EXPECT_EQ(other.sv(), original.sv());
@@ -74,7 +74,7 @@ TEST(FmtBuf, CopyAssignmentPreservesContent) {
 // --- Self-assignment ---
 
 TEST(FmtBuf, SelfAssignment) {
-    fmt_buf<64>  buf("{}", "self");
+    fmt_buf<64> buf("{}", "self");
     const auto *ptr = &buf;
     buf             = *ptr;
     EXPECT_STREQ(buf.c_str(), "self");
@@ -97,8 +97,8 @@ TEST(FmtBuf, BeginEndAccessors) {
 
 TEST(FmtBuf, BeginEndRangeIteration) {
     const fmt_buf<64> buf("{}", "xyz");
-    std::string accumulated;
-    for (char const it : buf) {
+    std::string       accumulated;
+    for (const char it: buf) {
         accumulated += it;
     }
     EXPECT_EQ(accumulated, "xyz");
@@ -121,7 +121,7 @@ TEST(FmtBuf, EqualityBufToStringView) {
 }
 
 TEST(FmtBuf, EqualityDifferentSizes) {
-    const fmt_buf<32> a("{}", "same");
+    const fmt_buf<32>  a("{}", "same");
     const fmt_buf<128> b("{}", "same");
     // Different template params but same content - compare via sv()
     EXPECT_EQ(a.sv(), b.sv());

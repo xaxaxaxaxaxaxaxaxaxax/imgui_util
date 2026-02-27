@@ -56,8 +56,7 @@ namespace imgui_util {
         // Call each frame to drain pending entries and render the log panel.
         // drain: void(auto cb) where cb is void(level, string_view). Returns true if errors were drained.
         template<drain_fn DrainFn>
-        [[nodiscard]]
-        bool render(DrainFn &&drain, const char *search_id, const char *child_id) {
+        [[nodiscard]] bool render(DrainFn &&drain, const char *search_id, const char *child_id) {
             const bool had_error = drain_entries(std::forward<DrainFn>(drain));
 
             render_toolbar(search_id);
@@ -88,19 +87,17 @@ namespace imgui_util {
 
         // Drain entries without rendering. Call when panel is hidden so source doesn't back up.
         template<drain_fn DrainFn>
-        [[nodiscard]]
-        bool drain(DrainFn &&drain_fn) {
+        [[nodiscard]] bool drain(DrainFn &&drain_fn) {
             return drain_entries(std::forward<DrainFn>(drain_fn));
         }
 
         // Export all visible (filtered) entries as a newline-delimited string
-        [[nodiscard]]
-        std::string export_text() const {
+        [[nodiscard]] std::string export_text() const {
             // Pre-calculate total size to avoid repeated reallocations
             std::size_t total_size = 0;
             for (const std::size_t idx: filtered_) {
-                const auto &entry  = entry_at(idx);
-                total_size        += level_prefix_len() + entry.text_length + 1; // +1 for '\n'
+                const auto &entry = entry_at(idx);
+                total_size += level_prefix_len() + entry.text_length + 1; // +1 for '\n'
             }
 
             std::string result;
@@ -156,14 +153,12 @@ namespace imgui_util {
         static constexpr std::size_t initial_text_capacity = 1u << 20; // 1 MiB
 
         // Ring buffer access for entry metadata.
-        [[nodiscard]]
-        const log_entry &entry_at(const std::size_t logical_index) const noexcept {
+        [[nodiscard]] const log_entry &entry_at(const std::size_t logical_index) const noexcept {
             return entries_[(head_ + logical_index) % max_entries_];
         }
 
         // Resolve an entry's text as a string_view into the contiguous text buffer.
-        [[nodiscard]]
-        std::string_view entry_text(const log_entry &entry) const noexcept {
+        [[nodiscard]] std::string_view entry_text(const log_entry &entry) const noexcept {
             return {text_buf_.data() + entry.text_offset - text_base_offset_, entry.text_length};
         }
 
@@ -254,8 +249,8 @@ namespace imgui_util {
             // Right-click context menu: copy line
             if (const popup_context_item ctx{"##log_ctx"}) {
                 if (ImGui::Selectable("Copy line")) {
-                    std::string full_line  = prefix;
-                    full_line             += text;
+                    std::string full_line = prefix;
+                    full_line += text;
                     ImGui::SetClipboardText(full_line.c_str());
                 }
             }
@@ -293,8 +288,7 @@ namespace imgui_util {
         }
 
         // Check whether a logical entry index passes the current filter
-        [[nodiscard]]
-        bool passes_filter(const std::size_t logical_index, const std::string_view query) const noexcept {
+        [[nodiscard]] bool passes_filter(const std::size_t logical_index, const std::string_view query) const noexcept {
             const auto &entry = entry_at(logical_index);
             switch (entry.lvl) {
                 case level::info:
@@ -310,8 +304,7 @@ namespace imgui_util {
             return query.empty() || search::contains_ignore_case(entry_text(entry), query);
         }
 
-        [[nodiscard]]
-        static constexpr const char *level_prefix(const level lvl) noexcept {
+        [[nodiscard]] static constexpr const char *level_prefix(const level lvl) noexcept {
             switch (lvl) {
                 case level::warning:
                     return "[WARN] ";
@@ -322,8 +315,7 @@ namespace imgui_util {
             }
         }
 
-        [[nodiscard]]
-        static constexpr std::size_t level_prefix_len() noexcept {
+        [[nodiscard]] static constexpr std::size_t level_prefix_len() noexcept {
             constexpr auto len = std::string_view("[INFO] ").size();
             static_assert(std::string_view("[WARN] ").size() == len);
             static_assert(std::string_view("[ERR]  ").size() == len);
@@ -331,8 +323,7 @@ namespace imgui_util {
         }
 
         // Append message text to the contiguous buffer and return the offset.
-        [[nodiscard]]
-        std::uint32_t append_text(const std::string_view msg) {
+        [[nodiscard]] std::uint32_t append_text(const std::string_view msg) {
             const auto offset = static_cast<std::uint32_t>(text_tail_);
             text_buf_.resize(text_tail_ - text_base_offset_ + msg.size());
             std::memcpy(text_buf_.data() + text_tail_ - text_base_offset_, msg.data(), msg.size());
@@ -393,8 +384,7 @@ namespace imgui_util {
         }
 
         template<typename DrainFn>
-        [[nodiscard]]
-        bool drain_entries(DrainFn &&drain_fn) {
+        [[nodiscard]] bool drain_entries(DrainFn &&drain_fn) {
             drained_this_frame_  = false;
             bool       had_error = false;
             const auto now       = std::chrono::steady_clock::now();

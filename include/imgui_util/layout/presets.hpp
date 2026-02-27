@@ -17,50 +17,38 @@ namespace imgui_util::layout {
     // Flag composition helpers (separate template params to handle ImGui's int typedef vs enum mismatch)
     template<typename T, typename U>
         requires(std::integral<T> || std::is_enum_v<T>) && (std::integral<U> || std::is_enum_v<U>)
-    [[nodiscard]]
-    constexpr T with(T base, U flags) noexcept {
+    [[nodiscard]] constexpr T with(T base, U flags) noexcept {
         return static_cast<T>(base | flags);
     }
 
     template<typename T, typename U>
         requires(std::integral<T> || std::is_enum_v<T>) && (std::integral<U> || std::is_enum_v<U>)
-    [[nodiscard]]
-    constexpr T without(T base, U flags) noexcept {
+    [[nodiscard]] constexpr T without(T base, U flags) noexcept {
         return static_cast<T>(base & ~flags);
     }
 
     // Window flag presets -- combine with with()/without() if you need variations
     namespace window {
 
-        constexpr ImGuiWindowFlags navbar = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-                                            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-                                            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking |
-                                            ImGuiWindowFlags_MenuBar;
-
-        constexpr ImGuiWindowFlags settings_panel = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize |
-                                                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
-                                                    ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoFocusOnAppearing;
-
-        constexpr ImGuiWindowFlags tooltip = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-                                             ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
-                                             ImGuiWindowFlags_NoDocking;
-
-        constexpr ImGuiWindowFlags overlay = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground |
-                                             ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
-
+        constexpr ImGuiWindowFlags navbar = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
+            | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings
+            | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_MenuBar;
+        constexpr ImGuiWindowFlags settings_panel = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize
+            | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking
+            | ImGuiWindowFlags_NoFocusOnAppearing;
+        constexpr ImGuiWindowFlags tooltip = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking;
+        constexpr ImGuiWindowFlags overlay = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground
+            | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings;
         constexpr ImGuiWindowFlags modal_dialog =
             ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
-
-        constexpr ImGuiWindowFlags dockspace_host = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
-                                                    ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-                                                    ImGuiWindowFlags_NoBringToFrontOnFocus |
-                                                    ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
-
-        constexpr ImGuiWindowFlags sidebar = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
-                                             ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
-
-        constexpr ImGuiWindowFlags popup = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-                                           ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize;
+        constexpr ImGuiWindowFlags dockspace_host = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
+            | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus
+            | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+        constexpr ImGuiWindowFlags sidebar = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
+        constexpr ImGuiWindowFlags popup = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
+            | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize;
 
     } // namespace window
 
@@ -68,8 +56,8 @@ namespace imgui_util::layout {
     namespace table {
 
         constexpr ImGuiTableFlags summary     = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
-        constexpr ImGuiTableFlags scroll_list = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                                                ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp;
+        constexpr ImGuiTableFlags scroll_list = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg
+            | ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp;
         constexpr ImGuiTableFlags resizable_list =
             ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
         constexpr ImGuiTableFlags sortable_list = resizable_list | ImGuiTableFlags_Sortable;
@@ -94,19 +82,15 @@ namespace imgui_util::layout {
     struct size_preset {
         float width;
         float height;
-        [[nodiscard]]
-        constexpr ImVec2 vec() const noexcept {
-            return {width, height};
-        }
-        explicit constexpr operator ImVec2() const noexcept {
+
+        [[nodiscard]] constexpr ImVec2 vec() const noexcept { return {width, height}; }
+        explicit constexpr             operator ImVec2() const noexcept {
             return {width, height};
         } // explicit: use .vec() or static_cast<ImVec2>(preset)
-        [[nodiscard]]
-        constexpr size_preset with_width(const float w) const noexcept {
+        [[nodiscard]] constexpr size_preset with_width(const float w) const noexcept {
             return {.width = w, .height = height};
         }
-        [[nodiscard]]
-        constexpr size_preset with_height(const float h) const noexcept {
+        [[nodiscard]] constexpr size_preset with_height(const float h) const noexcept {
             return {.width = width, .height = h};
         }
     };

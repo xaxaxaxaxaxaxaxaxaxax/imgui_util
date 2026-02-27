@@ -25,10 +25,10 @@ static_assert(plot_clip_rect_trait::policy == end_policy::none);
 
 // --- raii_scope aliases are non-copyable and non-movable ---
 
-#define ASSERT_NON_COPYABLE_NON_MOVABLE(T) \
-    static_assert(!std::is_copy_constructible_v<T>, #T " must not be copy-constructible"); \
-    static_assert(!std::is_copy_assignable_v<T>, #T " must not be copy-assignable"); \
-    static_assert(!std::is_move_constructible_v<T>, #T " must not be move-constructible"); \
+#define ASSERT_NON_COPYABLE_NON_MOVABLE(T)                                                                             \
+    static_assert(!std::is_copy_constructible_v<T>, #T " must not be copy-constructible");                             \
+    static_assert(!std::is_copy_assignable_v<T>, #T " must not be copy-assignable");                                   \
+    static_assert(!std::is_move_constructible_v<T>, #T " must not be move-constructible");                             \
     static_assert(!std::is_move_assignable_v<T>, #T " must not be move-assignable")
 
 ASSERT_NON_COPYABLE_NON_MOVABLE(plot);
@@ -57,12 +57,18 @@ static_assert(std::is_constructible_v<bool, plot>, "plot should be convertible t
 static_assert(std::is_constructible_v<bool, subplots>, "subplots should be convertible to bool");
 static_assert(std::is_constructible_v<bool, aligned_plots>, "aligned_plots should be convertible to bool");
 static_assert(std::is_constructible_v<bool, legend_popup>, "legend_popup should be convertible to bool");
-static_assert(std::is_constructible_v<bool, drag_drop_source_plot>, "drag_drop_source_plot should be convertible to bool");
-static_assert(std::is_constructible_v<bool, drag_drop_source_axis>, "drag_drop_source_axis should be convertible to bool");
-static_assert(std::is_constructible_v<bool, drag_drop_source_item>, "drag_drop_source_item should be convertible to bool");
-static_assert(std::is_constructible_v<bool, drag_drop_target_plot>, "drag_drop_target_plot should be convertible to bool");
-static_assert(std::is_constructible_v<bool, drag_drop_target_axis>, "drag_drop_target_axis should be convertible to bool");
-static_assert(std::is_constructible_v<bool, drag_drop_target_legend>, "drag_drop_target_legend should be convertible to bool");
+static_assert(std::is_constructible_v<bool, drag_drop_source_plot>,
+              "drag_drop_source_plot should be convertible to bool");
+static_assert(std::is_constructible_v<bool, drag_drop_source_axis>,
+              "drag_drop_source_axis should be convertible to bool");
+static_assert(std::is_constructible_v<bool, drag_drop_source_item>,
+              "drag_drop_source_item should be convertible to bool");
+static_assert(std::is_constructible_v<bool, drag_drop_target_plot>,
+              "drag_drop_target_plot should be convertible to bool");
+static_assert(std::is_constructible_v<bool, drag_drop_target_axis>,
+              "drag_drop_target_axis should be convertible to bool");
+static_assert(std::is_constructible_v<bool, drag_drop_target_legend>,
+              "drag_drop_target_legend should be convertible to bool");
 
 // --- none-policy types are NOT bool-convertible ---
 
@@ -74,16 +80,13 @@ static_assert(!std::is_constructible_v<bool, plot_clip_rect>, "plot_clip_rect sh
 // --- plot_style_vars::entry supports float, ImVec2, and int ---
 
 TEST(PlotStyleVars, EntryAcceptsFloat) {
-    [[maybe_unused]]
-    plot_style_vars::entry e{ImPlotStyleVar_LineWeight, 2.0f};
+    [[maybe_unused]] plot_style_vars::entry e{ImPlotStyleVar_LineWeight, 2.0f};
 }
 
 TEST(PlotStyleVars, EntryAcceptsImVec2) {
-    [[maybe_unused]]
-    plot_style_vars::entry e{ImPlotStyleVar_MajorTickLen, ImVec2(10.0f, 10.0f)};
+    [[maybe_unused]] plot_style_vars::entry e{ImPlotStyleVar_MajorTickLen, ImVec2(10.0f, 10.0f)};
 }
 
 TEST(PlotStyleVars, EntryAcceptsInt) {
-    [[maybe_unused]]
-    plot_style_vars::entry e{ImPlotStyleVar_Marker, 1};
+    [[maybe_unused]] plot_style_vars::entry e{ImPlotStyleVar_Marker, 1};
 }

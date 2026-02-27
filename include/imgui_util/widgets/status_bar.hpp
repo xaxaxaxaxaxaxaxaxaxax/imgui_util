@@ -31,10 +31,9 @@ namespace imgui_util {
     } // namespace detail
 
     class [[nodiscard]] status_bar {
-        static constexpr ImGuiWindowFlags flags_ = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-                                                   ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBringToFrontOnFocus |
-                                                   ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking |
-                                                   ImGuiWindowFlags_NoNav;
+        static constexpr ImGuiWindowFlags flags_ = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoSavedSettings
+            | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNav;
 
     public:
         explicit status_bar(const float height = 0.0f) noexcept :
@@ -47,8 +46,7 @@ namespace imgui_util {
         status_bar(status_bar &&)                 = delete;
         status_bar &operator=(status_bar &&)      = delete;
 
-        [[nodiscard]]
-        explicit operator bool() const noexcept { return static_cast<bool>(win_); }
+        [[nodiscard]] explicit operator bool() const noexcept { return static_cast<bool>(win_); }
 
         // Move cursor to a centered section.
         void center_section() const noexcept { ImGui::SameLine(width_ * 0.5f); }

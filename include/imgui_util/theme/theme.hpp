@@ -83,10 +83,7 @@ namespace imgui_util::theme {
         };
         std::optional<light_overrides> light;
 
-        [[nodiscard]]
-        constexpr bool has_light() const noexcept {
-            return light.has_value();
-        }
+        [[nodiscard]] constexpr bool has_light() const noexcept { return light.has_value(); }
     };
 
     // Type-safe dark/light mode selector (replaces raw float +1/-1)
@@ -152,12 +149,12 @@ namespace imgui_util::theme {
         static constexpr theme_config from_preset_core(const theme_preset &preset, theme_mode mode = theme_mode::dark);
 
         // Legacy overloads accepting raw float offset_dir (+1 dark, -1 light)
-        [[deprecated("use theme_mode overload")]]
-        static theme_config from_preset(const theme_preset &preset, const float offset_dir) {
+        [[deprecated("use theme_mode overload")]] static theme_config from_preset(const theme_preset &preset,
+                                                                                  const float         offset_dir) {
             return from_preset(preset, offset_dir > 0 ? theme_mode::dark : theme_mode::light);
         }
-        [[deprecated("use theme_mode overload")]]
-        static constexpr theme_config from_preset_core(const theme_preset &preset, const float offset_dir) {
+        [[deprecated("use theme_mode overload")]] static constexpr theme_config
+        from_preset_core(const theme_preset &preset, const float offset_dir) {
             return from_preset_core(preset, offset_dir > 0 ? theme_mode::dark : theme_mode::light);
         }
 
@@ -297,43 +294,28 @@ namespace imgui_util::theme {
         const ImVec4 text_default   = is_light ? ImVec4(0.10f, 0.10f, 0.12f, 1.0f) : ImVec4(0.95f, 0.95f, 0.97f, 1.0f);
         const float  text_dim_scale = is_light ? 1.40f : 0.65f;
         const ImVec4 text_primary   = !text_c ? text_default : rgb(*text_c);
-        const ImVec4 text_secondary =
-            !text_c ? (is_light ? ImVec4{0.45f, 0.45f, 0.50f, 1.0f} : ImVec4{0.60f, 0.60f, 0.65f, 1.0f})
-                    : scale(*text_c, text_dim_scale);
+        const ImVec4 text_secondary = !text_c
+            ? (is_light ? ImVec4{0.45f, 0.45f, 0.50f, 1.0f} : ImVec4{0.60f, 0.60f, 0.65f, 1.0f})
+            : scale(*text_c, text_dim_scale);
 
-        // Window backgrounds
-        theme.colors.at(ImGuiCol_WindowBg) = bg_mid;
-        theme.colors.at(ImGuiCol_ChildBg)  = offset(bg_dark_c, d * 0.02f);
-        theme.colors.at(ImGuiCol_PopupBg)  = offset(bg_mid_c, d * 0.02f, 0.98f);
-
-        // Title bars
-        theme.colors.at(ImGuiCol_TitleBg)          = bg_dark;
-        theme.colors.at(ImGuiCol_TitleBgActive)    = offset(bg_mid_c, d * 0.02f);
-        theme.colors.at(ImGuiCol_TitleBgCollapsed) = offset(bg_dark_c, d * -0.02f, 0.8f);
-
-        // Menu bar
-        theme.colors.at(ImGuiCol_MenuBarBg) = bg_dark;
-
-        // Borders
-        theme.colors.at(ImGuiCol_Border)       = offset(bg_mid_c, d * 0.11f, 0.6f);
-        theme.colors.at(ImGuiCol_BorderShadow) = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
-
-        // Frame backgrounds
-        theme.colors.at(ImGuiCol_FrameBg)        = offset(bg_mid_c, d * 0.06f);
-        theme.colors.at(ImGuiCol_FrameBgHovered) = offset(bg_mid_c, d * 0.11f);
-        theme.colors.at(ImGuiCol_FrameBgActive)  = offset(bg_mid_c, d * 0.16f);
-
-        // Buttons
-        theme.colors.at(ImGuiCol_Button)        = offset(bg_mid_c, d * 0.10f);
-        theme.colors.at(ImGuiCol_ButtonHovered) = scale(accent_c, 0.85f);
-        theme.colors.at(ImGuiCol_ButtonActive)  = accent;
-
-        // Headers
-        theme.colors.at(ImGuiCol_Header)        = offset(bg_mid_c, d * 0.10f);
-        theme.colors.at(ImGuiCol_HeaderHovered) = scale(accent_c, 0.80f);
-        theme.colors.at(ImGuiCol_HeaderActive)  = accent;
-
-        // Tabs
+        theme.colors.at(ImGuiCol_WindowBg)                  = bg_mid;
+        theme.colors.at(ImGuiCol_ChildBg)                   = offset(bg_dark_c, d * 0.02f);
+        theme.colors.at(ImGuiCol_PopupBg)                   = offset(bg_mid_c, d * 0.02f, 0.98f);
+        theme.colors.at(ImGuiCol_TitleBg)                   = bg_dark;
+        theme.colors.at(ImGuiCol_TitleBgActive)             = offset(bg_mid_c, d * 0.02f);
+        theme.colors.at(ImGuiCol_TitleBgCollapsed)          = offset(bg_dark_c, d * -0.02f, 0.8f);
+        theme.colors.at(ImGuiCol_MenuBarBg)                 = bg_dark;
+        theme.colors.at(ImGuiCol_Border)                    = offset(bg_mid_c, d * 0.11f, 0.6f);
+        theme.colors.at(ImGuiCol_BorderShadow)              = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+        theme.colors.at(ImGuiCol_FrameBg)                   = offset(bg_mid_c, d * 0.06f);
+        theme.colors.at(ImGuiCol_FrameBgHovered)            = offset(bg_mid_c, d * 0.11f);
+        theme.colors.at(ImGuiCol_FrameBgActive)             = offset(bg_mid_c, d * 0.16f);
+        theme.colors.at(ImGuiCol_Button)                    = offset(bg_mid_c, d * 0.10f);
+        theme.colors.at(ImGuiCol_ButtonHovered)             = scale(accent_c, 0.85f);
+        theme.colors.at(ImGuiCol_ButtonActive)              = accent;
+        theme.colors.at(ImGuiCol_Header)                    = offset(bg_mid_c, d * 0.10f);
+        theme.colors.at(ImGuiCol_HeaderHovered)             = scale(accent_c, 0.80f);
+        theme.colors.at(ImGuiCol_HeaderActive)              = accent;
         theme.colors.at(ImGuiCol_Tab)                       = bg_light;
         theme.colors.at(ImGuiCol_TabHovered)                = scale(accent_c, 0.85f);
         theme.colors.at(ImGuiCol_TabSelected)               = scale(accent_c, 0.70f);
@@ -341,66 +323,40 @@ namespace imgui_util::theme {
         theme.colors.at(ImGuiCol_TabDimmed)                 = bg_mid;
         theme.colors.at(ImGuiCol_TabDimmedSelected)         = offset(bg_mid_c, d * 0.08f);
         theme.colors.at(ImGuiCol_TabDimmedSelectedOverline) = scale(accent_c, 0.80f, 0.5f);
-
-        // Docking
-        theme.colors.at(ImGuiCol_DockingPreview) = rgb(accent_c, 0.7f);
-        theme.colors.at(ImGuiCol_DockingEmptyBg) = bg_dark;
-
-        // Scrollbar
-        theme.colors.at(ImGuiCol_ScrollbarBg)          = rgb(bg_dark_c, 0.6f);
-        theme.colors.at(ImGuiCol_ScrollbarGrab)        = offset(bg_mid_c, d * 0.16f);
-        theme.colors.at(ImGuiCol_ScrollbarGrabHovered) = offset(bg_mid_c, d * 0.26f);
-        theme.colors.at(ImGuiCol_ScrollbarGrabActive)  = offset(bg_mid_c, d * 0.36f);
-
-        // Slider grab - secondary accent
-        theme.colors.at(ImGuiCol_SliderGrab)       = secondary_dim;
-        theme.colors.at(ImGuiCol_SliderGrabActive) = secondary;
-
-        // Check mark
-        theme.colors.at(ImGuiCol_CheckMark) = secondary;
-
-        // Resize grip
-        theme.colors.at(ImGuiCol_ResizeGrip)        = offset(bg_mid_c, d * 0.16f, 0.4f);
-        theme.colors.at(ImGuiCol_ResizeGripHovered) = accent;
-        theme.colors.at(ImGuiCol_ResizeGripActive)  = accent_active;
-
-        // Separator
-        theme.colors.at(ImGuiCol_Separator)        = offset(bg_mid_c, d * 0.14f);
-        theme.colors.at(ImGuiCol_SeparatorHovered) = accent;
-        theme.colors.at(ImGuiCol_SeparatorActive)  = accent_active;
-
-        // Text
-        theme.colors.at(ImGuiCol_Text)           = text_primary;
-        theme.colors.at(ImGuiCol_TextDisabled)   = text_secondary;
-        theme.colors.at(ImGuiCol_TextSelectedBg) = scale(accent_c, 0.80f, 0.4f);
-
-        // Plot colors - use secondary or alternate
-        const rgb_color &plot_color                    = preset.alternate.value_or(second_c);
-        theme.colors.at(ImGuiCol_PlotLines)            = rgb(second_c);
-        theme.colors.at(ImGuiCol_PlotLinesHovered)     = accent_hover;
-        theme.colors.at(ImGuiCol_PlotHistogram)        = rgb(plot_color);
-        theme.colors.at(ImGuiCol_PlotHistogramHovered) = accent_hover;
-
-        // Nav highlight
-        theme.colors.at(ImGuiCol_NavHighlight)          = accent;
-        theme.colors.at(ImGuiCol_NavWindowingHighlight) = ImVec4(1.0f, 1.0f, 1.0f, 0.7f);
-        theme.colors.at(ImGuiCol_NavWindowingDimBg)     = ImVec4(0.8f, 0.8f, 0.8f, 0.2f);
-
-        // Table colors
-        theme.colors.at(ImGuiCol_TableHeaderBg)     = bg_light;
-        theme.colors.at(ImGuiCol_TableBorderStrong) = offset(bg_mid_c, d * 0.14f);
-        theme.colors.at(ImGuiCol_TableBorderLight)  = offset(bg_mid_c, d * 0.08f, 0.8f);
-        theme.colors.at(ImGuiCol_TableRowBg)        = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
-        theme.colors.at(ImGuiCol_TableRowBgAlt)     = rgb(bg_mid_c, 0.4f);
-
-        // Drag/drop
-        theme.colors.at(ImGuiCol_DragDropTarget) = accent;
-
-        // Modal
-        theme.colors.at(ImGuiCol_ModalWindowDimBg) = ImVec4(0.0f, 0.0f, 0.0f, 0.6f);
-
-        // Text link
-        theme.colors.at(ImGuiCol_TextLink) = accent;
+        theme.colors.at(ImGuiCol_DockingPreview)            = rgb(accent_c, 0.7f);
+        theme.colors.at(ImGuiCol_DockingEmptyBg)            = bg_dark;
+        theme.colors.at(ImGuiCol_ScrollbarBg)               = rgb(bg_dark_c, 0.6f);
+        theme.colors.at(ImGuiCol_ScrollbarGrab)             = offset(bg_mid_c, d * 0.16f);
+        theme.colors.at(ImGuiCol_ScrollbarGrabHovered)      = offset(bg_mid_c, d * 0.26f);
+        theme.colors.at(ImGuiCol_ScrollbarGrabActive)       = offset(bg_mid_c, d * 0.36f);
+        theme.colors.at(ImGuiCol_SliderGrab)                = secondary_dim;
+        theme.colors.at(ImGuiCol_SliderGrabActive)          = secondary;
+        theme.colors.at(ImGuiCol_CheckMark)                 = secondary;
+        theme.colors.at(ImGuiCol_ResizeGrip)                = offset(bg_mid_c, d * 0.16f, 0.4f);
+        theme.colors.at(ImGuiCol_ResizeGripHovered)         = accent;
+        theme.colors.at(ImGuiCol_ResizeGripActive)          = accent_active;
+        theme.colors.at(ImGuiCol_Separator)                 = offset(bg_mid_c, d * 0.14f);
+        theme.colors.at(ImGuiCol_SeparatorHovered)          = accent;
+        theme.colors.at(ImGuiCol_SeparatorActive)           = accent_active;
+        theme.colors.at(ImGuiCol_Text)                      = text_primary;
+        theme.colors.at(ImGuiCol_TextDisabled)              = text_secondary;
+        theme.colors.at(ImGuiCol_TextSelectedBg)            = scale(accent_c, 0.80f, 0.4f);
+        const rgb_color &plot_color                         = preset.alternate.value_or(second_c);
+        theme.colors.at(ImGuiCol_PlotLines)                 = rgb(second_c);
+        theme.colors.at(ImGuiCol_PlotLinesHovered)          = accent_hover;
+        theme.colors.at(ImGuiCol_PlotHistogram)             = rgb(plot_color);
+        theme.colors.at(ImGuiCol_PlotHistogramHovered)      = accent_hover;
+        theme.colors.at(ImGuiCol_NavHighlight)              = accent;
+        theme.colors.at(ImGuiCol_NavWindowingHighlight)     = ImVec4(1.0f, 1.0f, 1.0f, 0.7f);
+        theme.colors.at(ImGuiCol_NavWindowingDimBg)         = ImVec4(0.8f, 0.8f, 0.8f, 0.2f);
+        theme.colors.at(ImGuiCol_TableHeaderBg)             = bg_light;
+        theme.colors.at(ImGuiCol_TableBorderStrong)         = offset(bg_mid_c, d * 0.14f);
+        theme.colors.at(ImGuiCol_TableBorderLight)          = offset(bg_mid_c, d * 0.08f, 0.8f);
+        theme.colors.at(ImGuiCol_TableRowBg)                = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+        theme.colors.at(ImGuiCol_TableRowBgAlt)             = rgb(bg_mid_c, 0.4f);
+        theme.colors.at(ImGuiCol_DragDropTarget)            = accent;
+        theme.colors.at(ImGuiCol_ModalWindowDimBg)          = ImVec4(0.0f, 0.0f, 0.0f, 0.6f);
+        theme.colors.at(ImGuiCol_TextLink)                  = accent;
 
         // ====================================================================
         // ImNodes colors — always use dark preset values (node canvas stays dark)
@@ -418,8 +374,7 @@ namespace imgui_util::theme {
                  preset.node_background_hovered != 0 ? preset.node_background_hovered : IM_COL32(42, 42, 48, 255));
         set_node(ImNodesCol_NodeBackgroundSelected,
                  preset.node_background_selected != 0 ? preset.node_background_selected : IM_COL32(50, 55, 70, 255));
-        set_node(ImNodesCol_NodeOutline,
-                 preset.node_outline != 0 ? preset.node_outline : IM_COL32(60, 60, 68, 255));
+        set_node(ImNodesCol_NodeOutline, preset.node_outline != 0 ? preset.node_outline : IM_COL32(60, 60, 68, 255));
         set_node(ImNodesCol_TitleBar, preset.node_title_bar);
         set_node(ImNodesCol_TitleBarHovered, preset.node_title_bar_hovered);
         set_node(ImNodesCol_TitleBarSelected, preset.node_title_bar_selected);
@@ -450,8 +405,7 @@ namespace imgui_util::theme {
     }
 
     // Interpolate between two theme configs element-wise
-    [[nodiscard]]
-    constexpr theme_config lerp(const theme_config &a, const theme_config &b, const float t) {
+    [[nodiscard]] constexpr theme_config lerp(const theme_config &a, const theme_config &b, const float t) {
         using color::float4_to_u32;
         using color::u32_to_float4;
 

@@ -1,6 +1,12 @@
+// error.hpp - UI error types with std::expected integration
+//
+// Usage:
+//   auto result = imgui_util::validate_path(p);
+//   if (!result) log(result.error().message().sv());
+//
+//   imgui_util::ui_expected<int> parse_config(std::string_view s);
+//   return imgui_util::make_ui_error(ui_error_code::file_open_failed, "not found");
 #pragma once
-
-// UI error types with std::expected integration
 
 #include <cstdint>
 #include <expected>
@@ -25,8 +31,7 @@ namespace imgui_util {
         file_malformed
     };
 
-    [[nodiscard]]
-    constexpr std::string_view to_string(const ui_error_code code) noexcept {
+    [[nodiscard]] constexpr std::string_view to_string(const ui_error_code code) noexcept {
         using enum ui_error_code;
         switch (code) {
             case path_empty:
@@ -52,23 +57,17 @@ namespace imgui_util {
         std::string   detail;
 
         explicit constexpr ui_error(const ui_error_code c) noexcept : code{c} {}
-
         explicit constexpr ui_error(const ui_error_code c, std::string d) : code{c}, detail{std::move(d)} {}
 
-        [[nodiscard]]
-        constexpr fmt_buf<256> message() const {
+        [[nodiscard]] constexpr fmt_buf<256> message() const {
             const auto base = to_string(code);
             if (detail.empty()) return fmt_buf<256>("{}", base);
             return fmt_buf<256>("{}: {}", base, detail);
         }
 
-        [[nodiscard]]
-        constexpr std::string_view code_name() const noexcept {
-            return to_string(code);
-        }
+        [[nodiscard]] constexpr std::string_view code_name() const noexcept { return to_string(code); }
 
-        [[nodiscard]]
-        constexpr bool operator==(const ui_error &other) const noexcept {
+        [[nodiscard]] constexpr bool operator==(const ui_error &other) const noexcept {
             return code == other.code && detail == other.detail;
         }
 
@@ -85,22 +84,19 @@ namespace imgui_util {
     using ui_expected_void = std::expected<void, ui_error>;
 
     // Convenience factory for creating unexpected errors
-    [[nodiscard]]
-    constexpr std::unexpected<ui_error> make_ui_error(const ui_error_code code) {
+    [[nodiscard]] constexpr std::unexpected<ui_error> make_ui_error(const ui_error_code code) {
         return std::unexpected{ui_error{code}};
     }
 
     // Not constexpr: ui_error two-arg ctor takes std::string by value (heap alloc at runtime).
-    [[nodiscard]]
-    inline std::unexpected<ui_error> make_ui_error(const ui_error_code code, std::string detail) {
+    [[nodiscard]] inline std::unexpected<ui_error> make_ui_error(const ui_error_code code, std::string detail) {
         return std::unexpected{ui_error{code, std::move(detail)}};
     }
 
     // Path validation
     constexpr size_t max_path_length = 4096;
 
-    [[nodiscard]]
-    inline ui_expected<std::filesystem::path> validate_path(const std::filesystem::path &p) noexcept {
+    [[nodiscard]] inline ui_expected<std::filesystem::path> validate_path(const std::filesystem::path &p) noexcept {
         if (p.empty()) return make_ui_error(ui_error_code::path_empty);
         if (p.native().size() > max_path_length) return make_ui_error(ui_error_code::path_too_long);
 
@@ -123,9 +119,7 @@ namespace imgui_util {
 
 template<>
 struct std::hash<imgui_util::ui_error_code> {
-    constexpr std::size_t operator()(imgui_util::ui_error_code c) const noexcept {
-        return static_cast<std::size_t>(std::to_underlying(c));
-    }
+    constexpr std::size_t operator()(const imgui_util::ui_error_code c) const noexcept { return std::to_underlying(c); }
 };
 
 template<>

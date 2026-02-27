@@ -38,9 +38,8 @@ namespace imgui_util {
 
         explicit toolbar(const direction dir = direction::horizontal) noexcept : dir_(dir) { entries_.reserve(8); }
 
-        [[nodiscard]]
-        toolbar &button(const char *label, std::move_only_function<void()> action, const char *tooltip = nullptr,
-                        const bool enabled = true) {
+        [[nodiscard]] toolbar &button(const char *label, std::move_only_function<void()> action,
+                                      const char *tooltip = nullptr, const bool enabled = true) {
             entries_.push_back({.type    = entry_type::button,
                                 .label   = label,
                                 .action  = std::move(action),
@@ -49,10 +48,9 @@ namespace imgui_util {
             return *this;
         }
 
-        [[nodiscard]]
-        toolbar &icon_button(const char *str_id, const ImTextureID texture, const ImVec2 &size,
-                             std::move_only_function<void()> action, const char *tooltip = nullptr,
-                             const bool enabled = true) {
+        [[nodiscard]] toolbar &icon_button(const char *str_id, const ImTextureID texture, const ImVec2 &size,
+                                           std::move_only_function<void()> action, const char *tooltip = nullptr,
+                                           const bool enabled = true) {
             entries_.push_back({.type    = entry_type::icon_button,
                                 .label   = str_id,
                                 .action  = std::move(action),
@@ -62,20 +60,17 @@ namespace imgui_util {
             return *this;
         }
 
-        [[nodiscard]]
-        toolbar &toggle(const char *label, bool *value, const char *tooltip = nullptr) {
+        [[nodiscard]] toolbar &toggle(const char *label, bool *value, const char *tooltip = nullptr) {
             entries_.push_back({.type = entry_type::toggle, .label = label, .tooltip = tooltip, .value = value});
             return *this;
         }
 
-        [[nodiscard]]
-        toolbar &separator() {
+        [[nodiscard]] toolbar &separator() {
             entries_.push_back({.type = entry_type::separator});
             return *this;
         }
 
-        [[nodiscard]]
-        toolbar &label(const char *text) {
+        [[nodiscard]] toolbar &label(const char *text) {
             entries_.push_back({.type = entry_type::label, .label = text});
             return *this;
         }
@@ -85,8 +80,8 @@ namespace imgui_util {
                 auto &[type, lbl, action, tip, icon, value, enabled] = entries_[i]; // NOLINT(misc-const-correctness)
                 render_entry(type, lbl, action, tip, icon, value, enabled);
 
-                if (dir_ == direction::horizontal && i + 1 < entries_.size() &&
-                    entries_[i + 1].type != entry_type::separator) {
+                if (dir_ == direction::horizontal && i + 1 < entries_.size()
+                    && entries_[i + 1].type != entry_type::separator) {
                     ImGui::SameLine();
                 }
             }

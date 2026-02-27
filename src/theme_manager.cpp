@@ -434,8 +434,8 @@ namespace imgui_util::theme {
             }();
 
             std::unordered_map<std::string_view, field_entry> map;
-            map.reserve(static_cast<size_t>(ImGuiCol_COUNT) + static_cast<size_t>(ImNodesCol_COUNT) +
-                        theme_float_fields.size() + theme_rgb_fields.size() + theme_opt_rgb_fields.size());
+            map.reserve(static_cast<size_t>(ImGuiCol_COUNT) + static_cast<size_t>(ImNodesCol_COUNT)
+                        + theme_float_fields.size() + theme_rgb_fields.size() + theme_opt_rgb_fields.size());
             for (int i = 0; std::cmp_less(i, theme_float_fields.size()); i++)
                 map.emplace(theme_float_fields[i].name, field_entry{.kind = field_kind::float_field, .index = i});
             for (int i = 0; std::cmp_less(i, theme_rgb_fields.size()); i++)

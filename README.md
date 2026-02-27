@@ -4,12 +4,6 @@ c++26 utility library for dear imgui. theme engine, fluent table builder, raii w
 
 needs c++26 (clang 19+ / gcc 15+) and cmake 3.25+.
 
-## demo
-
-![demo](demo.png)
-
-theme editor with community presets (gruvbox, dracula, nord, catppuccin, solarized) that auto-adapt to light/dark mode. process table from /proc with multi-column sort, ctrl/shift selection, virtual clipping.
-
 ## build
 
 ```
@@ -42,8 +36,8 @@ target_link_libraries(your_app PRIVATE imgui_util)
 - **theme** — full style editor, preset derivation model, dark/light mode, lerp transitions, save/load
 - **table** — `table_builder<RowT>` with compile-time columns, multi-sort, selection, filtering, clipping
 - **core** — raii scope guards for imgui/implot begin/end, `fmt_buf`, parsing
-- **widgets** — property editor, log viewer, search bar, controls
-- **layout** — docking layout presets
+- **widgets** — 30+ components: log viewer, command palette, toast notifications, search bar, diff viewer, hex viewer, tree view, settings panel, timeline, toolbar, modals, and more
+- **layout** — alignment helpers, horizontal layout, docking presets
 - **plot** — raii wrappers for implot
 
 ## deps

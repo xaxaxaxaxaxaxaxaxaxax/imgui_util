@@ -135,8 +135,8 @@ namespace imgui_util {
 
         // Fuzzy match: all query chars must appear in order in candidate.
         // Score prefers consecutive matches and matches near the start.
-        [[nodiscard]]
-        static bool fuzzy_match(const std::string_view query, const std::string_view candidate, int &score) noexcept {
+        [[nodiscard]] static bool fuzzy_match(const std::string_view query, const std::string_view candidate,
+                                              int &score) noexcept {
             score                  = 0;
             std::size_t ci         = 0;
             int         last_match = -1;
@@ -150,8 +150,8 @@ namespace imgui_util {
                         // Bonus for consecutive matches
                         if (last_match >= 0 && static_cast<int>(ci) == last_match + 1) score += 5;
                         // Bonus for early matches
-                        score      += std::max(0, 10 - static_cast<int>(ci));
-                        last_match  = static_cast<int>(ci);
+                        score += std::max(0, 10 - static_cast<int>(ci));
+                        last_match = static_cast<int>(ci);
                         ++ci;
                         found = true;
                         break;

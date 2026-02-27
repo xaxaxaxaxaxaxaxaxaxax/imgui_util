@@ -31,44 +31,38 @@ namespace imgui_util {
     public:
         explicit modal_builder(const char *title) noexcept : title_(title) {}
 
-        [[nodiscard]]
-        modal_builder &message(const char *text) noexcept {
+        [[nodiscard]] modal_builder &message(const char *text) noexcept {
             message_ = text;
             return *this;
         }
 
-        [[nodiscard]]
-        modal_builder &body(std::move_only_function<void()> fn) noexcept {
+        [[nodiscard]] modal_builder &body(std::move_only_function<void()> fn) noexcept {
             body_ = std::move(fn);
             return *this;
         }
 
-        [[nodiscard]]
-        modal_builder &size(const float w, const float h) noexcept {
+        [[nodiscard]] modal_builder &size(const float w, const float h) noexcept {
             width_  = w;
             height_ = h;
             return *this;
         }
 
         template<std::invocable F>
-        [[nodiscard]]
-        modal_builder &ok_button(const char *label, F &&on_ok) noexcept {
+        [[nodiscard]] modal_builder &ok_button(const char *label, F &&on_ok) noexcept {
             ok_label_ = label;
             on_ok_    = std::forward<F>(on_ok);
             return *this;
         }
 
         template<std::invocable F>
-        [[nodiscard]]
-        modal_builder &cancel_button(const char *label, F &&on_cancel) noexcept {
+        [[nodiscard]] modal_builder &cancel_button(const char *label, F &&on_cancel) noexcept {
             cancel_label_ = label;
             on_cancel_    = std::forward<F>(on_cancel);
             show_cancel_  = true;
             return *this;
         }
 
-        [[nodiscard]]
-        modal_builder &danger(const bool d = true) noexcept {
+        [[nodiscard]] modal_builder &danger(const bool d = true) noexcept {
             danger_ = d;
             return *this;
         }

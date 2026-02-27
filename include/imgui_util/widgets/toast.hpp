@@ -51,14 +51,12 @@ namespace imgui_util::toast {
             int                max_visible = 10;
         };
 
-        [[nodiscard]]
-        inline auto &state() noexcept {
+        [[nodiscard]] inline auto &state() noexcept {
             static toast_state s;
             return s;
         }
 
-        [[nodiscard]]
-        inline ImVec4 color_for(const severity sev) noexcept {
+        [[nodiscard]] inline ImVec4 color_for(const severity sev) noexcept {
             switch (sev) {
                 case severity::info:
                     return theme::info_color();
@@ -87,11 +85,10 @@ namespace imgui_util::toast {
                      std::move_only_function<void()> action_callback = {}) {
         constexpr float toast_padding = 12.0f;
         const ImVec2    text_size = ImGui::CalcTextSize(message.data(), message.data() + message.size(), false, 300.0f);
-        const float     action_w =
-            action_label.empty()
-                    ? 0.0f
-                    : ImGui::CalcTextSize(action_label.data(), action_label.data() + action_label.size()).x +
-                      ImGui::GetStyle().FramePadding.x * 2.0f + toast_padding;
+        const float     action_w  = action_label.empty()
+                 ? 0.0f
+                 : ImGui::CalcTextSize(action_label.data(), action_label.data() + action_label.size()).x
+                + ImGui::GetStyle().FramePadding.x * 2.0f + toast_padding;
         detail::state().entries.push_back({
             .text             = std::string(message),
             .sev              = sev,
@@ -113,10 +110,9 @@ namespace imgui_util::toast {
 
         constexpr float padding = 12.0f;
 
-        constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav |
-                                           ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
-                                           ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
-                                           ImGuiWindowFlags_NoDocking;
+        constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav
+            | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings
+            | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking;
 
         const bool anchor_bottom = anchor == position::bottom_right || anchor == position::bottom_left;
         const bool anchor_right  = anchor == position::bottom_right || anchor == position::top_right;
@@ -138,8 +134,8 @@ namespace imgui_util::toast {
 
             // Fade alpha only in the last fade_time seconds
             const float  remaining = duration - elapsed;
-            const float  alpha = remaining < fade_time ? linear_fade_alpha(fade_time - remaining, fade_time) : 1.0f;
-            const ImVec4 col   = detail::color_for(sev);
+            const float  alpha     = remaining < fade_time ? linear_fade_alpha(fade_time - remaining, fade_time) : 1.0f;
+            const ImVec4 col       = detail::color_for(sev);
 
             const style_var alpha_var(ImGuiStyleVar_Alpha, alpha);
 

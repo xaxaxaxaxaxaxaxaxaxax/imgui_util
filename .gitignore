@@ -18,6 +18,9 @@ out/
 *.exe
 compile_commands.json
 
+# Runtime
+imgui.ini
+
 # OS
 .DS_Store
 Thumbs.db

@@ -21,16 +21,16 @@ TEST(RgbColor, AggregateConstruction) {
 
 TEST(RgbColor, DataPointer) {
     constexpr rgb_color c{{{0.1f, 0.2f, 0.3f}}};
-    const float *const p = c.data();
+    const float *const  p = c.data();
     EXPECT_FLOAT_EQ(p[0], 0.1f);
     EXPECT_FLOAT_EQ(p[1], 0.2f);
     EXPECT_FLOAT_EQ(p[2], 0.3f);
 }
 
 TEST(RgbColor, MutableDataPointer) {
-    rgb_color c{{{0.0f, 0.0f, 0.0f}}};
+    rgb_color    c{{{0.0f, 0.0f, 0.0f}}};
     float *const p = c.data();
-    p[1] = 0.5f;
+    p[1]           = 0.5f;
     EXPECT_FLOAT_EQ(c[1], 0.5f);
 }
 
@@ -156,7 +156,7 @@ TEST(RgbConversion, FromChannelsWithAlpha) {
 
 TEST(RgbConversion, FromRgbColor) {
     constexpr rgb_color c{{{0.2f, 0.4f, 0.6f}}};
-    constexpr ImVec4 v = rgb(c);
+    constexpr ImVec4    v = rgb(c);
     EXPECT_FLOAT_EQ(v.x, 0.2f);
     EXPECT_FLOAT_EQ(v.y, 0.4f);
     EXPECT_FLOAT_EQ(v.z, 0.6f);
@@ -165,7 +165,7 @@ TEST(RgbConversion, FromRgbColor) {
 
 TEST(RgbConversion, FromRgbColorWithAlpha) {
     constexpr rgb_color c{{{0.2f, 0.4f, 0.6f}}};
-    constexpr ImVec4 v = rgb(c, 0.7f);
+    constexpr ImVec4    v = rgb(c, 0.7f);
     EXPECT_FLOAT_EQ(v.w, 0.7f);
 }
 
@@ -173,7 +173,7 @@ TEST(RgbConversion, FromRgbColorWithAlpha) {
 
 TEST(Scale, BasicScale) {
     constexpr rgb_color c{{{0.4f, 0.5f, 0.6f}}};
-    constexpr ImVec4 v = scale(c, 0.5f);
+    constexpr ImVec4    v = scale(c, 0.5f);
     EXPECT_NEAR(v.x, 0.2f, 1e-5f);
     EXPECT_NEAR(v.y, 0.25f, 1e-5f);
     EXPECT_NEAR(v.z, 0.3f, 1e-5f);
@@ -182,7 +182,7 @@ TEST(Scale, BasicScale) {
 
 TEST(Scale, ClampToOne) {
     constexpr rgb_color c{{{0.8f, 0.9f, 1.0f}}};
-    constexpr ImVec4 v = scale(c, 2.0f);
+    constexpr ImVec4    v = scale(c, 2.0f);
     EXPECT_FLOAT_EQ(v.x, 1.0f);
     EXPECT_FLOAT_EQ(v.y, 1.0f);
     EXPECT_FLOAT_EQ(v.z, 1.0f);
@@ -190,7 +190,7 @@ TEST(Scale, ClampToOne) {
 
 TEST(Scale, CustomAlpha) {
     constexpr rgb_color c{{{0.5f, 0.5f, 0.5f}}};
-    constexpr ImVec4 v = scale(c, 1.0f, 0.3f);
+    constexpr ImVec4    v = scale(c, 1.0f, 0.3f);
     EXPECT_FLOAT_EQ(v.w, 0.3f);
 }
 
@@ -198,7 +198,7 @@ TEST(Scale, CustomAlpha) {
 
 TEST(Offset, BasicOffset) {
     constexpr rgb_color c{{{0.2f, 0.3f, 0.4f}}};
-    constexpr ImVec4 v = offset(c, 0.1f);
+    constexpr ImVec4    v = offset(c, 0.1f);
     EXPECT_NEAR(v.x, 0.3f, 1e-5f);
     EXPECT_NEAR(v.y, 0.4f, 1e-5f);
     EXPECT_NEAR(v.z, 0.5f, 1e-5f);
@@ -207,7 +207,7 @@ TEST(Offset, BasicOffset) {
 
 TEST(Offset, NegativeOffset) {
     constexpr rgb_color c{{{0.5f, 0.5f, 0.5f}}};
-    constexpr ImVec4 v = offset(c, -0.3f);
+    constexpr ImVec4    v = offset(c, -0.3f);
     EXPECT_NEAR(v.x, 0.2f, 1e-5f);
     EXPECT_NEAR(v.y, 0.2f, 1e-5f);
     EXPECT_NEAR(v.z, 0.2f, 1e-5f);
@@ -215,7 +215,7 @@ TEST(Offset, NegativeOffset) {
 
 TEST(Offset, ClampToZero) {
     constexpr rgb_color c{{{0.1f, 0.0f, 0.05f}}};
-    constexpr ImVec4 v = offset(c, -0.5f);
+    constexpr ImVec4    v = offset(c, -0.5f);
     EXPECT_FLOAT_EQ(v.x, 0.0f);
     EXPECT_FLOAT_EQ(v.y, 0.0f);
     EXPECT_FLOAT_EQ(v.z, 0.0f);
@@ -223,7 +223,7 @@ TEST(Offset, ClampToZero) {
 
 TEST(Offset, CustomAlpha) {
     constexpr rgb_color c{{{0.5f, 0.5f, 0.5f}}};
-    constexpr ImVec4 v = offset(c, 0.0f, 0.8f);
+    constexpr ImVec4    v = offset(c, 0.0f, 0.8f);
     EXPECT_FLOAT_EQ(v.w, 0.8f);
 }
 
@@ -231,7 +231,7 @@ TEST(Offset, CustomAlpha) {
 
 TEST(PackedConversion, OpaqueWhite) {
     constexpr ImVec4 white{1.0f, 1.0f, 1.0f, 1.0f};
-    constexpr ImU32 packed = float4_to_u32(white);
+    constexpr ImU32  packed = float4_to_u32(white);
     EXPECT_EQ((packed >> IM_COL32_R_SHIFT) & 0xFF, 255u);
     EXPECT_EQ((packed >> IM_COL32_G_SHIFT) & 0xFF, 255u);
     EXPECT_EQ((packed >> IM_COL32_B_SHIFT) & 0xFF, 255u);
@@ -240,7 +240,7 @@ TEST(PackedConversion, OpaqueWhite) {
 
 TEST(PackedConversion, OpaqueBlack) {
     constexpr ImVec4 black{0.0f, 0.0f, 0.0f, 1.0f};
-    constexpr ImU32 packed = float4_to_u32(black);
+    constexpr ImU32  packed = float4_to_u32(black);
     EXPECT_EQ((packed >> IM_COL32_R_SHIFT) & 0xFF, 0u);
     EXPECT_EQ((packed >> IM_COL32_G_SHIFT) & 0xFF, 0u);
     EXPECT_EQ((packed >> IM_COL32_B_SHIFT) & 0xFF, 0u);
@@ -249,8 +249,8 @@ TEST(PackedConversion, OpaqueBlack) {
 
 TEST(PackedConversion, RoundTripFloat4ToU32) {
     constexpr ImVec4 original{1.0f, 0.0f, 0.0f, 1.0f}; // pure red
-    constexpr ImU32 packed = float4_to_u32(original);
-    constexpr ImVec4 back = u32_to_float4(packed);
+    constexpr ImU32  packed = float4_to_u32(original);
+    constexpr ImVec4 back   = u32_to_float4(packed);
     EXPECT_NEAR(back.x, 1.0f, 1.0f / 255.0f);
     EXPECT_NEAR(back.y, 0.0f, 1.0f / 255.0f);
     EXPECT_NEAR(back.z, 0.0f, 1.0f / 255.0f);
@@ -258,9 +258,9 @@ TEST(PackedConversion, RoundTripFloat4ToU32) {
 }
 
 TEST(PackedConversion, RoundTripU32ToFloat4) {
-    constexpr ImU32 original = IM_COL32(100, 150, 200, 255);
+    constexpr ImU32  original = IM_COL32(100, 150, 200, 255);
     constexpr ImVec4 unpacked = u32_to_float4(original);
-    constexpr ImU32 repacked = float4_to_u32(unpacked);
+    constexpr ImU32  repacked = float4_to_u32(unpacked);
     EXPECT_EQ((repacked >> IM_COL32_R_SHIFT) & 0xFF, 100u);
     EXPECT_EQ((repacked >> IM_COL32_G_SHIFT) & 0xFF, 150u);
     EXPECT_EQ((repacked >> IM_COL32_B_SHIFT) & 0xFF, 200u);
@@ -269,7 +269,7 @@ TEST(PackedConversion, RoundTripU32ToFloat4) {
 
 TEST(PackedConversion, MidGray) {
     constexpr ImVec4 gray{0.5f, 0.5f, 0.5f, 0.5f};
-    constexpr ImU32 packed = float4_to_u32(gray);
+    constexpr ImU32  packed = float4_to_u32(gray);
     // 0.5 * 255 + 0.5 = 128
     EXPECT_EQ((packed >> IM_COL32_R_SHIFT) & 0xFF, 128u);
     EXPECT_EQ((packed >> IM_COL32_G_SHIFT) & 0xFF, 128u);
@@ -285,7 +285,7 @@ static_assert(float4_to_u32(u32_to_float4(IM_COL32(100, 150, 200, 128))) == IM_C
 // --- offset_u32_rgb ---
 
 TEST(OffsetU32Rgb, PositiveDelta) {
-    constexpr ImU32 base = IM_COL32(100, 100, 100, 255);
+    constexpr ImU32 base   = IM_COL32(100, 100, 100, 255);
     constexpr ImU32 result = offset_u32_rgb(base, 16, 120);
     EXPECT_EQ((result >> IM_COL32_R_SHIFT) & 0xFF, 116u);
     EXPECT_EQ((result >> IM_COL32_G_SHIFT) & 0xFF, 116u);
@@ -294,16 +294,16 @@ TEST(OffsetU32Rgb, PositiveDelta) {
 }
 
 TEST(OffsetU32Rgb, NegativeDelta) {
-    constexpr ImU32 base = IM_COL32(50, 100, 150, 255);
+    constexpr ImU32 base   = IM_COL32(50, 100, 150, 255);
     constexpr ImU32 result = offset_u32_rgb(base, -60, 200);
-    EXPECT_EQ((result >> IM_COL32_R_SHIFT) & 0xFF, 0u);   // clamped to 0
+    EXPECT_EQ((result >> IM_COL32_R_SHIFT) & 0xFF, 0u); // clamped to 0
     EXPECT_EQ((result >> IM_COL32_G_SHIFT) & 0xFF, 40u);
     EXPECT_EQ((result >> IM_COL32_B_SHIFT) & 0xFF, 90u);
     EXPECT_EQ((result >> IM_COL32_A_SHIFT) & 0xFF, 200u);
 }
 
 TEST(OffsetU32Rgb, ClampHigh) {
-    constexpr ImU32 base = IM_COL32(250, 240, 200, 255);
+    constexpr ImU32 base   = IM_COL32(250, 240, 200, 255);
     constexpr ImU32 result = offset_u32_rgb(base, 20, 255);
     EXPECT_EQ((result >> IM_COL32_R_SHIFT) & 0xFF, 255u); // clamped
     EXPECT_EQ((result >> IM_COL32_G_SHIFT) & 0xFF, 255u); // clamped
@@ -311,7 +311,7 @@ TEST(OffsetU32Rgb, ClampHigh) {
 }
 
 TEST(OffsetU32Rgb, ZeroDelta) {
-    constexpr ImU32 base = IM_COL32(42, 84, 126, 255);
+    constexpr ImU32 base   = IM_COL32(42, 84, 126, 255);
     constexpr ImU32 result = offset_u32_rgb(base, 0, 100);
     EXPECT_EQ((result >> IM_COL32_R_SHIFT) & 0xFF, 42u);
     EXPECT_EQ((result >> IM_COL32_G_SHIFT) & 0xFF, 84u);

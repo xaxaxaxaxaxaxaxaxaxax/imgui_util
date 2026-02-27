@@ -75,8 +75,8 @@ namespace {
 
         for (const auto &entry: std::filesystem::directory_iterator("/proc")) {
             if (!entry.is_directory()) continue;
-            const auto &fname = entry.path().filename().string();
-            int              pid = 0;
+            const auto &fname    = entry.path().filename().string();
+            int         pid      = 0;
             const auto [ptr, ec] = std::from_chars(fname.data(), fname.data() + fname.size(), pid);
             if (ec != std::errc{} || ptr != fname.data() + fname.size())
                 continue; // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
@@ -116,9 +116,8 @@ namespace {
             // Parse stime (field 15)
             while (p1 < end && *p1 == ' ')
                 ++p1;
-            long             stime = 0;
-            const auto [p2, ec2]  = std::from_chars(p1, end, stime);
-            if (ec2 != std::errc{}) continue;
+            long stime = 0;
+            if (const auto [p2, ec2] = std::from_chars(p1, end, stime); ec2 != std::errc{}) continue;
 
             long       rss_pages = 0;
             const auto statm     = read_file_line(entry.path() / "statm");
@@ -304,9 +303,9 @@ namespace {
         auto table =
             iu::table_builder<process_row>{}
                 .set_id("##procs")
-                .set_flags(ImGuiTableFlags_Sortable | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter |
-                           ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY |
-                           ImGuiTableFlags_SortMulti)
+                .set_flags(ImGuiTableFlags_Sortable | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter
+                           | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY
+                           | ImGuiTableFlags_SortMulti)
                 .set_scroll_freeze(0, 1)
                 .set_selection(&s.selection)
                 .set_row_id([](const process_row &r) { return r.pid; })
@@ -949,7 +948,7 @@ int main() {
     ImNodes::CreateContext();
     ImPlot::CreateContext();
 
-    auto &io        = ImGui::GetIO();
+    auto &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 

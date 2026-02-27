@@ -27,7 +27,7 @@ namespace imgui_util::detail {
     };
 
     inline void render_menu_entries(std::span<menu_entry> entries) {
-        for (auto &[type, label, action, shortcut, checkbox_value, enabled, children] : entries) {
+        for (auto &[type, label, action, shortcut, checkbox_value, enabled, children]: entries) {
             switch (type) {
                 case menu_entry_type::item:
                     if (ImGui::MenuItem(label, shortcut, false, enabled)) {

@@ -88,22 +88,43 @@ TEST(LayoutPresets, WithWithoutRoundTrip) {
 
 // --- Exact flag composition checks ---
 
-static_assert(window::modal_dialog == (ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse));
-static_assert(window::sidebar == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse));
-static_assert(window::overlay == (ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings));
-static_assert(window::popup == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize));
-static_assert(window::navbar == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_MenuBar));
-static_assert(window::settings_panel == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoFocusOnAppearing));
-static_assert(window::dockspace_host == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground));
+static_assert(window::modal_dialog
+              == (ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse));
+static_assert(window::sidebar
+              == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
+                  | ImGuiWindowFlags_NoCollapse));
+static_assert(window::overlay
+              == (ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDocking
+                  | ImGuiWindowFlags_NoSavedSettings));
+static_assert(window::popup
+              == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+                  | ImGuiWindowFlags_AlwaysAutoResize));
+static_assert(window::navbar
+              == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+                  | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking
+                  | ImGuiWindowFlags_MenuBar));
+static_assert(window::settings_panel
+              == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove
+                  | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking
+                  | ImGuiWindowFlags_NoFocusOnAppearing));
+static_assert(window::dockspace_host
+              == (ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
+                  | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus
+                  | ImGuiWindowFlags_NoBackground));
 
 static_assert(table::summary == (ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg));
-static_assert(table::scroll_list == (ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp));
-static_assert(table::resizable_list == (ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable));
+static_assert(table::scroll_list
+              == (ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY
+                  | ImGuiTableFlags_SizingStretchProp));
+static_assert(table::resizable_list
+              == (ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY
+                  | ImGuiTableFlags_Resizable));
 static_assert(table::sortable_list == (table::resizable_list | ImGuiTableFlags_Sortable));
 static_assert(table::property == (ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit));
 static_assert(table::compact == (ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoBordersInBody));
 
-static_assert(column::frozen_column == (ImGuiTableColumnFlags_NoResize | ImGuiTableColumnFlags_NoReorder | ImGuiTableColumnFlags_NoHide));
+static_assert(column::frozen_column
+              == (ImGuiTableColumnFlags_NoResize | ImGuiTableColumnFlags_NoReorder | ImGuiTableColumnFlags_NoHide));
 static_assert(column::default_sort == (ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortAscending));
 
 // --- New preset tests ---

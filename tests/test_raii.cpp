@@ -7,12 +7,9 @@ using namespace imgui_util;
 // --- end_policy enum values exist ---
 
 TEST(RaiiEndPolicy, EnumValuesExist) {
-    [[maybe_unused]]
-    constexpr auto always_val = end_policy::always;
-    [[maybe_unused]]
-    constexpr auto conditional_val = end_policy::conditional;
-    [[maybe_unused]]
-    constexpr auto none_val = end_policy::none;
+    [[maybe_unused]] constexpr auto always_val      = end_policy::always;
+    [[maybe_unused]] constexpr auto conditional_val = end_policy::conditional;
+    [[maybe_unused]] constexpr auto none_val        = end_policy::none;
 }
 
 // --- raii_scope is non-copyable and non-movable ---
@@ -109,14 +106,12 @@ static_assert(!std::is_constructible_v<bool, style_var>, "style_var should not b
 
 TEST(StyleVars, EntryAcceptsFloat) {
     // Compile-time check: entry can be constructed with float
-    [[maybe_unused]]
-    style_vars::entry const e{ImGuiStyleVar_Alpha, 0.5f};
+    [[maybe_unused]] const style_vars::entry e{ImGuiStyleVar_Alpha, 0.5f};
 }
 
 TEST(StyleVars, EntryAcceptsImVec2) {
     // Compile-time check: entry can be constructed with ImVec2
-    [[maybe_unused]]
-    style_vars::entry const e{ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f)};
+    [[maybe_unused]] const style_vars::entry e{ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f)};
 }
 
 // --- Mock trait behavioral tests ---
@@ -125,7 +120,7 @@ namespace {
     struct mock_counter {
         static inline int begin_count = 0;
         static inline int end_count   = 0;
-        static void reset() { begin_count = end_count = 0; }
+        static void       reset() { begin_count = end_count = 0; }
     };
 
     struct mock_always_trait {
@@ -158,36 +153,28 @@ namespace {
 
 TEST(RaiiMock, EndCalledOnceOnDestruction) {
     mock_counter::reset();
-    {
-        raii_scope<mock_always_trait> const scope;
-    }
+    { const raii_scope<mock_always_trait> scope; }
     EXPECT_EQ(mock_counter::begin_count, 1);
     EXPECT_EQ(mock_counter::end_count, 1);
 }
 
 TEST(RaiiMock, ConditionalEndCalledWhenTrue) {
     mock_counter::reset();
-    {
-        raii_scope<mock_conditional_trait> const scope(true);
-    }
+    { const raii_scope<mock_conditional_trait> scope(true); }
     EXPECT_EQ(mock_counter::begin_count, 1);
     EXPECT_EQ(mock_counter::end_count, 1);
 }
 
 TEST(RaiiMock, ConditionalEndNotCalledWhenFalse) {
     mock_counter::reset();
-    {
-        raii_scope<mock_conditional_trait> const scope(false);
-    }
+    { const raii_scope<mock_conditional_trait> scope(false); }
     EXPECT_EQ(mock_counter::begin_count, 1);
     EXPECT_EQ(mock_counter::end_count, 0);
 }
 
 TEST(RaiiMock, NoneEndAlwaysCalled) {
     mock_counter::reset();
-    {
-        raii_scope<mock_none_trait> const scope;
-    }
+    { const raii_scope<mock_none_trait> scope; }
     EXPECT_EQ(mock_counter::begin_count, 1);
     EXPECT_EQ(mock_counter::end_count, 1);
 }

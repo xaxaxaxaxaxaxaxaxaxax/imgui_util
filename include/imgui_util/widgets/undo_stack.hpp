@@ -46,39 +46,24 @@ namespace imgui_util {
             enforce_max_depth();
         }
 
-        [[nodiscard]]
-        bool undo() noexcept {
+        [[nodiscard]] bool undo() noexcept {
             if (!can_undo()) return false;
             --current_index_;
             return true;
         }
 
-        [[nodiscard]]
-        bool redo() noexcept {
+        [[nodiscard]] bool redo() noexcept {
             if (!can_redo()) return false;
             ++current_index_;
             return true;
         }
 
-        [[nodiscard]]
-        const State &current() const noexcept {
-            return stack_[current_index_].state;
-        }
-        [[nodiscard]]
-        bool can_undo() const noexcept {
-            return current_index_ > 0;
-        }
-        [[nodiscard]]
-        bool can_redo() const noexcept {
-            return current_index_ + 1 < stack_.size();
-        }
-        [[nodiscard]]
-        std::size_t depth() const noexcept {
-            return stack_.size();
-        }
+        [[nodiscard]] const State &current() const noexcept { return stack_[current_index_].state; }
+        [[nodiscard]] bool         can_undo() const noexcept { return current_index_ > 0; }
+        [[nodiscard]] bool         can_redo() const noexcept { return current_index_ + 1 < stack_.size(); }
+        [[nodiscard]] std::size_t  depth() const noexcept { return stack_.size(); }
 
-        [[nodiscard]]
-        bool handle_shortcuts() noexcept {
+        [[nodiscard]] bool handle_shortcuts() noexcept {
             const bool ctrl = ImGui::GetIO().KeyCtrl;
             if (ctrl && ImGui::IsKeyPressed(ImGuiKey_Z, false)) return undo();
             if (ctrl && ImGui::IsKeyPressed(ImGuiKey_Y, false)) return redo();

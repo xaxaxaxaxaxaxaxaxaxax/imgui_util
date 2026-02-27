@@ -18,24 +18,23 @@
 namespace imgui_util {
 
     // Button with custom color scheme (button, hovered, active)
-    [[nodiscard]]
-    inline bool styled_button(const char *label, const ImVec4 &btn, const ImVec4 &hover, const ImVec4 &active,
-                              const ImVec2 size = {0, 0}) noexcept {
+    [[nodiscard]] inline bool styled_button(const char *label, const ImVec4 &btn, const ImVec4 &hover,
+                                            const ImVec4 &active, const ImVec2 size = {0, 0}) noexcept {
         const style_colors sc{{ImGuiCol_Button, btn}, {ImGuiCol_ButtonHovered, hover}, {ImGuiCol_ButtonActive, active}};
         return ImGui::Button(label, size);
     }
 
     // Convenience: derive hover/active from a single base color.
     // Uses additive blending so dark colors still produce visible hover/active shifts.
-    [[nodiscard]]
-    inline bool styled_button(const char *label, const ImVec4 &base, const ImVec2 size = {0, 0}) noexcept {
+    [[nodiscard]] inline bool styled_button(const char *label, const ImVec4 &base,
+                                            const ImVec2 size = {0, 0}) noexcept {
         return styled_button(label, base, color::offset(base, 0.1f), color::offset(base, 0.2f), size);
     }
 
     // Checkbox that invokes a callback on change
     template<std::invocable F>
-    [[nodiscard]]
-    bool checkbox_action(const char *label, bool *v, F &&on_change) noexcept(std::is_nothrow_invocable_v<F>) {
+    [[nodiscard]] bool checkbox_action(const char *label, bool *v,
+                                       F &&on_change) noexcept(std::is_nothrow_invocable_v<F>) {
         if (ImGui::Checkbox(label, v)) {
             std::forward<F>(on_change)();
             return true;
@@ -56,10 +55,10 @@ namespace imgui_util {
     namespace detail {
         // Concept for a range whose elements provide .c_str() returning const char*
         template<typename R>
-        concept c_string_range = std::ranges::sized_range<R> && std::ranges::random_access_range<R> &&
-                                 requires(std::ranges::range_value_t<R> v) {
-                                     { v.c_str() } -> std::convertible_to<const char *>;
-                                 };
+        concept c_string_range = std::ranges::sized_range<R> && std::ranges::random_access_range<R>
+            && requires(std::ranges::range_value_t<R> v) {
+                   { v.c_str() } -> std::convertible_to<const char *>;
+               };
 
         // Concept for ranges usable in combo boxes: either c_string_range or span<const char*const>
         template<typename R>
@@ -70,8 +69,7 @@ namespace imgui_util {
             requires requires(const T &t) {
                 { t.c_str() } -> std::convertible_to<const char *>;
             } || std::convertible_to<T, const char *>
-        [[nodiscard]]
-        constexpr const char *as_c_str(const T &item) noexcept {
+        [[nodiscard]] constexpr const char *as_c_str(const T &item) noexcept {
             if constexpr (requires {
                               { item.c_str() } -> std::convertible_to<const char *>;
                           }) {
@@ -84,9 +82,8 @@ namespace imgui_util {
         // Shared combo rendering: renders selectable items and returns true if selection changed.
         // idx uses -1 for "no selection"; preview_none is shown when idx < 0 or out of range.
         template<typename R>
-        [[nodiscard]]
-        bool combo_impl(const char *label, int &idx, const R &items, const char *preview_none,
-                        const bool show_none_entry) noexcept {
+        [[nodiscard]] bool combo_impl(const char *label, int &idx, const R &items, const char *preview_none,
+                                      const bool show_none_entry) noexcept {
             bool        changed = false;
             const auto  sz      = static_cast<int>(std::ranges::size(items));
             const char *preview = idx >= 0 && idx < sz ? as_c_str(items[idx]) : preview_none;
@@ -112,15 +109,13 @@ namespace imgui_util {
     // Works with both std::string ranges (.c_str()) and const char* spans.
     // idx uses int to match ImGui's Combo API; -1 means no selection.
     template<detail::combo_range R>
-    [[nodiscard]]
-    bool column_combo(const char *label, int &idx, const R &items) noexcept {
+    [[nodiscard]] bool column_combo(const char *label, int &idx, const R &items) noexcept {
         return detail::combo_impl(label, idx, items, "<none>", false);
     }
 
     // Combo box with an optional "(none)" entry at index -1. Returns true if selection changed.
     template<detail::combo_range R>
-    [[nodiscard]]
-    bool optional_column_combo(const char *label, int &idx, const R &items) noexcept {
+    [[nodiscard]] bool optional_column_combo(const char *label, int &idx, const R &items) noexcept {
         return detail::combo_impl(label, idx, items, "(none)", true);
     }
 

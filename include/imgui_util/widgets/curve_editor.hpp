@@ -88,8 +88,7 @@ namespace imgui_util {
         }
 
         // Evaluate the curve at time t using cubic hermite interpolation
-        [[nodiscard]]
-        static float evaluate(const std::span<const keyframe> keys, const float t) noexcept {
+        [[nodiscard]] static float evaluate(const std::span<const keyframe> keys, const float t) noexcept {
             if (keys.empty()) return 0.0f;
             if (keys.size() == 1) return keys[0].value;
 
@@ -129,23 +128,21 @@ namespace imgui_util {
             return h00 * k0.value + h10 * m0 + h01 * k1.value + h11 * m1;
         }
 
-        [[nodiscard]]
-        curve_editor &set_grid(const bool show, const float t_step = 0.1f, const float v_step = 0.1f) noexcept {
+        [[nodiscard]] curve_editor &set_grid(const bool show, const float t_step = 0.1f,
+                                             const float v_step = 0.1f) noexcept {
             show_grid_   = show;
             grid_t_step_ = t_step;
             grid_v_step_ = v_step;
             return *this;
         }
 
-        [[nodiscard]]
-        curve_editor &set_snap(const float t_snap = 0.0f, const float v_snap = 0.0f) noexcept {
+        [[nodiscard]] curve_editor &set_snap(const float t_snap = 0.0f, const float v_snap = 0.0f) noexcept {
             snap_t_ = t_snap;
             snap_v_ = v_snap;
             return *this;
         }
 
-        [[nodiscard]]
-        curve_editor &set_color(const ImU32 color) noexcept {
+        [[nodiscard]] curve_editor &set_color(const ImU32 color) noexcept {
             curve_color_ = color;
             return *this;
         }
@@ -171,24 +168,21 @@ namespace imgui_util {
             bool        canvas_hovered;
             ImVec2      mouse;
 
-            [[nodiscard]]
-            ImVec2 to_screen(const float t, const float v) const noexcept {
+            [[nodiscard]] ImVec2 to_screen(const float t, const float v) const noexcept {
                 const float sx = canvas_pos.x + (t - t_min) / t_range * canvas_size.x;
                 const float sy = canvas_end.y - (v - v_min) / v_range * canvas_size.y;
                 return {sx, sy};
             }
 
-            [[nodiscard]]
-            std::pair<float, float> to_value(const ImVec2 screen) const noexcept {
+            [[nodiscard]] std::pair<float, float> to_value(const ImVec2 screen) const noexcept {
                 const float t = t_min + (screen.x - canvas_pos.x) / canvas_size.x * t_range;
                 const float v = v_min + (canvas_end.y - screen.y) / canvas_size.y * v_range;
                 return {t, v};
             }
         };
 
-        [[nodiscard]]
-        render_context setup_canvas(const float t_min, const float t_max, const float v_min,
-                                    const float v_max) const noexcept {
+        [[nodiscard]] render_context setup_canvas(const float t_min, const float t_max, const float v_min,
+                                                  const float v_max) const noexcept {
             const ImVec2 avail = ImGui::GetContentRegionAvail();
             const ImVec2 canvas_size{
                 size_.x > 0 ? size_.x : avail.x,
@@ -209,8 +203,8 @@ namespace imgui_util {
             dl->AddRect(canvas_pos, canvas_end, IM_COL32(80, 80, 80, 255));
 
             return {
-                dl, canvas_pos, canvas_end, canvas_size, t_min, t_max, v_min, v_max,
-                t_max - t_min, v_max - v_min, canvas_hovered, ImGui::GetIO().MousePos,
+                dl,    canvas_pos, canvas_end,    canvas_size,   t_min,          t_max,
+                v_min, v_max,      t_max - t_min, v_max - v_min, canvas_hovered, ImGui::GetIO().MousePos,
             };
         }
 
@@ -268,8 +262,8 @@ namespace imgui_util {
         }
 
         void render_keyframes(const render_context &ctx, std::vector<keyframe> &keys, bool &modified) {
-            constexpr float point_radius  = 5.0f;
-            constexpr float handle_radius = 3.0f;
+            constexpr float point_radius   = 5.0f;
+            constexpr float handle_radius  = 3.0f;
             constexpr float tangent_len_px = 40.0f;
 
             for (int ki = 0; std::cmp_less(ki, keys.size()); ++ki) {
@@ -403,8 +397,8 @@ namespace imgui_util {
         }
 
         void handle_delete_keyframe(std::vector<keyframe> &keys, bool &modified) {
-            if (selected_key_ < 0 || !std::cmp_less(selected_key_, keys.size()) ||
-                !ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+            if (selected_key_ < 0 || !std::cmp_less(selected_key_, keys.size())
+                || !ImGui::IsKeyPressed(ImGuiKey_Delete, false))
                 return;
 
             keys.erase(keys.begin() + selected_key_);

@@ -25,8 +25,7 @@ namespace imgui_util {
     namespace detail {
 
         // Draw a three-line grip icon (drag handle) at the given position
-        inline void draw_grip_icon(ImDrawList* dl, const ImVec2 pos, const float height,
-                                   const ImU32 color) noexcept {
+        inline void draw_grip_icon(ImDrawList *dl, const ImVec2 pos, const float height, const ImU32 color) noexcept {
             const float cx = pos.x + 8.0f;
             const float cy = pos.y + height * 0.5f;
 
@@ -42,17 +41,16 @@ namespace imgui_util {
 
     // Drag-to-reorder list. Returns true if the order changed this frame.
     // item_height <= 0 means auto-detect from first item content height.
-    template<typename T, std::invocable<const T&> RenderFn>
-    [[nodiscard]]
-    bool reorder_list(const char* str_id, std::vector<T>& items, RenderFn render_item,
-                      const float item_height = 0.0f) {
+    template<typename T, std::invocable<const T &> RenderFn>
+    [[nodiscard]] bool reorder_list(const char *str_id, std::vector<T> &items, RenderFn render_item,
+                                    const float item_height = 0.0f) {
         if (items.empty()) return false;
 
         const id scope{str_id};
         bool     changed = false;
 
         // Persistent drag state via ImGui storage
-        ImGuiStorage* const storage    = ImGui::GetStateStorage();
+        ImGuiStorage *const storage    = ImGui::GetStateStorage();
         const ImGuiID       src_key    = ImGui::GetID("##reorder_src");
         const ImGuiID       active_key = ImGui::GetID("##reorder_active");
         const bool          dragging   = storage->GetBool(active_key, false);
@@ -81,7 +79,7 @@ namespace imgui_util {
 
                 // Now draw the grip icon over the reserved area
                 const ImVec2 item_min = ImGui::GetItemRectMin();
-                auto* const  dl       = ImGui::GetWindowDrawList();
+                auto *const  dl       = ImGui::GetWindowDrawList();
                 detail::draw_grip_icon(dl, item_min, row_h, grip_color);
 
                 // Make the whole row a drag source / drop target
@@ -94,7 +92,7 @@ namespace imgui_util {
                 ImGui::InvisibleButton("##drag_handle", {avail_w, row_h});
                 const ImVec2 item_min = ImGui::GetItemRectMin();
 
-                auto* const dl = ImGui::GetWindowDrawList();
+                auto *const dl = ImGui::GetWindowDrawList();
                 detail::draw_grip_icon(dl, item_min, row_h, grip_color);
 
                 // Render content offset by grip width
@@ -121,7 +119,7 @@ namespace imgui_util {
                 const bool   above    = mouse_y < mid_y;
                 const float  line_y   = above ? rect_min.y : rect_max.y;
 
-                auto* const dl = ImGui::GetWindowDrawList();
+                auto *const dl = ImGui::GetWindowDrawList();
                 dl->AddLine({rect_min.x, line_y}, {rect_max.x, line_y}, insert_color, 2.0f);
 
                 if (const auto from_opt = drag_drop::accept_payload<int>("REORDER_ITEM")) {
@@ -133,13 +131,10 @@ namespace imgui_util {
                         if (from < to) --to;
                         if (to != from && to >= 0 && to <= count - 1) {
                             if (from < to) {
-                                std::ranges::rotate(items.begin() + from,
-                                                    items.begin() + from + 1,
+                                std::ranges::rotate(items.begin() + from, items.begin() + from + 1,
                                                     items.begin() + to + 1);
                             } else {
-                                std::ranges::rotate(items.begin() + to,
-                                                    items.begin() + from,
-                                                    items.begin() + from + 1);
+                                std::ranges::rotate(items.begin() + to, items.begin() + from, items.begin() + from + 1);
                             }
                             changed = true;
                         }

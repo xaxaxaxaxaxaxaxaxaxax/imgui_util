@@ -35,18 +35,17 @@ namespace imgui_util {
         static constexpr bool       has_storage =
             !std::is_same_v<typename Trait::storage, std::monostate>; // extra data for end()
 
-        [[no_unique_address]]
-        std::conditional_t<has_state, bool, std::monostate> state_{}; // begin() result; monostate when unused
-        [[no_unique_address]]
-        Trait::storage storage_{}; // extra data passed to end(); monostate when unused
+        [[no_unique_address]] std::conditional_t<has_state, bool, std::monostate>
+                                             state_{};   // begin() result; monostate when unused
+        [[no_unique_address]] Trait::storage storage_{}; // extra data passed to end(); monostate when unused
 
     public:
         // Perfect forwarding constructor - dispatches to appropriate begin() overload
         template<typename... Args>
             requires requires { Trait::begin(std::declval<Args>()...); }
         explicit raii_scope(Args &&...args) noexcept(noexcept(Trait::begin(std::declval<Args>()...))) {
-            static_assert(std::is_void_v<decltype(Trait::begin(std::declval<Args>()...))> ||
-                              std::is_same_v<decltype(Trait::begin(std::declval<Args>()...)), bool> || has_storage,
+            static_assert(std::is_void_v<decltype(Trait::begin(std::declval<Args>()...))>
+                              || std::is_same_v<decltype(Trait::begin(std::declval<Args>()...)), bool> || has_storage,
                           "Trait::begin() returns a non-void/non-bool value but storage is monostate — the return "
                           "value would be lost");
             if constexpr (requires {
@@ -89,16 +88,14 @@ namespace imgui_util {
         raii_scope &operator=(raii_scope &&)      = delete;
 
         // Contextual bool conversion - only enabled when state is tracked
-        [[nodiscard]]
-        explicit operator bool() const noexcept
+        [[nodiscard]] explicit operator bool() const noexcept
             requires has_state
         {
             return state_;
         }
 
         // Named accessor — generic across window/tab/menu contexts
-        [[nodiscard]]
-        bool is_active() const noexcept
+        [[nodiscard]] bool is_active() const noexcept
             requires has_state
         {
             return state_;
@@ -124,8 +121,7 @@ namespace imgui_util {
     // PopFn:  callable that pops N entries (takes int count)
     // Entry:  struct with .idx and .val (variant) fields
     template<typename Entry, auto PushFn, auto PopFn>
-    class [[nodiscard]]
-    multi_push {
+    class [[nodiscard]] multi_push {
         int count_ = 0;
 
         static void push_one(const Entry &e) noexcept {
@@ -365,15 +361,15 @@ namespace imgui_util {
         ImGuiCol                    idx;
         std::variant<ImVec4, ImU32> val;
 
-        style_color_entry(ImGuiCol i, const ImVec4 &c) noexcept : idx{i}, val{c} {}
-        style_color_entry(ImGuiCol i, ImU32 c) noexcept : idx{i}, val{c} {}
+        style_color_entry(const ImGuiCol i, const ImVec4 &c) noexcept : idx{i}, val{c} {}
+        style_color_entry(const ImGuiCol i, ImU32 c) noexcept : idx{i}, val{c} {}
     };
 
     // Helper lambdas for multi_push template instantiation
     constexpr auto push_style_var_fn   = [](ImGuiStyleVar idx, const auto &v) { ImGui::PushStyleVar(idx, v); };
-    constexpr auto pop_style_var_fn    = [](int count) { ImGui::PopStyleVar(count); };
+    constexpr auto pop_style_var_fn    = [](const int count) { ImGui::PopStyleVar(count); };
     constexpr auto push_style_color_fn = [](ImGuiCol idx, const auto &v) { ImGui::PushStyleColor(idx, v); };
-    constexpr auto pop_style_color_fn  = [](int count) { ImGui::PopStyleColor(count); };
+    constexpr auto pop_style_color_fn  = [](const int count) { ImGui::PopStyleColor(count); };
 
     // Push multiple style vars/colors in one shot; pops all in destructor.
     //   imgui_util::style_vars sv{{ImGuiStyleVar_Alpha, 0.5f}, {ImGuiStyleVar_WindowPadding, ImVec2{8,8}}};
@@ -400,7 +396,6 @@ namespace imgui_util {
     using main_menu_bar        = raii_scope<main_menu_bar_trait>;
     using table                = raii_scope<table_trait>;
     using list_box             = raii_scope<list_box_trait>;
-    // "none" types (push/pop): always pop, no bool state.
     using style_var            = raii_scope<style_var_trait>;
     using style_color          = raii_scope<style_color_trait>;
     using item_width           = raii_scope<item_width_trait>;
@@ -440,10 +435,7 @@ namespace imgui_util {
         multi_select(multi_select &&)                 = delete;
         multi_select &operator=(multi_select &&)      = delete;
 
-        [[nodiscard]]
-        ImGuiMultiSelectIO *begin_io() const noexcept {
-            return begin_io_;
-        }
+        [[nodiscard]] ImGuiMultiSelectIO *begin_io() const noexcept { return begin_io_; }
 
         // Call to end the scope early and retrieve EndMultiSelect's IO*.
         // After this call, the destructor becomes a no-op.

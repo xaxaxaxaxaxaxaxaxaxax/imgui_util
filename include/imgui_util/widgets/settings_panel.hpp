@@ -30,15 +30,14 @@ namespace imgui_util {
 
     class settings_panel {
     public:
-        [[nodiscard]]
-        settings_panel &section(const std::string_view name, std::move_only_function<void()> render_fn) noexcept {
+        [[nodiscard]] settings_panel &section(const std::string_view          name,
+                                              std::move_only_function<void()> render_fn) noexcept {
             sections_.push_back({.name = std::string(name), .parent = {}, .render_fn = std::move(render_fn)});
             return *this;
         }
 
-        [[nodiscard]]
-        settings_panel &section(const std::string_view name, const std::string_view parent,
-                                std::move_only_function<void()> render_fn) noexcept {
+        [[nodiscard]] settings_panel &section(const std::string_view name, const std::string_view parent,
+                                              std::move_only_function<void()> render_fn) noexcept {
             sections_.push_back(
                 {.name = std::string(name), .parent = std::string(parent), .render_fn = std::move(render_fn)});
             return *this;

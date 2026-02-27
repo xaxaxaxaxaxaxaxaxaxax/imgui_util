@@ -23,9 +23,8 @@
 namespace imgui_util {
 
     // Returns true when the user confirms (second click within timeout).
-    [[nodiscard]]
-    inline bool confirm_button(const char *label, const char *str_id, const float timeout_sec = 3.0f,
-                               const ImVec4 &armed_color = colors::error) noexcept {
+    [[nodiscard]] inline bool confirm_button(const char *label, const char *str_id, const float timeout_sec = 3.0f,
+                                             const ImVec4 &armed_color = colors::error) noexcept {
         if (const ImGuiWindow *const win = ImGui::GetCurrentWindow(); win->SkipItems) return false;
 
         const id scope{str_id};

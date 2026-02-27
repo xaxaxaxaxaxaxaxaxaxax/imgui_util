@@ -19,8 +19,7 @@
 namespace imgui_util::search {
 
     // Case-insensitive character comparison
-    [[nodiscard]]
-    constexpr bool char_equal_ignore_case(const char a, const char b) noexcept {
+    [[nodiscard]] constexpr bool char_equal_ignore_case(const char a, const char b) noexcept {
         auto to_lower = [](const char c) -> char {
             return c >= 'A' && c <= 'Z' ? static_cast<char>(c + ('a' - 'A')) : c;
         };
@@ -28,16 +27,14 @@ namespace imgui_util::search {
     }
 
     // Case-insensitive substring check using std::ranges
-    [[nodiscard]]
-    constexpr bool contains_ignore_case(std::string_view haystack, std::string_view needle) noexcept {
+    [[nodiscard]] constexpr bool contains_ignore_case(std::string_view haystack, std::string_view needle) noexcept {
         return std::ranges::contains_subrange(haystack, needle, char_equal_ignore_case);
     }
 
     // Match query against multiple string fields (short-circuits on first match)
     template<typename... StringViews>
         requires(std::convertible_to<StringViews, std::string_view> && ...)
-    [[nodiscard]]
-    constexpr bool matches_any(std::string_view query, StringViews... fields) noexcept {
+    [[nodiscard]] constexpr bool matches_any(std::string_view query, StringViews... fields) noexcept {
         if (query.empty()) return true;
         return (contains_ignore_case(fields, query) || ...);
     }
@@ -52,8 +49,8 @@ namespace imgui_util::search {
         // @param hint   Placeholder text shown when empty.
         // @param width  Widget width (-1 = fill remaining).
         // @param id     ImGui ID string (default "##search"). Override to avoid ID collisions.
-        [[nodiscard]]
-        bool render(const char *hint = "Search...", const float width = -1.0f, const char *id = "##search") noexcept {
+        [[nodiscard]] bool render(const char *hint = "Search...", const float width = -1.0f,
+                                  const char *id = "##search") noexcept {
             if (focus_next_frame_) {
                 ImGui::SetKeyboardFocusHere();
                 focus_next_frame_ = false;
@@ -78,22 +75,17 @@ namespace imgui_util::search {
         }
 
         // Get current query as string_view (empty if no search active)
-        [[nodiscard]]
-        constexpr std::string_view query() const noexcept {
+        [[nodiscard]] constexpr std::string_view query() const noexcept {
             return std::string_view{buffer_.data(), len_};
         }
 
         // Check if query is empty (show all items)
-        [[nodiscard]]
-        constexpr bool empty() const noexcept {
-            return len_ == 0;
-        }
+        [[nodiscard]] constexpr bool empty() const noexcept { return len_ == 0; }
 
         // Check if an item matches the current query
         template<typename... StringViews>
             requires(std::convertible_to<StringViews, std::string_view> && ...)
-        [[nodiscard]]
-        bool matches(StringViews... fields) const noexcept {
+        [[nodiscard]] bool matches(StringViews... fields) const noexcept {
             return matches_any(query(), fields...);
         }
 

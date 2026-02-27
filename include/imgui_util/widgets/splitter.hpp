@@ -28,9 +28,8 @@ namespace imgui_util {
     using split_direction = direction;
 
     // Returns true if the ratio changed. ratio is 0.0-1.0 representing the first panel's share.
-    [[nodiscard]]
-    inline bool splitter(const char *id, const split_direction dir, float &ratio, float thickness = 8.0f,
-                         const float min_ratio = 0.1f, const float max_ratio = 0.9f) noexcept {
+    [[nodiscard]] inline bool splitter(const char *id, const split_direction dir, float &ratio, float thickness = 8.0f,
+                                       const float min_ratio = 0.1f, const float max_ratio = 0.9f) noexcept {
         assert(min_ratio < max_ratio && "min_ratio must be less than max_ratio");
         thickness       = std::max(thickness, 1.0f);
         ratio           = std::clamp(ratio, min_ratio, max_ratio);
@@ -38,10 +37,10 @@ namespace imgui_util {
 
         // Use the window's full content region width, not GetContentRegionAvail which
         // returns only the remaining space after the cursor position.
-        const auto content_max = ImGui::GetContentRegionMax();
-        const auto content_min = ImGui::GetWindowContentRegionMin();
-        const float total      = is_h ? content_max.x - content_min.x : content_max.y - content_min.y;
-        const auto avail       = ImGui::GetContentRegionAvail();
+        const auto  content_max = ImGui::GetContentRegionMax();
+        const auto  content_min = ImGui::GetWindowContentRegionMin();
+        const float total       = is_h ? content_max.x - content_min.x : content_max.y - content_min.y;
+        const auto  avail       = ImGui::GetContentRegionAvail();
 
         // Render the invisible button at the current cursor position (no SetCursorPos).
         ImGui::InvisibleButton(id, is_h ? ImVec2(thickness, avail.y) : ImVec2(avail.x, thickness));

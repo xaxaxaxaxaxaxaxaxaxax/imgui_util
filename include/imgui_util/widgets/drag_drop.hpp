@@ -42,8 +42,8 @@ namespace imgui_util::drag_drop {
     // Accept a typed payload during a drag target scope. Returns nullopt if no matching payload.
     template<typename T>
         requires payload<T>
-    [[nodiscard]]
-    auto accept_payload(const char *type, const ImGuiDragDropFlags flags = 0) noexcept -> std::optional<T> {
+    [[nodiscard]] auto accept_payload(const char *type, const ImGuiDragDropFlags flags = 0) noexcept
+        -> std::optional<T> {
         if (const auto *const pl = ImGui::AcceptDragDropPayload(type, flags)) {
             T value;
             std::memcpy(&value, pl->Data, sizeof(T));
@@ -55,8 +55,7 @@ namespace imgui_util::drag_drop {
     // Peek at payload without accepting (for preview during hover)
     template<typename T>
         requires payload<T>
-    [[nodiscard]]
-    auto peek_payload(const char *type) noexcept -> std::optional<T> {
+    [[nodiscard]] auto peek_payload(const char *type) noexcept -> std::optional<T> {
         if (const auto *const pl = ImGui::GetDragDropPayload()) {
             if (pl->IsDataType(type)) {
                 T value;

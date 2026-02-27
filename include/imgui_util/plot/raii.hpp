@@ -144,15 +144,14 @@ namespace imgui_util::implot {
     constexpr auto pop_plot_style_color_fn  = [](const int count) { ImPlot::PopStyleColor(count); };
 
     // Type aliases for direct use: if (implot::plot p{"Title"}) { ... }
-    using plot             = raii_scope<plot_trait>;
-    using colormap         = raii_scope<colormap_trait>;
-    using plot_style_color = raii_scope<plot_style_color_trait>;
-    using plot_style_var   = raii_scope<plot_style_var_trait>;
-    using subplots         = raii_scope<subplot_trait>;
-    using aligned_plots    = raii_scope<aligned_plots_trait>;
-    using legend_popup     = raii_scope<legend_popup_trait>;
-    using plot_clip_rect   = raii_scope<plot_clip_rect_trait>;
-
+    using plot                    = raii_scope<plot_trait>;
+    using colormap                = raii_scope<colormap_trait>;
+    using plot_style_color        = raii_scope<plot_style_color_trait>;
+    using plot_style_var          = raii_scope<plot_style_var_trait>;
+    using subplots                = raii_scope<subplot_trait>;
+    using aligned_plots           = raii_scope<aligned_plots_trait>;
+    using legend_popup            = raii_scope<legend_popup_trait>;
+    using plot_clip_rect          = raii_scope<plot_clip_rect_trait>;
     using drag_drop_target_plot   = raii_scope<drag_drop_target_plot_trait>;
     using drag_drop_target_axis   = raii_scope<drag_drop_target_axis_trait>;
     using drag_drop_target_legend = raii_scope<drag_drop_target_legend_trait>;

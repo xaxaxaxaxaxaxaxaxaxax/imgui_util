@@ -29,8 +29,7 @@ namespace imgui_util {
     };
 
     // Format a key_combo as human-readable text (e.g. "Ctrl+Shift+K")
-    [[nodiscard]]
-    inline fmt_buf<128> to_string(const key_combo &combo) noexcept {
+    [[nodiscard]] inline fmt_buf<128> to_string(const key_combo &combo) noexcept {
         if (combo.key == ImGuiKey_None && combo.mods == ImGuiMod_None) {
             return fmt_buf<128>{"None"};
         }
@@ -51,18 +50,15 @@ namespace imgui_util {
     namespace detail {
 
         // Check whether a key is a modifier (Ctrl/Shift/Alt/Super)
-        [[nodiscard]]
-        constexpr bool is_modifier_key(const ImGuiKey key) noexcept {
-            return key == ImGuiKey_LeftCtrl || key == ImGuiKey_RightCtrl ||
-                   key == ImGuiKey_LeftShift || key == ImGuiKey_RightShift ||
-                   key == ImGuiKey_LeftAlt || key == ImGuiKey_RightAlt ||
-                   key == ImGuiKey_LeftSuper || key == ImGuiKey_RightSuper;
+        [[nodiscard]] constexpr bool is_modifier_key(const ImGuiKey key) noexcept {
+            return key == ImGuiKey_LeftCtrl || key == ImGuiKey_RightCtrl || key == ImGuiKey_LeftShift
+                || key == ImGuiKey_RightShift || key == ImGuiKey_LeftAlt || key == ImGuiKey_RightAlt
+                || key == ImGuiKey_LeftSuper || key == ImGuiKey_RightSuper;
         }
 
         // Scan for the currently held modifier flags
-        [[nodiscard]]
-        inline ImGuiKeyChord current_modifiers() noexcept {
-            const auto &io = ImGui::GetIO();
+        [[nodiscard]] inline ImGuiKeyChord current_modifiers() noexcept {
+            const auto   &io   = ImGui::GetIO();
             ImGuiKeyChord mods = ImGuiMod_None;
             if (io.KeyCtrl) mods |= ImGuiMod_Ctrl;
             if (io.KeyShift) mods |= ImGuiMod_Shift;
@@ -74,13 +70,12 @@ namespace imgui_util {
     } // namespace detail
 
     // Key binding editor widget. Returns true when the binding changes.
-    [[nodiscard]]
-    inline bool key_binding_editor(const char *label, key_combo *combo) noexcept {
+    [[nodiscard]] inline bool key_binding_editor(const char *label, key_combo *combo) noexcept {
         ImGuiWindow *win = ImGui::GetCurrentWindow();
         if (win->SkipItems) return false;
 
-        const ImGuiID     widget_id = win->GetID(label);
-        const auto       &style     = ImGui::GetStyle();
+        const ImGuiID widget_id = win->GetID(label);
+        const auto   &style     = ImGui::GetStyle();
 
         // Use ImGui state storage to track capture mode (0 = display, 1 = capturing)
         int *const capturing = ImGui::GetStateStorage()->GetIntRef(widget_id, 0);

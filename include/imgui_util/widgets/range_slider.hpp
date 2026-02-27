@@ -33,19 +33,16 @@ namespace imgui_util {
 
         // Map value to 0..1 normalized position on the slider
         template<typename T>
-        [[nodiscard]]
-        constexpr float range_normalize(T val, T range_min, T range_max) noexcept {
+        [[nodiscard]] constexpr float range_normalize(T val, T range_min, T range_max) noexcept {
             if (range_max <= range_min) return 0.0f;
             return static_cast<float>(val - range_min) / static_cast<float>(range_max - range_min);
         }
 
         // Map 0..1 normalized position back to value
         template<typename T>
-        [[nodiscard]]
-        constexpr T range_denormalize(float t, T range_min, T range_max) noexcept {
+        [[nodiscard]] constexpr T range_denormalize(float t, T range_min, T range_max) noexcept {
             if constexpr (std::integral<T>) {
-                return static_cast<T>(range_min +
-                                      static_cast<T>(t * static_cast<float>(range_max - range_min) + 0.5f));
+                return static_cast<T>(range_min + static_cast<T>(t * static_cast<float>(range_max - range_min) + 0.5f));
             } else {
                 return range_min + static_cast<T>(t) * (range_max - range_min);
             }
@@ -53,8 +50,7 @@ namespace imgui_util {
 
         // Format value for overlay text
         template<typename T>
-        [[nodiscard]]
-        fmt_buf<> range_format_value(T val, const std::string_view fmt_str) {
+        [[nodiscard]] fmt_buf<> range_format_value(T val, const std::string_view fmt_str) {
             if (!fmt_str.empty()) return fmt_buf<>(std::runtime_format(fmt_str), val);
             if constexpr (std::integral<T>)
                 return fmt_buf<>("{}", val);
@@ -65,11 +61,9 @@ namespace imgui_util {
         // Shared handle drag logic for range slider handles.
         // Returns true if value changed. Updates t and px in-place.
         template<typename T>
-        [[nodiscard]]
-        bool handle_drag(const ImGuiID handle_id, const ImRect &grab_bb, T *val, T range_min, T range_max,
-                         const float clamp_lo, const float clamp_hi, const float pos_x, const float grab_radius,
-                         const float usable, float &t,
-                         float &px) noexcept {
+        [[nodiscard]] bool handle_drag(const ImGuiID handle_id, const ImRect &grab_bb, T *val, T range_min, T range_max,
+                                       const float clamp_lo, const float clamp_hi, const float pos_x,
+                                       const float grab_radius, const float usable, float &t, float &px) noexcept {
             bool hovered = false;
             bool held    = false;
             ImGui::ButtonBehavior(grab_bb, handle_id, &hovered, &held, ImGuiButtonFlags_NoKeyModsAllowed);
@@ -92,9 +86,8 @@ namespace imgui_util {
     // Dual-handle range slider. Returns true when either value changes.
     template<typename T>
         requires std::integral<T> || std::floating_point<T>
-    [[nodiscard]]
-    bool range_slider(const char *label, T *v_min, T *v_max, T range_min, T range_max,
-                      std::string_view format = {}) {
+    [[nodiscard]] bool range_slider(const char *label, T *v_min, T *v_max, T range_min, T range_max,
+                                    std::string_view format = {}) {
         ImGuiWindow *win = ImGui::GetCurrentWindow();
         if (win->SkipItems) return false;
 
@@ -141,21 +134,21 @@ namespace imgui_util {
         // Low handle interaction
         {
             const ImRect grab_bb({px_lo - grab_radius, pos.y}, {px_lo + grab_radius, pos.y + h});
-            changed |= detail::handle_drag(id_lo, grab_bb, v_min, range_min, range_max, 0.0f, t_hi, pos.x,
-                                           grab_radius, usable, t_lo, px_lo);
+            changed |= detail::handle_drag(id_lo, grab_bb, v_min, range_min, range_max, 0.0f, t_hi, pos.x, grab_radius,
+                                           usable, t_lo, px_lo);
         }
 
         // High handle interaction
         {
             const ImRect grab_bb({px_hi - grab_radius, pos.y}, {px_hi + grab_radius, pos.y + h});
-            changed |= detail::handle_drag(id_hi, grab_bb, v_max, range_min, range_max, t_lo, 1.0f, pos.x,
-                                           grab_radius, usable, t_hi, px_hi);
+            changed |= detail::handle_drag(id_hi, grab_bb, v_max, range_min, range_max, t_lo, 1.0f, pos.x, grab_radius,
+                                           usable, t_hi, px_hi);
         }
 
         // Filled region between handles
         const ImU32 fill_col = ImGui::GetColorU32(ImGuiCol_SliderGrabActive);
-        dl->AddRectFilled({px_lo, track_y - track_height * 0.5f}, {px_hi, track_y + track_height * 0.5f},
-                          fill_col, track_height * 0.5f);
+        dl->AddRectFilled({px_lo, track_y - track_height * 0.5f}, {px_hi, track_y + track_height * 0.5f}, fill_col,
+                          track_height * 0.5f);
 
         // Draw handles
         const ImU32 grab_col     = ImGui::GetColorU32(ImGuiCol_SliderGrab);

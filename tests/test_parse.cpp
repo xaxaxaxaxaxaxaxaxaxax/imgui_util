@@ -206,7 +206,7 @@ TEST(ParseVec4, DefaultAlpha) {
 
 TEST(ParseVec4, InvalidReturnsDefault) {
     constexpr ImVec4 def = {0.1f, 0.2f, 0.3f, 0.4f};
-    const ImVec4 v   = parse_vec4("", def);
+    const ImVec4     v   = parse_vec4("", def);
     EXPECT_NEAR(v.x, 0.1f, 0.001f);
     EXPECT_NEAR(v.y, 0.2f, 0.001f);
     EXPECT_NEAR(v.z, 0.3f, 0.001f);

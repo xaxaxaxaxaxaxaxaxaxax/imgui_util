@@ -41,9 +41,8 @@ TEST(TableBuilder, AddColumnIncreasesCount) {
 // --- Column type deduction works ---
 
 TEST(TableBuilder, ColumnTypeDeduction) {
-    [[maybe_unused]]
-    auto lambda    = [](const test_row &r) { (void) r.id; };
-    using col_type = detail::table_column<decltype(lambda)>;
+    [[maybe_unused]] auto lambda = [](const test_row &r) { (void) r.id; };
+    using col_type               = detail::table_column<decltype(lambda)>;
 
     static_assert(std::is_same_v<decltype(col_type::name), std::string_view>);
     static_assert(std::is_same_v<decltype(col_type::width), float>);
@@ -53,10 +52,10 @@ TEST(TableBuilder, ColumnTypeDeduction) {
 
 TEST(TableBuilder, FluentApiCompiles) {
     const auto builder = table_builder<test_row>{}
-                       .set_id("fluent_test")
-                       .set_flags(0)
-                       .set_scroll_freeze(1, 1)
-                       .add_column("Col1", 100.0f, [](const test_row &) {
+                             .set_id("fluent_test")
+                             .set_flags(0)
+                             .set_scroll_freeze(1, 1)
+                             .add_column("Col1", 100.0f, [](const test_row &) {
     }).add_column("Col2", 0.0f, [](const test_row &) {});
     (void) builder;
 }
@@ -90,7 +89,8 @@ TEST(TableBuilder, ForwardingCtorIsPrivate) {
 // --- set_row_id accepts function pointer (M11) ---
 
 TEST(TableBuilder, SetRowIdAcceptsFunctionPointer) {
-    const auto builder = table_builder<test_row>{}.set_id("row_id_test").set_row_id(+[](const test_row &r) {
+    const auto builder =
+        table_builder<test_row>{}.set_id("row_id_test").set_row_id(+[](const test_row &r) {
         return r.id;
     }).add_column("ID", 50.0f, [](const test_row &) {});
     (void) builder;
@@ -99,7 +99,8 @@ TEST(TableBuilder, SetRowIdAcceptsFunctionPointer) {
 // --- set_row_id accepts stateless lambda ---
 
 TEST(TableBuilder, SetRowIdAcceptsStatelessLambda) {
-    const auto builder = table_builder<test_row>{}.set_id("row_id_test").set_row_id([](const test_row &r) {
+    const auto builder =
+        table_builder<test_row>{}.set_id("row_id_test").set_row_id([](const test_row &r) {
         return r.id;
     }).add_column("ID", 50.0f, [](const test_row &) {});
     (void) builder;
@@ -108,10 +109,9 @@ TEST(TableBuilder, SetRowIdAcceptsStatelessLambda) {
 // --- set_row_id accepts stateful callables ---
 
 TEST(TableBuilder, SetRowIdAcceptsStatefulCallable) {
-    int  const offset  = 100;
-    const auto builder = table_builder<test_row>{}
-                       .set_id("row_id_stateful")
-                       .set_row_id([](const test_row &r) {
+    const int  offset = 100;
+    const auto builder =
+        table_builder<test_row>{}.set_id("row_id_stateful").set_row_id([](const test_row &r) {
         return r.id + offset;
     }).add_column("ID", 50.0f, [](const test_row &) {});
     (void) builder;
@@ -119,18 +119,18 @@ TEST(TableBuilder, SetRowIdAcceptsStatefulCallable) {
 
 TEST(TableBuilder, SetRowIdAcceptsStdFunction) {
     std::function<int(const test_row &)> fn      = [](const test_row &r) { return r.id; };
-    const auto                                 builder = table_builder<test_row>{}
-                       .set_id("row_id_stdfn")
-                       .set_row_id(std::move(fn))
-                       .add_column("ID", 50.0f, [](const test_row &) {});
+    const auto                           builder = table_builder<test_row>{}
+                             .set_id("row_id_stdfn")
+                             .set_row_id(std::move(fn))
+                             .add_column("ID", 50.0f, [](const test_row &) {});
     (void) builder;
 }
 
 // --- render overload for arbitrary sized ranges compiles ---
 
 TEST(TableBuilder, RenderOverloadForSizedRange) {
-    [[maybe_unused]]
-    auto builder = table_builder<test_row>{}.set_id("range_test").add_column("ID", 50.0f, [](const test_row &) {});
+    [[maybe_unused]] auto builder =
+        table_builder<test_row>{}.set_id("range_test").add_column("ID", 50.0f, [](const test_row &) {});
 
     static_assert(requires { builder.render(std::declval<std::vector<test_row> &>()); });
     static_assert(requires { builder.render(std::declval<std::vector<test_row> &>(), 100.0f); });
@@ -140,14 +140,12 @@ TEST(TableBuilder, RenderOverloadForSizedRange) {
 
 TEST(TableBuilder, ColumnRendererConceptAcceptsValid) {
     static_assert(column_renderer<void (*)(const test_row &), test_row>);
-    [[maybe_unused]]
-    auto valid_lambda = [](const test_row &) {};
+    [[maybe_unused]] auto valid_lambda = [](const test_row &) {};
     static_assert(column_renderer<decltype(valid_lambda), test_row>);
 }
 
 TEST(TableBuilder, ColumnRendererConceptRejectsNonVoid) {
-    [[maybe_unused]]
-    auto returns_int = [](const test_row &) { return 42; };
+    [[maybe_unused]] auto returns_int = [](const test_row &) { return 42; };
     static_assert(!column_renderer<decltype(returns_int), test_row>);
 }
 
@@ -222,7 +220,7 @@ TEST(TableBuilder, MultiColumnSortComparators) {
     };
 
     // Comparators indexed by column
-    using cmp_fn                      = bool (*)(const test_row &, const test_row &);
+    using cmp_fn                                = bool (*)(const test_row &, const test_row &);
     constexpr std::array<cmp_fn, 3> comparators = {
         +[](const test_row &a, const test_row &b) { return a.id < b.id; },
         +[](const test_row &a, const test_row &b) { return std::string_view(a.name) < std::string_view(b.name); },
@@ -277,7 +275,7 @@ TEST(TableBuilder, MultiColumnSortDescending) {
 
 TEST(TableBuilder, SelectionToggleInsert) {
     std::unordered_set<int> selection;
-    constexpr int                     rid = 42;
+    constexpr int           rid = 42;
 
     // Simulate clicking a row: if not selected, insert
     const bool was_selected = selection.contains(rid);
@@ -298,7 +296,7 @@ TEST(TableBuilder, SelectionToggleInsert) {
 
 TEST(TableBuilder, SelectionToggleRemove) {
     std::unordered_set<int> selection = {42, 7};
-    constexpr int                     rid       = 42;
+    constexpr int           rid       = 42;
 
     const bool was_selected = selection.contains(rid);
     EXPECT_TRUE(was_selected);
@@ -340,7 +338,7 @@ TEST(TableBuilder, SelectionMultipleRows) {
 
 TEST(TableBuilder, SetSelectionCompiles) {
     std::unordered_set<int> sel;
-    const auto                    builder =
+    const auto              builder =
         table_builder<test_row>{}.set_id("sel_test").set_selection(&sel).add_column("ID", 50.0f, [](const test_row &) {
     });
     (void) builder;
@@ -370,8 +368,8 @@ TEST(TableBuilder, SortIfDirtyRequiresTotallyOrdered) {
 // --- Non-random-access range compiles (std::list) ---
 
 TEST(TableBuilder, NonRandomAccessRangeCompiles) {
-    [[maybe_unused]]
-    auto builder = table_builder<test_row>{}.set_id("list_test").add_column("ID", 50.0f, [](const test_row &) {});
+    [[maybe_unused]] auto builder =
+        table_builder<test_row>{}.set_id("list_test").add_column("ID", 50.0f, [](const test_row &) {});
 
     static_assert(requires { builder.render(std::declval<std::list<test_row> &>()); });
     static_assert(requires { builder.render_clipped(std::declval<std::list<test_row> &>()); });
@@ -406,7 +404,7 @@ TEST(TableBuilder, FilterWithEmptyPredicate) {
     EXPECT_FALSE(static_cast<bool>(filter));
 
     const std::vector<test_row> data = {{1, "a", 1.0f}, {2, "b", 2.0f}};
-    std::vector<test_row> result;
+    std::vector<test_row>       result;
     for (const auto &row: data) {
         if (!filter || filter(row)) result.push_back(row);
     }
@@ -419,8 +417,8 @@ TEST(TableBuilder, CtrlClickToggleSelect) {
     std::unordered_set<int> selection = {1, 3};
 
     // Ctrl+click on row 2: add it without clearing
-    constexpr bool shift        = false;
-    constexpr int  rid          = 2;
+    constexpr bool shift = false;
+    constexpr int  rid   = 2;
 
     if (constexpr int last_clicked = 1; shift && last_clicked >= 0) {
         constexpr int lo = std::min(last_clicked, rid);
@@ -464,7 +462,7 @@ TEST(TableBuilder, CtrlClickToggleDeselect) {
 
 TEST(TableBuilder, ShiftClickRangeSelect) {
     std::unordered_set<int> selection;
-    constexpr int                     last_clicked = 2;
+    constexpr int           last_clicked = 2;
 
     // Shift+click on row 5: select range [2, 5]
     constexpr bool shift = true;
@@ -486,10 +484,10 @@ TEST(TableBuilder, ShiftClickRangeSelect) {
 
 TEST(TableBuilder, ShiftClickRangeSelectReverse) {
     std::unordered_set<int> selection;
-    constexpr int                     last_clicked = 5;
+    constexpr int           last_clicked = 5;
 
     // Shift+click on row 2 (reverse direction): select range [2, 5]
-    constexpr int       rid = 2;
+    constexpr int rid = 2;
     constexpr int lo  = std::min(last_clicked, rid);
     constexpr int hi  = std::max(last_clicked, rid);
     for (int r = lo; r <= hi; ++r)
@@ -541,8 +539,8 @@ TEST(TableBuilder, SetFilterIsRvalueQualified) {
 // --- render_single_row renamed from row ---
 
 TEST(TableBuilder, RenderSingleRowCompiles) {
-    [[maybe_unused]]
-    auto builder = table_builder<test_row>{}.set_id("render_test").add_column("ID", 50.0f, [](const test_row &) {});
+    [[maybe_unused]] auto builder =
+        table_builder<test_row>{}.set_id("render_test").add_column("ID", 50.0f, [](const test_row &) {});
 
     static_assert(requires { builder.render_single_row(std::declval<const test_row &>()); });
 }

@@ -33,28 +33,28 @@ namespace imgui_util {
     public:
         menu_bar_builder() noexcept { entries_.reserve(8); }
 
-        template<std::invocable<menu_bar_builder&> Fn>
-        [[nodiscard]] menu_bar_builder& menu(const char* label, Fn&& content) {
+        template<std::invocable<menu_bar_builder &> Fn>
+        [[nodiscard]] menu_bar_builder &menu(const char *label, Fn &&content) {
             menu_bar_builder sub;
             std::forward<Fn>(content)(sub);
-            entries_.push_back({detail::menu_entry_type::submenu, label, {}, nullptr, nullptr, true,
-                                std::move(sub.entries_)});
+            entries_.push_back(
+                {detail::menu_entry_type::submenu, label, {}, nullptr, nullptr, true, std::move(sub.entries_)});
             return *this;
         }
 
-        [[nodiscard]] menu_bar_builder& item(const char* label, std::move_only_function<void()> action,
-                                             const char* shortcut = nullptr, const bool enabled = true) {
+        [[nodiscard]] menu_bar_builder &item(const char *label, std::move_only_function<void()> action,
+                                             const char *shortcut = nullptr, const bool enabled = true) {
             entries_.push_back(
                 {detail::menu_entry_type::item, label, std::move(action), shortcut, nullptr, enabled, {}});
             return *this;
         }
 
-        [[nodiscard]] menu_bar_builder& separator() {
+        [[nodiscard]] menu_bar_builder &separator() {
             entries_.push_back({detail::menu_entry_type::separator, nullptr, {}, nullptr, nullptr, true, {}});
             return *this;
         }
 
-        [[nodiscard]] menu_bar_builder& checkbox(const char* label, bool* value) {
+        [[nodiscard]] menu_bar_builder &checkbox(const char *label, bool *value) {
             entries_.push_back({detail::menu_entry_type::checkbox, label, {}, nullptr, value, true, {}});
             return *this;
         }

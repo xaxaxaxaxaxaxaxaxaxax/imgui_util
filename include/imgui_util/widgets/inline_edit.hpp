@@ -25,8 +25,7 @@
 namespace imgui_util {
 
     // Returns true when the user commits an edit (Enter key).
-    [[nodiscard]]
-    inline bool inline_edit(const char *str_id, std::string &text, const float width = 0.0f) noexcept {
+    [[nodiscard]] inline bool inline_edit(const char *str_id, std::string &text, const float width = 0.0f) noexcept {
         if (const auto *const win = ImGui::GetCurrentWindow(); win->SkipItems) return false;
 
         const id scope{str_id};
@@ -56,8 +55,7 @@ namespace imgui_util {
 
             ImGui::SetNextItemWidth(width > 0.0f ? width : -1.0f);
 
-            if (ImGui::InputText("##input", edit_buf.data(), edit_buf.size(),
-                                 ImGuiInputTextFlags_EnterReturnsTrue)) {
+            if (ImGui::InputText("##input", edit_buf.data(), edit_buf.size(), ImGuiInputTextFlags_EnterReturnsTrue)) {
                 text         = edit_buf.data();
                 *editing_val = 0;
                 *init_val    = 0;

@@ -111,10 +111,10 @@ TEST(MatchesAny, AllFieldsEmpty) {
 }
 
 TEST(MatchesAny, ManyFields) {
-    EXPECT_TRUE(matches_any("d", std::string_view{"a"}, std::string_view{"b"}, std::string_view{"c"},
-                            std::string_view{"d"}));
-    EXPECT_FALSE(matches_any("e", std::string_view{"a"}, std::string_view{"b"}, std::string_view{"c"},
-                             std::string_view{"d"}));
+    EXPECT_TRUE(
+        matches_any("d", std::string_view{"a"}, std::string_view{"b"}, std::string_view{"c"}, std::string_view{"d"}));
+    EXPECT_FALSE(
+        matches_any("e", std::string_view{"a"}, std::string_view{"b"}, std::string_view{"c"}, std::string_view{"d"}));
 }
 
 // --- search_bar default state ---
@@ -175,14 +175,14 @@ TEST(CopyToBuffer, EmptySource) {
 }
 
 TEST(CopyToBuffer, SpanOverload) {
-    std::array<char, 8> buf{};
+    std::array<char, 8>      buf{};
     const std::span<char, 8> s{buf};
     EXPECT_TRUE(copy_to_buffer(s, "test"));
     EXPECT_STREQ(buf.data(), "test");
 }
 
 TEST(CopyToBuffer, SpanOverloadTruncation) {
-    std::array<char, 3> buf{};
+    std::array<char, 3>      buf{};
     const std::span<char, 3> s{buf};
     EXPECT_FALSE(copy_to_buffer(s, "abcdef"));
     EXPECT_STREQ(buf.data(), "ab");
@@ -191,7 +191,7 @@ TEST(CopyToBuffer, SpanOverloadTruncation) {
 TEST(CopyToBuffer, NullTerminated) {
     std::array<char, 2> buf{};
     buf.fill('X');
-    (void)copy_to_buffer(buf, "A");
+    (void) copy_to_buffer(buf, "A");
     EXPECT_EQ(buf[0], 'A');
     EXPECT_EQ(buf[1], '\0');
 }

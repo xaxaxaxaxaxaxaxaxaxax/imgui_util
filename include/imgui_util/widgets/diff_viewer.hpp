@@ -34,7 +34,7 @@ namespace imgui_util {
                     const std::span<const diff_line> right, const std::string_view left_label = "Before",
                     const std::string_view right_label = "After") const {
             const fmt_buf<64> id_str{"{}", str_id};
-            const id scope{id_str.c_str()};
+            const id          scope{id_str.c_str()};
 
             const ImVec2 avail = ImGui::GetContentRegionAvail();
             const float  half  = (avail.x * 0.5f) - 4.0f;
@@ -48,9 +48,9 @@ namespace imgui_util {
             ImGui::TextUnformatted(right_label.data(), right_label.data() + right_label.size());
 
             // Synchronize scroll positions
-            auto       *storage    = ImGui::GetStateStorage();
-            const auto  scroll_key = ImGui::GetID("##diff_scroll_y");
-            float       scroll_sync = storage->GetFloat(scroll_key, 0.0f);
+            auto      *storage     = ImGui::GetStateStorage();
+            const auto scroll_key  = ImGui::GetID("##diff_scroll_y");
+            float      scroll_sync = storage->GetFloat(scroll_key, 0.0f);
 
             // Left pane
             float left_scroll = scroll_sync;
@@ -80,8 +80,7 @@ namespace imgui_util {
             storage->SetFloat(scroll_key, scroll_sync);
         }
 
-        [[nodiscard]]
-        diff_viewer &set_line_numbers(const bool show) noexcept {
+        [[nodiscard]] diff_viewer &set_line_numbers(const bool show) noexcept {
             show_line_numbers_ = show;
             return *this;
         }
@@ -89,13 +88,16 @@ namespace imgui_util {
     private:
         bool show_line_numbers_ = true;
 
-        [[nodiscard]]
-        static ImU32 bg_color(const diff_kind kind) noexcept {
+        [[nodiscard]] static ImU32 bg_color(const diff_kind kind) noexcept {
             switch (kind) {
-                case diff_kind::added:   return IM_COL32(26, 58, 26, 255);
-                case diff_kind::removed: return IM_COL32(58, 26, 26, 255);
-                case diff_kind::changed: return IM_COL32(58, 58, 26, 255);
-                case diff_kind::same:    return IM_COL32(0, 0, 0, 0);
+                case diff_kind::added:
+                    return IM_COL32(26, 58, 26, 255);
+                case diff_kind::removed:
+                    return IM_COL32(58, 26, 26, 255);
+                case diff_kind::changed:
+                    return IM_COL32(58, 58, 26, 255);
+                case diff_kind::same:
+                    return IM_COL32(0, 0, 0, 0);
             }
             return IM_COL32(0, 0, 0, 0);
         }

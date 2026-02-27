@@ -99,14 +99,13 @@ namespace imgui_util {
     }
 
     // Collapsing section helper
-    [[nodiscard]]
-    inline bool section(const char *label, const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen) noexcept {
+    [[nodiscard]] inline bool section(const char              *label,
+                                      const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen) noexcept {
         return ImGui::CollapsingHeader(label, flags);
     }
 
     // Null-pointer validation with inactive text fallback
-    [[nodiscard]]
-    inline bool require_valid(const void *ptr, const std::string_view message) noexcept {
+    [[nodiscard]] inline bool require_valid(const void *ptr, const std::string_view message) noexcept {
         if (ptr == nullptr) {
             inactive_text(message);
             return false;
@@ -121,8 +120,7 @@ namespace imgui_util {
                                  const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen) noexcept :
             open_(ImGui::CollapsingHeader(title, flags)) {}
 
-        [[nodiscard]]
-        section_builder &require_valid(const void *ptr, const std::string_view message) noexcept {
+        [[nodiscard]] section_builder &require_valid(const void *ptr, const std::string_view message) noexcept {
             if (open_ && ptr == nullptr) {
                 inactive_text(message);
                 open_ = false;
@@ -135,10 +133,7 @@ namespace imgui_util {
             if (open_) std::forward<Fn>(fn)();
         }
 
-        [[nodiscard]]
-        explicit operator bool() const noexcept {
-            return open_;
-        }
+        [[nodiscard]] explicit operator bool() const noexcept { return open_; }
 
     private:
         bool open_;
@@ -156,8 +151,7 @@ namespace imgui_util {
     // Safe copy of string_view to fixed-size buffer. Always null-terminates.
     // Returns true if src fit entirely; false if truncated.
     template<size_t N>
-    [[nodiscard]]
-    constexpr bool copy_to_buffer(std::span<char, N> buf, const std::string_view src) noexcept {
+    [[nodiscard]] constexpr bool copy_to_buffer(std::span<char, N> buf, const std::string_view src) noexcept {
         static_assert(N > 0, "Buffer must have at least one byte for null terminator");
         const size_t len = std::min(src.size(), N - 1);
         std::copy_n(src.begin(), len, buf.data());
@@ -166,8 +160,7 @@ namespace imgui_util {
     }
 
     template<size_t N>
-    [[nodiscard]]
-    constexpr bool copy_to_buffer(std::array<char, N> &buf, const std::string_view src) noexcept {
+    [[nodiscard]] constexpr bool copy_to_buffer(std::array<char, N> &buf, const std::string_view src) noexcept {
         return copy_to_buffer(std::span<char, N>{buf}, src);
     }
 

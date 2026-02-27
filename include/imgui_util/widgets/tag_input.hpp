@@ -27,8 +27,7 @@
 
 namespace imgui_util {
 
-    [[nodiscard]]
-    inline bool tag_input(const char *label, std::vector<std::string> &tags, const int max_tags = 0) {
+    [[nodiscard]] inline bool tag_input(const char *label, std::vector<std::string> &tags, const int max_tags = 0) {
         if (const auto *const win = ImGui::GetCurrentWindow(); win->SkipItems) return false;
 
         const id scope{label};
@@ -62,7 +61,7 @@ namespace imgui_util {
 
             // Wrap to next line if needed
             if (cursor_x + pill_width > wrap_width && cursor_x > 0.0f) {
-                cursor_x  = 0.0f;
+                cursor_x = 0.0f;
                 cursor_y += line_height + style.ItemSpacing.y;
             }
 
@@ -109,7 +108,7 @@ namespace imgui_util {
             // Wrap input to next line if not enough space
             constexpr float input_min_w = 80.0f;
             if (cursor_x + input_min_w > wrap_width && cursor_x > 0.0f) {
-                cursor_x  = 0.0f;
+                cursor_x = 0.0f;
                 cursor_y += line_height + style.ItemSpacing.y;
             }
 
